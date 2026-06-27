@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 245 246 253;
+  --foreground: 225 16% 14%;
+  --card: 0 0% 100%;
+  --card-foreground: 225 16% 14%;
+  --muted: 232 42% 94%;
+  --muted-foreground: 226 15% 40%;
+  --border: 228 34% 86%;
+  --input: 228 34% 86%;
+  --ring: 217 91% 60%;
+  --primary: 216 100% 44%;
+  --primary-foreground: 0 0% 100%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  min-height: 100vh;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgba(0, 91, 211, 0.16);
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
