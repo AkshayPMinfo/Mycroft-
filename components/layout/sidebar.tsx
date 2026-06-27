@@ -8,7 +8,6 @@ import {
   BrainCircuit,
   Bug,
   FolderKanban,
-  Github,
   MessageSquare,
   Settings,
   Sparkles,
@@ -65,7 +64,7 @@ export function Sidebar() {
         </nav>
 
         <div className="mt-auto space-y-5 border-t pt-5">
-          <Button className="h-12 w-full rounded-xl" variant="primary">
+          <Button className="h-12 w-full rounded-xl" variant="primary" onClick={() => window.location.assign("/chat")}>
             <Sparkles className="size-4" />
             Ask Mycroft
           </Button>
@@ -79,8 +78,8 @@ export function Sidebar() {
           </div>
         </div>
       </aside>
-      <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-6 rounded-2xl border bg-white/90 p-2 shadow-soft backdrop-blur-xl lg:hidden">
-        {navItems.slice(0, 6).map((item) => {
+      <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-7 rounded-2xl border bg-white/90 p-2 shadow-soft backdrop-blur-xl lg:hidden">
+        {navItems.map((item) => {
           const active = pathname === item.href || (pathname === "/" && item.href === "/command-center");
           const Icon = item.icon;
           return (

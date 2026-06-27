@@ -1,4 +1,8 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import { Bell, Gauge, Sparkles } from "lucide-react";
+import { ActionStatus } from "@/components/ui/action-status";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { Card } from "@/components/ui/card";
 import { CommandComposer } from "@/components/ui/command-composer";
@@ -6,9 +10,9 @@ import { Progress } from "@/components/ui/progress";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Topbar } from "@/components/layout/topbar";
 import { CriticalBugCards } from "@/features/command-center/critical-bugs";
-import { PriorityList } from "@/features/command-center/priority-list";
+import { PriorityList, type PriorityTask } from "@/features/command-center/priority-list";
 import { SummaryCard } from "@/features/command-center/summary-card";
-import { projects } from "@/data/mock";
+import { mycroftApi, type ActionResult } from "@/lib/mock-api";
 import { cn } from "@/lib/utils";
 
 const accentClasses = {
@@ -18,24 +22,47 @@ const accentClasses = {
 };
 
 export default function CommandCenterPage() {
-  const activeProjects = projects.slice(0, 2);
+  const data = useMemo(() => mycroftApi.commandCenter(), []);
+  const [priorities, setPriorities] = useState<PriorityTask[]>(data.priorities);
+  const [actionResult, setActionResult] = useState<ActionResult | null>(null);
+  const activeProjects = data.projects.slice(0, 2);
+
+  function handleTogglePriority(task: PriorityTask) {
+    const nextDone = !task.done;
+    setPriorities((current) => current.map((item) => (item.label === task.label ? { ...item, done: nextDone } : item)));
+    setActionResult(mycroftApi.actions.togglePriority(task.label, nextDone));
+  }
 
   return (
     <>
-      <Topbar title="Command Center" searchPlaceholder="Search command center..." compact />
+      <Topbar
+        title="Command Center"
+        searchPlaceholder="Search command center..."
+        compact
+        onNotifications={() => setActionResult(mycroftApi.actions.viewAlerts())}
+        onHelp={() => setActionResult(mycroftApi.actions.askMycroft("Opened Command Center help."))}
+      />
       <AnimatedPage>
         <div className="mx-auto max-w-[980px] px-5 py-9 lg:px-10">
           <h2 className="mb-3 text-3xl font-bold tracking-[-0.04em] text-slate-950">Good morning, Alex.</h2>
+          <ActionStatus result={actionResult} className="mb-5" />
           <SummaryCard />
 
           <section className="mt-12 grid gap-6 lg:grid-cols-[290px_1fr]">
             <div>
-              <SectionHeader title="Today's Priorities" action={<span className="text-sm font-semibold text-slate-500">4 Tasks</span>} />
-              <PriorityList />
+              <SectionHeader title="Today's Priorities" action={<span className="text-sm font-semibold text-slate-500">{priorities.length} Tasks</span>} />
+              <PriorityList tasks={priorities} onToggle={handleTogglePriority} />
             </div>
             <div>
-              <SectionHeader title="Critical Bugs" action={<a className="text-sm font-bold text-primary">View All Alerts</a>} />
-              <CriticalBugCards />
+              <SectionHeader
+                title="Critical Bugs"
+                action={
+                  <button type="button" onClick={() => setActionResult(mycroftApi.actions.viewAlerts())} className="text-sm font-bold text-primary">
+                    View All Alerts
+                  </button>
+                }
+              />
+              <CriticalBugCards bugs={data.criticalBugs} />
             </div>
           </section>
 
@@ -70,13 +97,24 @@ export default function CommandCenterPage() {
                 <p className="mb-6 leading-relaxed text-slate-600">
                   Based on GitHub activity, Mycroft suggests archiving 4 stale branches in NotifyMe to reduce CI/CD overhead.
                 </p>
-                <button className="rounded-full bg-primary px-6 py-3 text-sm font-bold text-white">Optimize Repository</button>
+                <button
+                  type="button"
+                  onClick={() => setActionResult(mycroftApi.actions.optimizeRepository())}
+                  className="rounded-full bg-primary px-6 py-3 text-sm font-bold text-white transition hover:bg-blue-700"
+                >
+                  Optimize Repository
+                </button>
               </Card>
             </div>
           </section>
 
           <div className="sticky bottom-4 mx-auto mt-6 max-w-[640px]">
-            <CommandComposer placeholder="Ask Mycroft anything..." />
+            <CommandComposer
+              placeholder="Ask Mycroft anything..."
+              submitLabel="Ask Mycroft"
+              statusLabel={actionResult?.title}
+              onSubmit={(prompt) => setActionResult(mycroftApi.actions.askMycroft(prompt))}
+            />
           </div>
         </div>
       </AnimatedPage>

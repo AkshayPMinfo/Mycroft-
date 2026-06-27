@@ -11,7 +11,10 @@ const accentClasses: Record<Project["accent"], string> = {
   orange: "bg-orange-100 text-orange-700"
 };
 
-export function ProjectCard({ project }: Readonly<{ project: Project }>) {
+export function ProjectCard({
+  project,
+  onOpen
+}: Readonly<{ project: Project; onOpen?: (project: Project) => void }>) {
   const Icon = project.accent === "blue" ? Bell : project.accent === "violet" ? FileText : Gauge;
   return (
     <Card className="p-6 transition hover:-translate-y-0.5 hover:shadow-soft">
@@ -68,7 +71,7 @@ export function ProjectCard({ project }: Readonly<{ project: Project }>) {
         </p>
         <p className="leading-relaxed text-slate-600">{project.recommendation}</p>
       </div>
-      <Button className="mt-4 w-full" variant="dark">
+      <Button className="mt-4 w-full" variant="dark" onClick={() => onOpen?.(project)}>
         Open Workspace
         <ArrowRight className="size-4" />
       </Button>

@@ -1,4 +1,8 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import { ArrowRight, Bot, Bug, Download, GitBranch, GitCommitVertical, MessageSquare, RefreshCw, Shield, UserRound } from "lucide-react";
+import { ActionStatus } from "@/components/ui/action-status";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -7,10 +11,14 @@ import { Progress } from "@/components/ui/progress";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatusBadge } from "@/components/ui/badge";
 import { Topbar } from "@/components/layout/topbar";
-import { commits, pullRequests, recommendations, repository } from "@/data/mock";
+import { mycroftApi, type ActionResult } from "@/lib/mock-api";
 import { cn } from "@/lib/utils";
 
 export default function GitHubPage() {
+  const data = useMemo(() => mycroftApi.github(), []);
+  const [actionResult, setActionResult] = useState<ActionResult | null>(null);
+  const { commits, pullRequests, recommendations, repository } = data;
+
   return (
     <>
       <Topbar
@@ -20,9 +28,13 @@ export default function GitHubPage() {
           </span>
         }
         searchPlaceholder="Search repository..."
+        onSearch={(query) => setActionResult(mycroftApi.actions.search("Repository", query))}
+        onNotifications={() => setActionResult(mycroftApi.actions.viewAlerts())}
+        onHelp={() => setActionResult(mycroftApi.actions.askMycroft("Opened GitHub Intelligence help."))}
       />
       <AnimatedPage>
         <div className="mx-auto max-w-[980px] px-5 py-9 lg:px-10">
+          <ActionStatus result={actionResult} className="mb-6" />
           <div className="mb-10 flex flex-wrap items-end justify-between gap-5">
             <div>
               <div className="mb-3 flex items-center gap-3">
@@ -35,11 +47,11 @@ export default function GitHubPage() {
               </p>
             </div>
             <div className="flex gap-3">
-              <Button variant="secondary">
+              <Button variant="secondary" onClick={() => setActionResult(mycroftApi.actions.exportReport())}>
                 <Download className="size-4" />
                 Export Report
               </Button>
-              <Button>
+              <Button onClick={() => setActionResult(mycroftApi.actions.rescanCodebase())}>
                 <RefreshCw className="size-4" />
                 Re-scan Codebase
               </Button>
@@ -75,7 +87,14 @@ export default function GitHubPage() {
             </Card>
 
             <Card className="p-8">
-              <SectionHeader title="Recent Commits" action={<a className="text-sm font-bold text-primary">View all</a>} />
+              <SectionHeader
+                title="Recent Commits"
+                action={
+                  <button type="button" onClick={() => setActionResult(mycroftApi.actions.viewCommits())} className="text-sm font-bold text-primary">
+                    View all
+                  </button>
+                }
+              />
               <div className="relative space-y-8 pl-16 before:absolute before:left-6 before:top-8 before:h-[calc(100%-64px)] before:w-px before:bg-slate-300">
                 {commits.map((commit) => (
                   <div key={commit.id} className="relative">
@@ -167,16 +186,25 @@ export default function GitHubPage() {
                   </span>
                   <h3 className="mb-3 font-bold text-slate-950">{rec.title}</h3>
                   <p className="mb-5 text-sm leading-6 text-slate-600">{rec.body}</p>
-                  <a className="inline-flex items-center gap-1 text-sm font-bold text-primary">
+                  <button
+                    type="button"
+                    onClick={() => setActionResult(mycroftApi.actions.applyRecommendation(rec.title))}
+                    className="inline-flex items-center gap-1 text-sm font-bold text-primary"
+                  >
                     {rec.action} <ArrowRight className="size-4" />
-                  </a>
+                  </button>
                 </Card>
               ))}
             </div>
           </section>
 
           <div className="sticky bottom-4 mx-auto mt-6 max-w-[500px]">
-            <CommandComposer placeholder="Ask Mycroft about your code..." />
+            <CommandComposer
+              placeholder="Ask Mycroft about your code..."
+              submitLabel="Ask about code"
+              statusLabel={actionResult?.title}
+              onSubmit={(prompt) => setActionResult(mycroftApi.actions.askCodebase(prompt))}
+            />
           </div>
         </div>
       </AnimatedPage>

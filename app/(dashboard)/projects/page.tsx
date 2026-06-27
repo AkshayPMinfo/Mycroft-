@@ -1,4 +1,8 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import { Sparkles } from "lucide-react";
+import { ActionStatus } from "@/components/ui/action-status";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { Card } from "@/components/ui/card";
 import { CommandComposer } from "@/components/ui/command-composer";
@@ -6,28 +10,45 @@ import { Progress } from "@/components/ui/progress";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Topbar } from "@/components/layout/topbar";
 import { ProjectCard } from "@/features/projects/project-card";
-import { deployments, projects } from "@/data/mock";
+import { mycroftApi, type ActionResult } from "@/lib/mock-api";
 
 export default function ProjectsPage() {
+  const data = useMemo(() => mycroftApi.projects(), []);
+  const [actionResult, setActionResult] = useState<ActionResult | null>(null);
+
   return (
     <>
-      <Topbar title="Projects" searchPlaceholder="Search projects..." />
+      <Topbar
+        title="Projects"
+        searchPlaceholder="Search projects..."
+        onSearch={(query) => setActionResult(mycroftApi.actions.search("Projects", query))}
+        onNotifications={() => setActionResult(mycroftApi.actions.viewAlerts())}
+        onHelp={() => setActionResult(mycroftApi.actions.askMycroft("Opened Projects help."))}
+      />
       <AnimatedPage>
         <div className="mx-auto max-w-[980px] px-5 py-9 lg:px-10">
           <h2 className="text-3xl font-bold tracking-[-0.04em] text-slate-950">Good morning, Alex.</h2>
           <p className="mt-3 text-lg text-slate-600">You have 4 active projects and 3 pending AI recommendations.</p>
+          <ActionStatus result={actionResult} className="mt-5" />
 
           <section className="mt-12 grid gap-6 md:grid-cols-2">
-            {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} />
+            {data.projects.map((project) => (
+              <ProjectCard key={project.id} project={project} onOpen={(selectedProject) => setActionResult(mycroftApi.actions.openProject(selectedProject.name))} />
             ))}
           </section>
 
           <section className="mt-12 grid gap-6 lg:grid-cols-[1fr_290px]">
             <Card className="p-8">
-              <SectionHeader title="Recent Deployments" action={<a className="text-sm font-bold text-primary">View History</a>} />
+              <SectionHeader
+                title="Recent Deployments"
+                action={
+                  <button type="button" onClick={() => setActionResult(mycroftApi.actions.viewDeployments())} className="text-sm font-bold text-primary">
+                    View History
+                  </button>
+                }
+              />
               <div className="space-y-6">
-                {deployments.map((deployment) => {
+                {data.deployments.map((deployment) => {
                   const Icon = deployment.icon;
                   return (
                     <div key={deployment.name} className="flex items-center gap-4">
@@ -56,7 +77,12 @@ export default function ProjectsPage() {
           </section>
 
           <div className="sticky bottom-4 mx-auto mt-6 max-w-[560px]">
-            <CommandComposer placeholder="Tell Mycroft to fix a bug or deploy a project..." actionLabel="Run" />
+            <CommandComposer
+              placeholder="Tell Mycroft to fix a bug or deploy a project..."
+              actionLabel="Run"
+              statusLabel={actionResult?.title}
+              onSubmit={(command) => setActionResult(mycroftApi.actions.runProjectCommand(command))}
+            />
           </div>
         </div>
       </AnimatedPage>

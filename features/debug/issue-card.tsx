@@ -5,7 +5,15 @@ import { StatusBadge } from "@/components/ui/badge";
 import type { DebugIssue } from "@/types/domain";
 import { cn } from "@/lib/utils";
 
-export function IssueCard({ issue }: Readonly<{ issue: DebugIssue }>) {
+export function IssueCard({
+  issue,
+  onGenerateFix,
+  onOpenLogs
+}: Readonly<{
+  issue: DebugIssue;
+  onGenerateFix?: (issue: DebugIssue) => void;
+  onOpenLogs?: (issue: DebugIssue) => void;
+}>) {
   return (
     <Card className="relative overflow-hidden p-0">
       <div className={cn("absolute inset-y-0 left-0 w-1.5", issue.color === "red" ? "bg-red-600" : "bg-orange-600")} />
@@ -32,11 +40,11 @@ export function IssueCard({ issue }: Readonly<{ issue: DebugIssue }>) {
           </p>
           <p className="leading-7 text-slate-600">{issue.suggestedFix}</p>
           <div className="mt-auto space-y-3 pt-8">
-            <Button className="w-full">
+            <Button className="w-full" onClick={() => onGenerateFix?.(issue)}>
               <WandSparkles className="size-4" />
               Generate Fix
             </Button>
-            <Button className="w-full" variant="secondary">
+            <Button className="w-full" variant="secondary" onClick={() => onOpenLogs?.(issue)}>
               <FileTerminal className="size-4" />
               Open Logs
             </Button>

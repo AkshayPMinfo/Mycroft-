@@ -1,14 +1,26 @@
-import { Bot, BrainCircuit, Cpu, Flag, Lightbulb, Sparkles } from "lucide-react";
+"use client";
+
+import { useMemo, useState } from "react";
+import { Bot, BrainCircuit, Cpu, Sparkles } from "lucide-react";
+import { ActionStatus } from "@/components/ui/action-status";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { Card } from "@/components/ui/card";
 import { CommandComposer } from "@/components/ui/command-composer";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatusBadge } from "@/components/ui/badge";
 import { Topbar } from "@/components/layout/topbar";
-import { architectureNotes, learnings, longTermGoals, memoryDecisions } from "@/data/mock";
+import { mycroftApi, type ActionResult } from "@/lib/mock-api";
 import { cn } from "@/lib/utils";
 
 export default function MemoryPage() {
+  const data = useMemo(() => mycroftApi.memories(), []);
+  const [query, setQuery] = useState("");
+  const [actionResult, setActionResult] = useState<ActionResult | null>(null);
+  const normalizedQuery = query.toLowerCase();
+  const memoryDecisions = data.memoryDecisions.filter((entry) => `${entry.title} ${entry.body} ${entry.project ?? ""}`.toLowerCase().includes(normalizedQuery));
+  const architectureNotes = data.architectureNotes.filter((entry) => `${entry.title} ${entry.body}`.toLowerCase().includes(normalizedQuery));
+  const learnings = data.learnings.filter((entry) => `${entry.title} ${entry.body}`.toLowerCase().includes(normalizedQuery));
+
   return (
     <>
       <Topbar
@@ -19,6 +31,12 @@ export default function MemoryPage() {
           </span>
         }
         searchPlaceholder="Recall a memory..."
+        onSearch={(nextQuery) => {
+          setQuery(nextQuery);
+          setActionResult(mycroftApi.actions.search("Memory", nextQuery));
+        }}
+        onNotifications={() => setActionResult(mycroftApi.actions.viewAlerts())}
+        onHelp={() => setActionResult(mycroftApi.actions.askMycroft("Opened Memory help."))}
       />
       <AnimatedPage>
         <div className="relative mx-auto max-w-[980px] overflow-hidden px-5 py-11 lg:px-10">
@@ -26,10 +44,11 @@ export default function MemoryPage() {
           <p className="mt-4 max-w-xl text-lg leading-8 text-slate-600">
             Every decision, architectural pivot, and technical learning captured by Mycroft PM. Organized for instant recall.
           </p>
+          <ActionStatus result={actionResult} className="mt-6" />
 
           <section className="mt-12 grid gap-8 lg:grid-cols-2">
             <div>
-              <SectionHeader title="Project Decisions" action={<StatusBadge tone="neutral">14 Entries</StatusBadge>} />
+              <SectionHeader title="Project Decisions" action={<StatusBadge tone="neutral">{memoryDecisions.length} Entries</StatusBadge>} />
               <div className="space-y-8">
                 {memoryDecisions.map((entry) => (
                   <MemoryText key={entry.id} title={entry.title} body={entry.body} meta={entry.meta} project={entry.project} />
@@ -37,7 +56,7 @@ export default function MemoryPage() {
               </div>
             </div>
             <div>
-              <SectionHeader title="Architecture Notes" action={<StatusBadge tone="neutral">8 Docs</StatusBadge>} />
+              <SectionHeader title="Architecture Notes" action={<StatusBadge tone="neutral">{architectureNotes.length} Docs</StatusBadge>} />
               <div className="space-y-4">
                 {architectureNotes.map((entry, index) => (
                   <Card key={entry.id} className="flex gap-4 p-5 shadow-none">
@@ -57,7 +76,7 @@ export default function MemoryPage() {
 
           <section className="mt-14 grid gap-8 lg:grid-cols-2">
             <div>
-              <SectionHeader title="Recent Learnings" action={<StatusBadge tone="neutral">New +3</StatusBadge>} />
+              <SectionHeader title="Recent Learnings" action={<StatusBadge tone="neutral">New +{learnings.length}</StatusBadge>} />
               <Card className="bg-[#eef1fb] p-7 shadow-none">
                 <div className="space-y-6">
                   {learnings.map((entry) => (
@@ -76,7 +95,7 @@ export default function MemoryPage() {
             <div>
               <SectionHeader title="Long-term Goals" />
               <div className="space-y-4">
-                {longTermGoals.map((goal) => {
+                {data.longTermGoals.map((goal) => {
                   const Icon = goal.icon;
                   return (
                     <Card key={goal.title} className={cn("p-6", goal.dark && "border-slate-950 bg-slate-950 text-white")}>
@@ -94,17 +113,26 @@ export default function MemoryPage() {
           </section>
 
           <div className="mx-auto mt-8 max-w-[520px]">
-            <CommandComposer placeholder="Ask Mycroft anything about your memories..." actionLabel="Ask" />
+            <CommandComposer
+              placeholder="Ask Mycroft anything about your memories..."
+              actionLabel="Ask"
+              statusLabel={actionResult?.title}
+              onSubmit={(prompt) => setActionResult(mycroftApi.actions.askMemory(prompt))}
+            />
           </div>
 
           <div className="mt-16 border-t pt-10">
-            <div className="mx-auto mb-8 flex max-w-[520px] items-center gap-4 rounded-2xl border bg-white p-4 shadow-card">
+            <button
+              type="button"
+              onClick={() => setActionResult(mycroftApi.actions.addMemory())}
+              className="mx-auto mb-8 flex max-w-[520px] items-center gap-4 rounded-2xl border bg-white p-4 text-left shadow-card transition hover:border-primary"
+            >
               <span className="flex size-10 items-center justify-center rounded-full bg-primary text-white">
                 <Sparkles className="size-5" />
               </span>
               <p className="min-w-0 flex-1 text-sm font-semibold text-slate-500">Add to memory: Decided to use Framer Motion for animations...</p>
               <span className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-400">⌘ K</span>
-            </div>
+            </button>
             <div className="mx-auto grid max-w-[470px] grid-cols-3 divide-x text-center">
               <MemoryStat value="92%" label="Retention" tone="text-primary" />
               <MemoryStat value="1.2k" label="Tokens Synced" tone="text-violet-600" />
