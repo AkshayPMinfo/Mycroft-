@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
@@ -104,6 +105,15 @@ export default function DashboardPage() {
   const [kpiTimeframe, setKpiTimeframe] = useState<"Today" | "This Week" | "This Month">("This Week");
   const [askInput, setAskInput] = useState("");
   const [askStatus, setAskStatus] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Sync sidebar collapsed state
+  useEffect(() => {
+    const sync = () => setSidebarCollapsed(localStorage.getItem("sidebar_collapsed_pref") === "true");
+    sync();
+    window.addEventListener("sidebar_toggle", sync);
+    return () => window.removeEventListener("sidebar_toggle", sync);
+  }, []);
 
   // Set greeting and date dynamically on mount
   useEffect(() => {
@@ -287,7 +297,7 @@ export default function DashboardPage() {
       </main>
 
       {/* Section 5: Ask Mycroft (Persistent AI Input near bottom) */}
-      <div className="fixed bottom-6 left-0 lg:left-[240px] right-0 flex justify-center px-6 z-40 pointer-events-none">
+      <div className={cn("fixed bottom-6 right-0 flex justify-center px-6 z-40 pointer-events-none transition-all duration-300", sidebarCollapsed ? "lg:left-[64px]" : "lg:left-[240px]")}>
         <div className="w-full max-w-2xl bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-lg p-3 pointer-events-auto flex flex-col gap-2">
           
           {/* Active status result loader */}
