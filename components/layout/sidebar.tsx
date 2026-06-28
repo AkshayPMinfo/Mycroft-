@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const productItems = [
+  { label: "AI Home", href: "/product/home", icon: Bot },
   { label: "Dashboard", href: "/product/dashboard", icon: LayoutDashboard },
   { label: "Opportunity Discovery", href: "/product/discovery", icon: Compass },
   { label: "PRD Workspace", href: "/product/prds", icon: ClipboardList }
@@ -164,7 +165,7 @@ export function Sidebar() {
       </aside>
       
       {/* Mobile nav */}
-      <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-10 rounded-2xl border bg-white/90 p-2 shadow-soft backdrop-blur-xl lg:hidden">
+      <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-11 rounded-2xl border bg-white/90 p-2 shadow-soft backdrop-blur-xl lg:hidden">
         {[...productItems, ...engineeringItems].map((item) => {
           const active = pathname === item.href || (pathname === "/" && item.href === "/command-center");
           const Icon = item.icon;
