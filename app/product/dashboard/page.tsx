@@ -68,32 +68,32 @@ const mockNewsStories: NewsStory[] = [
   }
 ];
 
-// Mock KPI metrics based on timeframe
+// Mock KPI metrics based on timeframe representing user productivity
 interface KpiData {
   created: { count: number; trend: string; positive: boolean };
   downloaded: { count: number; trend: string; positive: boolean };
-  review: { count: number; trend: string; positive: boolean };
-  approved: { count: number; trend: string; positive: boolean };
+  aiGenerations: { count: number; trend: string; positive: boolean };
+  activeProjects: { count: number; trend: string; positive: boolean };
 }
 
 const mockKpiData: Record<"Today" | "This Week" | "This Month", KpiData> = {
   Today: {
     created: { count: 3, trend: "+20%", positive: true },
     downloaded: { count: 5, trend: "+12%", positive: true },
-    review: { count: 2, trend: "0%", positive: true },
-    approved: { count: 1, trend: "-10%", positive: false }
+    aiGenerations: { count: 14, trend: "+35%", positive: true },
+    activeProjects: { count: 2, trend: "0%", positive: true }
   },
   "This Week": {
     created: { count: 12, trend: "+8%", positive: true },
     downloaded: { count: 28, trend: "+18%", positive: true },
-    review: { count: 4, trend: "-5%", positive: false },
-    approved: { count: 6, trend: "+12%", positive: true }
+    aiGenerations: { count: 58, trend: "+22%", positive: true },
+    activeProjects: { count: 3, trend: "+50%", positive: true }
   },
   "This Month": {
     created: { count: 45, trend: "+15%", positive: true },
     downloaded: { count: 98, trend: "+22%", positive: true },
-    review: { count: 8, trend: "+4%", positive: true },
-    approved: { count: 22, trend: "+19%", positive: true }
+    aiGenerations: { count: 240, trend: "+18%", positive: true },
+    activeProjects: { count: 4, trend: "+33%", positive: true }
   }
 };
 
@@ -183,7 +183,7 @@ export default function DashboardPage() {
               </ul>
             </section>
 
-            {/* Section 3: Product Activity Snapshot (Replacing Today's Priorities) */}
+            {/* Section 3: Product Activity Snapshot */}
             <section className="space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                 <div className="flex items-center gap-2">
@@ -212,8 +212,8 @@ export default function DashboardPage() {
                 {[
                   { label: "PRDs Created", kpi: activeKpis.created },
                   { label: "PRDs Downloaded", kpi: activeKpis.downloaded },
-                  { label: "PRDs Under Review", kpi: activeKpis.review },
-                  { label: "PRDs Approved", kpi: activeKpis.approved }
+                  { label: "AI Generations", kpi: activeKpis.aiGenerations },
+                  { label: "Active Projects", kpi: activeKpis.activeProjects }
                 ].map((item, idx) => (
                   <Card key={idx} className="p-3 bg-white border border-slate-100 shadow-2xs flex flex-col justify-between h-20 rounded-xl">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{item.label}</span>
@@ -244,7 +244,7 @@ export default function DashboardPage() {
                   <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider">Industry News</h2>
                 </div>
                 
-                {/* Horizontal Filter Chips (Replacing Dropdown) */}
+                {/* Horizontal Filter Chips */}
                 <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200/40">
                   {(["India", "Global"] as const).map((r) => (
                     <button
