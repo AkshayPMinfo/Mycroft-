@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
@@ -243,6 +243,19 @@ export default function DiscoveryPage() {
   const [activeAnalysis, setActiveAnalysis] = useState<AppReviewSummary | null>(null);
   const [isSearching, setIsSearching] = useState(false);
 
+  useEffect(() => {
+    const saved = localStorage.getItem("mycroft_active_discovery");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setActiveAnalysis(parsed);
+        setSearchQuery(parsed.appName);
+      } catch (err) {
+        console.error("Failed to load saved discovery data:", err);
+      }
+    }
+  }, []);
+
   const categories = ["All", "FinTech", "HealthTech", "AI", "SaaS", "Ecommerce", "EdTech", "Gaming"];
 
   const handleSearch = (e: React.FormEvent) => {
@@ -254,11 +267,12 @@ export default function DiscoveryPage() {
       const q = searchQuery.toLowerCase().trim();
       const matchKey = Object.keys(mockReviewData).find(key => q.includes(key) || key.includes(q));
       
+      let result: AppReviewSummary;
       if (matchKey) {
-        setActiveAnalysis(mockReviewData[matchKey]);
+        result = mockReviewData[matchKey];
       } else {
         // Fallback mock app review summary
-        setActiveAnalysis({
+        result = {
           appName: searchQuery,
           sentiment: "72% Positive • 28% Negative",
           positiveThemes: [
@@ -280,8 +294,10 @@ export default function DiscoveryPage() {
           recommendations: [
             `For ${searchQuery}, optimize the core data synchronization pipelines to lower latency and increase retention rates among new signups.`
           ]
-        });
+        };
       }
+      setActiveAnalysis(result);
+      localStorage.setItem("mycroft_active_discovery", JSON.stringify(result));
       setIsSearching(false);
     }, 600);
   };
@@ -410,8 +426,10 @@ export default function DiscoveryPage() {
                 <button
                   key={app}
                   onClick={() => {
+                    const data = mockReviewData[app.toLowerCase()];
                     setSearchQuery(app);
-                    setActiveAnalysis(mockReviewData[app.toLowerCase()]);
+                    setActiveAnalysis(data);
+                    localStorage.setItem("mycroft_active_discovery", JSON.stringify(data));
                   }}
                   className="h-6 px-2.5 text-[10px] font-semibold rounded-md border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-950 transition-colors"
                 >

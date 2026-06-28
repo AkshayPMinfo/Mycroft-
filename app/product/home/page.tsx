@@ -45,6 +45,7 @@ export default function AIHomePage() {
   const [chatInput, setChatInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState<"Discovery" | "PRD" | "Stats">("Discovery");
+  const [isLoaded, setIsLoaded] = useState(false);
   
   // Chat History
   const [messages, setMessages] = useState<Message[]>([
@@ -78,7 +79,11 @@ export default function AIHomePage() {
   const [prdStatus, setPrdStatus] = useState<"Draft" | "Review" | "Approved">("Draft");
   const [prdSections, setPrdSections] = useState<Record<string, PRDSection>>({
     objective: { title: "Objective", content: "Build a 10-minute grocery delivery app designed for university campuses." },
+    businessValue: { title: "Business Value", content: "Enables campus expansions and hyper-local monetization." },
+    userValue: { title: "User Value", content: "Ensures predictable under-10-minute grocery delivery." },
     targetUsers: { title: "Target Users", content: "Students in university campuses in Bangalore." },
+    userProblems: { title: "User Problems", content: "Campus gate access constraints, out-of-stock items mid-checkout." },
+    proposedSolution: { title: "Proposed Solution", content: "Hyperlocal university warehouse hub mapping." },
     successMetrics: { title: "Success Metrics", content: "Target Quality score >= 90/100, and packing times under 60 seconds." },
     compliance: { title: "Compliance", content: "Standard GDPR residency rules and local data protection compliance apply." }
   });
@@ -87,6 +92,146 @@ export default function AIHomePage() {
   const [editValue, setEditValue] = useState("");
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Load state from localStorage on mount
+  useEffect(() => {
+    const savedStep = localStorage.getItem("mycroft_home_active_step");
+    if (savedStep) setActiveStep(savedStep);
+
+    const savedTab = localStorage.getItem("mycroft_home_active_tab");
+    if (savedTab) setActiveTab(savedTab as any);
+
+    const savedMessages = localStorage.getItem("mycroft_home_messages");
+    if (savedMessages) {
+      try {
+        setMessages(JSON.parse(savedMessages));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    const savedDiscovery = localStorage.getItem("mycroft_active_discovery");
+    if (savedDiscovery) {
+      try {
+        const parsed = JSON.parse(savedDiscovery);
+        setAppName(parsed.appName || "Zepto");
+        setSentiment(parsed.sentiment || "82% Positive • 18% Negative");
+        setPositiveThemes(parsed.positiveThemes || []);
+        setComplaints(parsed.complaints || []);
+        setOpportunityRecommendations(parsed.recommendations || []);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    const savedPrdsHistory = localStorage.getItem("mycroft_prds_history");
+    if (savedPrdsHistory) {
+      try {
+        const parsed = JSON.parse(savedPrdsHistory);
+        if (parsed && parsed.length > 0) {
+          const activePrd = parsed[0];
+          setPrdTitle(activePrd.title || "10-Min Campuses Grocery Delivery Spec");
+          setPrdVersion(activePrd.version || 1);
+          setPrdStatus(activePrd.status || "Draft");
+          
+          const sections: Record<string, PRDSection> = {
+            objective: { title: "Objective", content: activePrd.sections.objective || "" },
+            businessValue: { title: "Business Value", content: activePrd.sections.businessValue || "" },
+            userValue: { title: "User Value", content: activePrd.sections.userValue || "" },
+            targetUsers: { title: "Target Users", content: activePrd.sections.targetUsers || "" },
+            userProblems: { title: "User Problems", content: activePrd.sections.userProblems || "" },
+            proposedSolution: { title: "Proposed Solution", content: activePrd.sections.proposedSolution || "" },
+            successMetrics: { title: "Success Metrics", content: activePrd.sections.successMetrics || "" },
+            compliance: { title: "Compliance", content: activePrd.sections.compliance || "" }
+          };
+          setPrdSections(sections);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    setIsLoaded(true);
+  }, []);
+
+  // Save changes to localStorage
+  useEffect(() => {
+    if (!isLoaded) return;
+    localStorage.setItem("mycroft_home_active_step", activeStep);
+  }, [activeStep, isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    localStorage.setItem("mycroft_home_active_tab", activeTab);
+  }, [activeTab, isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    localStorage.setItem("mycroft_home_messages", JSON.stringify(messages));
+  }, [messages, isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    const discoveryObj = {
+      appName,
+      sentiment,
+      positiveThemes,
+      complaints,
+      recommendations: opportunityRecommendations,
+      requestedFeatures: [
+        "60-Second Add-On buffer",
+        "Adaptive regional delivery splits"
+      ],
+      opportunityAreas: [
+        "Bengaluru student corridors",
+        "Out-of-stock optimization"
+      ]
+    };
+    localStorage.setItem("mycroft_active_discovery", JSON.stringify(discoveryObj));
+  }, [appName, sentiment, positiveThemes, complaints, opportunityRecommendations, isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    
+    const savedPrdsHistory = localStorage.getItem("mycroft_prds_history");
+    let history: any[] = [];
+    if (savedPrdsHistory) {
+      try {
+        history = JSON.parse(savedPrdsHistory);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    const activePrd = {
+      id: history.length > 0 ? history[0].id : "prd_active",
+      title: prdTitle,
+      version: prdVersion,
+      status: prdStatus,
+      lastModified: new Date().toISOString(),
+      qualityScore: history.length > 0 ? history[0].qualityScore : 90,
+      complianceCountry: history.length > 0 ? history[0].complianceCountry : "India",
+      sections: {
+        objective: prdSections.objective.content,
+        businessValue: prdSections.businessValue?.content || "Enables campus expansions and hyper-local monetization.",
+        userValue: prdSections.userValue?.content || "Ensures predictable under-10-minute grocery delivery.",
+        targetUsers: prdSections.targetUsers.content,
+        userProblems: prdSections.userProblems?.content || "Campus gate access constraints, out-of-stock items mid-checkout.",
+        proposedSolution: prdSections.proposedSolution?.content || "Hyperlocal university warehouse hub mapping.",
+        successMetrics: prdSections.successMetrics.content,
+        compliance: prdSections.compliance.content
+      },
+      versions: history.length > 0 ? history[0].versions || [1] : [1]
+    };
+
+    if (history.length > 0) {
+      history[0] = activePrd;
+    } else {
+      history = [activePrd];
+    }
+
+    localStorage.setItem("mycroft_prds_history", JSON.stringify(history));
+  }, [prdTitle, prdVersion, prdStatus, prdSections, isLoaded]);
 
   // Auto scroll chat conversation
   useEffect(() => {
