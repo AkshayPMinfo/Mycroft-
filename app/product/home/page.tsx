@@ -11,18 +11,16 @@ import {
   ArrowUpRight,
   ClipboardList,
   Compass,
-  FileCheck,
   Zap,
   ArrowRight,
-  Activity,
-  History,
-  AlertTriangle,
-  Download,
-  Edit2,
-  Calendar,
-  ThumbsUp,
-  ThumbsDown,
-  ChevronRight
+  Plus,
+  Search,
+  Trash2,
+  Edit,
+  Check,
+  X,
+  MessageSquare,
+  Activity
 } from "lucide-react";
 
 // Stepper steps representing PM Lifecycle
@@ -32,6 +30,12 @@ interface Message {
   sender: "ai" | "user";
   text: string;
   timestamp: string;
+  workspaceCard?: {
+    type: "Discovery" | "PRD" | "Dashboard";
+    title: string;
+    description: string;
+    targetUrl: string;
+  };
   action?: { label: string; stage: string };
 }
 
@@ -40,272 +44,355 @@ interface PRDSection {
   content: string;
 }
 
+interface Conversation {
+  id: string;
+  title: string;
+  activeStep: string;
+  messages: Message[];
+  createdAt: string;
+  // Synced states
+  appName: string;
+  sentiment: string;
+  positiveThemes: string[];
+  complaints: string[];
+  opportunityRecommendations: string[];
+  prdTitle: string;
+  prdVersion: number;
+  prdStatus: "Draft" | "Review" | "Approved";
+  prdSections: Record<string, PRDSection>;
+}
+
+const defaultPRDSections = (): Record<string, PRDSection> => ({
+  objective: { title: "Objective", content: "Build a 10-minute grocery delivery app designed for university campuses." },
+  businessValue: { title: "Business Value", content: "Enables campus expansions and hyper-local monetization." },
+  userValue: { title: "User Value", content: "Ensures predictable under-10-minute grocery delivery." },
+  targetUsers: { title: "Target Users", content: "Students in university campuses in Bangalore." },
+  userProblems: { title: "User Problems", content: "Campus gate access constraints, out-of-stock items mid-checkout." },
+  proposedSolution: { title: "Proposed Solution", content: "Hyperlocal university warehouse hub mapping." },
+  successMetrics: { title: "Success Metrics", content: "Target Quality score >= 90/100, and packing times under 60 seconds." },
+  compliance: { title: "Compliance", content: "Standard GDPR residency rules and local data protection compliance apply." }
+});
+
+const defaultWelcomeMessage = (): Message => ({
+  sender: "ai",
+  text: "Welcome back, Akshay. I am Mycroft. Describe your product idea below, and I will guide you through the Product Management lifecycle. We will start with Product Discovery.",
+  timestamp: "Just now"
+});
+
 export default function AIHomePage() {
-  const [activeStep, setActiveStep] = useState("Discovery");
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConvId, setActiveConvId] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [activeTab, setActiveTab] = useState<"Discovery" | "PRD" | "Stats">("Discovery");
   const [isLoaded, setIsLoaded] = useState(false);
-  
-  // Chat History
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      sender: "ai",
-      text: "Welcome back, Akshay. I am Mycroft. Describe your product idea below, and I will guide you through the Product Management lifecycle. We will start with Product Discovery.",
-      timestamp: "Just now"
-    }
-  ]);
 
-  // Mock Discovery State
-  const [appName, setAppName] = useState("Zepto");
-  const [sentiment, setSentiment] = useState("82% Positive • 18% Negative");
-  const [positiveThemes, setPositiveThemes] = useState([
-    "Genuinely delivers in 10 minutes for major items.",
-    "Fresh produce quality matches catalog snapshots.",
-    "Extremely clean payment checkout flow."
-  ]);
-  const [complaints, setComplaints] = useState([
-    "Items frequently display 'out of stock' midway through cart creation.",
-    "Recent increases in packaging and delivery convenience fees.",
-    "Riders speed dangerously to maintain delivery timelines."
-  ]);
-  const [opportunityRecommendations, setOpportunityRecommendations] = useState([
-    "Launch a '60-Second Add-On' buffer mechanism that lets users append forgotten items to an active packing order to reduce duplicate deliveries."
-  ]);
-
-  // Mock PRD State
-  const [prdTitle, setPrdTitle] = useState("10-Min Campuses Grocery Delivery Spec");
-  const [prdVersion, setPrdVersion] = useState(1);
-  const [prdStatus, setPrdStatus] = useState<"Draft" | "Review" | "Approved">("Draft");
-  const [prdSections, setPrdSections] = useState<Record<string, PRDSection>>({
-    objective: { title: "Objective", content: "Build a 10-minute grocery delivery app designed for university campuses." },
-    businessValue: { title: "Business Value", content: "Enables campus expansions and hyper-local monetization." },
-    userValue: { title: "User Value", content: "Ensures predictable under-10-minute grocery delivery." },
-    targetUsers: { title: "Target Users", content: "Students in university campuses in Bangalore." },
-    userProblems: { title: "User Problems", content: "Campus gate access constraints, out-of-stock items mid-checkout." },
-    proposedSolution: { title: "Proposed Solution", content: "Hyperlocal university warehouse hub mapping." },
-    successMetrics: { title: "Success Metrics", content: "Target Quality score >= 90/100, and packing times under 60 seconds." },
-    compliance: { title: "Compliance", content: "Standard GDPR residency rules and local data protection compliance apply." }
-  });
-
-  const [editingSection, setEditingSection] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
+  // Rename inline states
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Load state from localStorage on mount
+  // Load conversations from localStorage on mount
   useEffect(() => {
-    const savedStep = localStorage.getItem("mycroft_home_active_step");
-    if (savedStep) setActiveStep(savedStep);
+    const savedConvs = localStorage.getItem("mycroft_home_conversations");
+    const savedActiveId = localStorage.getItem("mycroft_home_active_conv_id");
 
-    const savedTab = localStorage.getItem("mycroft_home_active_tab");
-    if (savedTab) setActiveTab(savedTab as any);
+    let loadedConvs: Conversation[] = [];
+    let activeId = "";
 
-    const savedMessages = localStorage.getItem("mycroft_home_messages");
-    if (savedMessages) {
+    if (savedConvs) {
       try {
-        setMessages(JSON.parse(savedMessages));
+        loadedConvs = JSON.parse(savedConvs);
       } catch (e) {
-        console.error(e);
+        console.error("Failed to parse conversations:", e);
       }
     }
 
-    const savedDiscovery = localStorage.getItem("mycroft_active_discovery");
-    if (savedDiscovery) {
-      try {
-        const parsed = JSON.parse(savedDiscovery);
-        setAppName(parsed.appName || "Zepto");
-        setSentiment(parsed.sentiment || "82% Positive • 18% Negative");
-        setPositiveThemes(parsed.positiveThemes || []);
-        setComplaints(parsed.complaints || []);
-        setOpportunityRecommendations(parsed.recommendations || []);
-      } catch (e) {
-        console.error(e);
-      }
+    if (loadedConvs.length === 0) {
+      // Initialize with a default conversation
+      const initialConv: Conversation = {
+        id: `conv_${Date.now()}`,
+        title: "New Chat",
+        activeStep: "Discovery",
+        messages: [defaultWelcomeMessage()],
+        createdAt: new Date().toISOString(),
+        appName: "Zepto",
+        sentiment: "82% Positive • 18% Negative",
+        positiveThemes: [
+          "Genuinely delivers in 10 minutes for major items.",
+          "Fresh produce quality matches catalog snapshots.",
+          "Extremely clean payment checkout flow."
+        ],
+        complaints: [
+          "Items frequently display 'out of stock' midway through cart creation.",
+          "Recent increases in packaging and delivery convenience fees.",
+          "Riders speed dangerously to maintain delivery timelines."
+        ],
+        opportunityRecommendations: [
+          "Launch a '60-Second Add-On' buffer mechanism that lets users append forgotten items to an active packing order to reduce duplicate deliveries."
+        ],
+        prdTitle: "10-Min Campuses Grocery Delivery Spec",
+        prdVersion: 1,
+        prdStatus: "Draft",
+        prdSections: defaultPRDSections()
+      };
+      loadedConvs = [initialConv];
+      activeId = initialConv.id;
+    } else {
+      activeId = savedActiveId || loadedConvs[0].id;
     }
 
-    const savedPrdsHistory = localStorage.getItem("mycroft_prds_history");
-    if (savedPrdsHistory) {
-      try {
-        const parsed = JSON.parse(savedPrdsHistory);
-        if (parsed && parsed.length > 0) {
-          const activePrd = parsed[0];
-          setPrdTitle(activePrd.title || "10-Min Campuses Grocery Delivery Spec");
-          setPrdVersion(activePrd.version || 1);
-          setPrdStatus(activePrd.status || "Draft");
-          
-          const sections: Record<string, PRDSection> = {
-            objective: { title: "Objective", content: activePrd.sections.objective || "" },
-            businessValue: { title: "Business Value", content: activePrd.sections.businessValue || "" },
-            userValue: { title: "User Value", content: activePrd.sections.userValue || "" },
-            targetUsers: { title: "Target Users", content: activePrd.sections.targetUsers || "" },
-            userProblems: { title: "User Problems", content: activePrd.sections.userProblems || "" },
-            proposedSolution: { title: "Proposed Solution", content: activePrd.sections.proposedSolution || "" },
-            successMetrics: { title: "Success Metrics", content: activePrd.sections.successMetrics || "" },
-            compliance: { title: "Compliance", content: activePrd.sections.compliance || "" }
-          };
-          setPrdSections(sections);
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
+    setConversations(loadedConvs);
+    setActiveConvId(activeId);
     setIsLoaded(true);
   }, []);
 
-  // Save changes to localStorage
+  // Save conversations and active ID to localStorage when they change
   useEffect(() => {
     if (!isLoaded) return;
-    localStorage.setItem("mycroft_home_active_step", activeStep);
-  }, [activeStep, isLoaded]);
+    localStorage.setItem("mycroft_home_conversations", JSON.stringify(conversations));
+    localStorage.setItem("mycroft_home_active_conv_id", activeConvId);
 
-  useEffect(() => {
-    if (!isLoaded) return;
-    localStorage.setItem("mycroft_home_active_tab", activeTab);
-  }, [activeTab, isLoaded]);
+    // Sync discovery outputs and PRD values of the active conversation to global mycroft storage
+    const active = conversations.find(c => c.id === activeConvId);
+    if (active) {
+      // Sync Discovery
+      const discoveryObj = {
+        appName: active.appName,
+        sentiment: active.sentiment,
+        positiveThemes: active.positiveThemes,
+        complaints: active.complaints,
+        recommendations: active.opportunityRecommendations,
+        requestedFeatures: [
+          "60-Second Add-On buffer",
+          "Adaptive regional delivery splits"
+        ],
+        opportunityAreas: [
+          "Bengaluru student corridors",
+          "Out-of-stock optimization"
+        ]
+      };
+      localStorage.setItem("mycroft_active_discovery", JSON.stringify(discoveryObj));
 
-  useEffect(() => {
-    if (!isLoaded) return;
-    localStorage.setItem("mycroft_home_messages", JSON.stringify(messages));
-  }, [messages, isLoaded]);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-    const discoveryObj = {
-      appName,
-      sentiment,
-      positiveThemes,
-      complaints,
-      recommendations: opportunityRecommendations,
-      requestedFeatures: [
-        "60-Second Add-On buffer",
-        "Adaptive regional delivery splits"
-      ],
-      opportunityAreas: [
-        "Bengaluru student corridors",
-        "Out-of-stock optimization"
-      ]
-    };
-    localStorage.setItem("mycroft_active_discovery", JSON.stringify(discoveryObj));
-  }, [appName, sentiment, positiveThemes, complaints, opportunityRecommendations, isLoaded]);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-    
-    const savedPrdsHistory = localStorage.getItem("mycroft_prds_history");
-    let history: any[] = [];
-    if (savedPrdsHistory) {
-      try {
-        history = JSON.parse(savedPrdsHistory);
-      } catch (e) {
-        console.error(e);
+      // Sync PRD Spec into mycroft_prds_history (active index 0)
+      const savedPrdsHistory = localStorage.getItem("mycroft_prds_history");
+      let history: any[] = [];
+      if (savedPrdsHistory) {
+        try {
+          history = JSON.parse(savedPrdsHistory);
+        } catch (e) {
+          console.error(e);
+        }
       }
+
+      const activePrd = {
+        id: history.length > 0 ? history[0].id : `prd_${active.id}`,
+        title: active.prdTitle,
+        version: active.prdVersion,
+        status: active.prdStatus,
+        lastModified: new Date().toISOString(),
+        qualityScore: history.length > 0 ? history[0].qualityScore : 90,
+        complianceCountry: history.length > 0 ? history[0].complianceCountry : "India",
+        sections: {
+          objective: active.prdSections.objective.content,
+          businessValue: active.prdSections.businessValue?.content || "Enables campus expansions and hyper-local monetization.",
+          userValue: active.prdSections.userValue?.content || "Ensures predictable under-10-minute grocery delivery.",
+          targetUsers: active.prdSections.targetUsers.content,
+          userProblems: active.prdSections.userProblems?.content || "Campus gate access constraints, out-of-stock items mid-checkout.",
+          proposedSolution: active.prdSections.proposedSolution?.content || "Hyperlocal university warehouse hub mapping.",
+          successMetrics: active.prdSections.successMetrics.content,
+          compliance: active.prdSections.compliance.content
+        },
+        versions: history.length > 0 ? history[0].versions || [1] : [1]
+      };
+
+      if (history.length > 0) {
+        history[0] = activePrd;
+      } else {
+        history = [activePrd];
+      }
+      localStorage.setItem("mycroft_prds_history", JSON.stringify(history));
     }
-
-    const activePrd = {
-      id: history.length > 0 ? history[0].id : "prd_active",
-      title: prdTitle,
-      version: prdVersion,
-      status: prdStatus,
-      lastModified: new Date().toISOString(),
-      qualityScore: history.length > 0 ? history[0].qualityScore : 90,
-      complianceCountry: history.length > 0 ? history[0].complianceCountry : "India",
-      sections: {
-        objective: prdSections.objective.content,
-        businessValue: prdSections.businessValue?.content || "Enables campus expansions and hyper-local monetization.",
-        userValue: prdSections.userValue?.content || "Ensures predictable under-10-minute grocery delivery.",
-        targetUsers: prdSections.targetUsers.content,
-        userProblems: prdSections.userProblems?.content || "Campus gate access constraints, out-of-stock items mid-checkout.",
-        proposedSolution: prdSections.proposedSolution?.content || "Hyperlocal university warehouse hub mapping.",
-        successMetrics: prdSections.successMetrics.content,
-        compliance: prdSections.compliance.content
-      },
-      versions: history.length > 0 ? history[0].versions || [1] : [1]
-    };
-
-    if (history.length > 0) {
-      history[0] = activePrd;
-    } else {
-      history = [activePrd];
-    }
-
-    localStorage.setItem("mycroft_prds_history", JSON.stringify(history));
-  }, [prdTitle, prdVersion, prdStatus, prdSections, isLoaded]);
+  }, [conversations, activeConvId, isLoaded]);
 
   // Auto scroll chat conversation
   useEffect(() => {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages]);
+  }, [conversations, activeConvId]);
+
+  const activeConv = conversations.find(c => c.id === activeConvId);
+
+  // Create new conversation (New Chat)
+  const handleNewChat = () => {
+    const newConv: Conversation = {
+      id: `conv_${Date.now()}`,
+      title: "New Chat",
+      activeStep: "Discovery",
+      messages: [defaultWelcomeMessage()],
+      createdAt: new Date().toISOString(),
+      appName: "Zepto",
+      sentiment: "82% Positive • 18% Negative",
+      positiveThemes: [
+        "Genuinely delivers in 10 minutes for major items.",
+        "Fresh produce quality matches catalog snapshots.",
+        "Extremely clean payment checkout flow."
+      ],
+      complaints: [
+        "Items frequently display 'out of stock' midway through cart creation.",
+        "Recent increases in packaging and delivery convenience fees.",
+        "Riders speed dangerously to maintain delivery timelines."
+      ],
+      opportunityRecommendations: [
+        "Launch a '60-Second Add-On' buffer mechanism that lets users append forgotten items to an active packing order to reduce duplicate deliveries."
+      ],
+      prdTitle: "10-Min Campuses Grocery Delivery Spec",
+      prdVersion: 1,
+      prdStatus: "Draft",
+      prdSections: defaultPRDSections()
+    };
+
+    setConversations(prev => [newConv, ...prev]);
+    setActiveConvId(newConv.id);
+  };
+
+  const handleRenameChat = (id: string) => {
+    setConversations(prev => prev.map(c => {
+      if (c.id === id) {
+        return { ...c, title: renameValue.trim() || c.title };
+      }
+      return c;
+    }));
+    setRenamingId(null);
+    setRenameValue("");
+  };
+
+  const handleDeleteChat = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = conversations.filter(c => c.id !== id);
+    setConversations(updated);
+
+    if (activeConvId === id) {
+      if (updated.length > 0) {
+        setActiveConvId(updated[0].id);
+      } else {
+        // Reset with default if all deleted
+        const resetConv: Conversation = {
+          id: `conv_${Date.now()}`,
+          title: "New Chat",
+          activeStep: "Discovery",
+          messages: [defaultWelcomeMessage()],
+          createdAt: new Date().toISOString(),
+          appName: "Zepto",
+          sentiment: "82% Positive • 18% Negative",
+          positiveThemes: [
+            "Genuinely delivers in 10 minutes for major items.",
+            "Fresh produce quality matches catalog snapshots.",
+            "Extremely clean payment checkout flow."
+          ],
+          complaints: [
+            "Items frequently display 'out of stock' midway through cart creation.",
+            "Recent increases in packaging and delivery convenience fees.",
+            "Riders speed dangerously to maintain delivery timelines."
+          ],
+          opportunityRecommendations: [
+            "Launch a '60-Second Add-On' buffer mechanism that lets users append forgotten items to an active packing order to reduce duplicate deliveries."
+          ],
+          prdTitle: "10-Min Campuses Grocery Delivery Spec",
+          prdVersion: 1,
+          prdStatus: "Draft",
+          prdSections: defaultPRDSections()
+        };
+        setConversations([resetConv]);
+        setActiveConvId(resetConv.id);
+      }
+    }
+  };
 
   // Handles state machine logic as user inputs prompts
   const handleSendMessage = (textToSend?: string) => {
     const input = textToSend || chatInput;
-    if (!input.trim()) return;
+    if (!input.trim() || !activeConv) return;
 
     // Append User message
     const userMsg: Message = {
       sender: "user",
       text: input,
-      timestamp: "Just now"
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
-    setMessages(prev => [...prev, userMsg]);
+    let updatedTitle = activeConv.title;
+    if (activeConv.title === "New Chat") {
+      // Auto-generate title from first prompt
+      updatedTitle = input.length > 25 ? `${input.substring(0, 25)}...` : input;
+    }
+
+    setConversations(prev => prev.map(c => {
+      if (c.id === activeConvId) {
+        return {
+          ...c,
+          title: updatedTitle,
+          messages: [...c.messages, userMsg]
+        };
+      }
+      return c;
+    }));
+
     if (!textToSend) setChatInput("");
     setIsGenerating(true);
 
     setTimeout(() => {
       let aiText = "";
-      let targetStage = activeStep;
+      let targetStage = activeConv.activeStep;
       let nextAction: { label: string; stage: string } | undefined;
+      let card: Message["workspaceCard"] = undefined;
 
       const userText = input.toLowerCase();
 
       // Lifecycle Flow Transitions
-      if (activeStep === "Discovery") {
+      if (activeConv.activeStep === "Discovery") {
         if (userText.includes("grocery") || userText.includes("zepto") || userText.includes("delivery")) {
-          aiText = "Excellent. I have analyzed review clusters for grocery delivery apps in India. You can see the target themes for Zepto in the right pane. Let me ask: What is the primary customer profile and target region we want to capture first?";
-          setAppName("Zepto");
-          setActiveTab("Discovery");
+          aiText = "Excellent. I have analyzed review clusters for grocery delivery apps in India. Opportunity discovery details are ready in your Discovery Workspace. What is the primary customer profile and target region we want to capture first?";
+          card = {
+            type: "Discovery",
+            title: "Discovery Workspace Updated",
+            description: "Review Intelligence clusters synced for Zepto.",
+            targetUrl: "/product/discovery"
+          };
         } else if (userText.includes("student") || userText.includes("bangalore") || userText.includes("campuses")) {
           aiText = "Got it. I have logged 'Students in university campuses in Bangalore' under Target Users in our active workspace schema. Next: What are the core success metrics or KPI targets we need to achieve?";
-          setPrdSections(prev => ({
-            ...prev,
-            targetUsers: { title: "Target Users", content: "Students in university campuses in Bangalore." }
-          }));
         } else if (userText.includes("metrics") || userText.includes("score") || userText.includes("seconds")) {
-          aiText = "Understood. The Discovery phase is complete. I have successfully gathered the requirements baseline. I recommend we move to the Define stage to generate the PRD Spec.";
-          setPrdSections(prev => ({
-            ...prev,
-            successMetrics: { title: "Success Metrics", content: "Target Quality score >= 90/100, and packing times under 60 seconds." }
-          }));
+          aiText = "Understood. The Discovery phase is complete. I have successfully gathered the requirements baseline. We can now transition to Define to generate the PRD Specification.";
           nextAction = { label: "Move to Define (PRD)", stage: "Define" };
         } else {
           aiText = "I have logged that research topic. Let me know if you would like me to calculate the sentiment metrics or outline the compliance maps.";
         }
       } 
-      else if (activeStep === "Define") {
+      else if (activeConv.activeStep === "Define") {
         if (userText.includes("compliance") || userText.includes("rbi") || userText.includes("dpdp")) {
           aiText = "Updated. I have added India DPDP Act 2023 regulations and RBI payment guidelines to Section 8 (Compliance). Let me know if you are ready to transition to the Design & Develop phase.";
-          setPrdSections(prev => ({
-            ...prev,
-            compliance: { title: "Compliance", content: "RBI FinTech Guidelines, DPDP Act 2023 compliance audits, and PCI-DSS payment tokenization protocols." }
-          }));
-          setPrdVersion(v => v + 1);
+          card = {
+            type: "PRD",
+            title: "PRD Draft Updated (v2)",
+            description: "Section 8 Compliance rules appended with India regulatory acts.",
+            targetUrl: "/product/prds"
+          };
         } else if (userText.includes("audit") || userText.includes("review")) {
           aiText = "Spec quality score is currently 95/100. All 8 requirements sections are populated cleanly. The spec is audit ready.";
-          setPrdStatus("Review");
         } else if (userText.includes("move") || userText.includes("design") || userText.includes("develop")) {
           aiText = "PRD is approved. I have populated the engineering milestone targets and Q3 core payments roadmap. Let's move to the Design & Develop stage.";
-          setPrdStatus("Approved");
           targetStage = "Design";
-          setActiveTab("Stats");
           nextAction = { label: "Move to Develop", stage: "Develop" };
+          card = {
+            type: "Dashboard",
+            title: "Roadmap Milestones Loaded",
+            description: "Payments roadmap generated on active Dashboard.",
+            targetUrl: "/product/dashboard"
+          };
         } else {
-          aiText = "PRD sections updated. You can review the Notion Spec canvas in the right pane.";
-          setPrdVersion(v => v + 1);
+          aiText = "PRD sections updated. You can review the Notion Spec canvas inside the PRD Workspace.";
         }
       }
       else {
@@ -315,48 +402,74 @@ export default function AIHomePage() {
       const aiMsg: Message = {
         sender: "ai",
         text: aiText,
-        timestamp: "Just now",
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        workspaceCard: card,
         action: nextAction
       };
 
-      setMessages(prev => [...prev, aiMsg]);
+      setConversations(prev => prev.map(c => {
+        if (c.id === activeConvId) {
+          // Update active step if changed
+          const nextStep = nextAction ? nextAction.stage : targetStage;
+          
+          // Modify sections dynamically based on answers
+          const updatedSections = { ...c.prdSections };
+          let updatedVersion = c.prdVersion;
+          let updatedStatus = c.prdStatus;
+
+          if (userText.includes("student") || userText.includes("bangalore")) {
+            updatedSections.targetUsers.content = "Students in university campuses in Bangalore.";
+          }
+          if (userText.includes("metrics") || userText.includes("score")) {
+            updatedSections.successMetrics.content = "Target Quality score >= 90/100, and packing times under 60 seconds.";
+          }
+          if (userText.includes("compliance") || userText.includes("rbi")) {
+            updatedSections.compliance.content = "RBI FinTech Guidelines, DPDP Act 2023 compliance audits, and PCI-DSS payment tokenization protocols.";
+            updatedVersion += 1;
+          }
+          if (userText.includes("move") || userText.includes("design") || userText.includes("develop")) {
+            updatedStatus = "Approved";
+          }
+
+          return {
+            ...c,
+            activeStep: nextStep,
+            prdSections: updatedSections,
+            prdVersion: updatedVersion,
+            prdStatus: updatedStatus,
+            messages: [...c.messages, aiMsg]
+          };
+        }
+        return c;
+      }));
+
       setIsGenerating(false);
     }, 800);
   };
 
   const handleAction = (action: { label: string; stage: string }) => {
-    setActiveStep(action.stage);
+    if (!activeConv) return;
     
-    // Auto toggle tab view
-    if (action.stage === "Define") {
-      setActiveTab("PRD");
-    } else if (action.stage === "Design" || action.stage === "Develop") {
-      setActiveTab("Stats");
-    } else {
-      setActiveTab("Discovery");
-    }
-
-    const sysMsg: Message = {
-      sender: "ai",
-      text: `Lifecycle stage transitioned to: **${action.stage}**. Supporting workspaces have been populated automatically in the right pane.`,
-      timestamp: "Just now"
-    };
-    setMessages(prev => [...prev, sysMsg]);
-  };
-
-  const handleEditSection = (key: string, currentValue: string) => {
-    setEditingSection(key);
-    setEditValue(currentValue);
-  };
-
-  const handleSaveSection = (key: string) => {
-    setPrdSections(prev => ({
-      ...prev,
-      [key]: { ...prev[key], content: editValue }
+    setConversations(prev => prev.map(c => {
+      if (c.id === activeConvId) {
+        const sysMsg: Message = {
+          sender: "ai",
+          text: `Lifecycle stage transitioned to: **${action.stage}**. Relevant workspace cards have been generated inline.`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        return {
+          ...c,
+          activeStep: action.stage,
+          messages: [...c.messages, sysMsg]
+        };
+      }
+      return c;
     }));
-    setPrdVersion(v => v + 1);
-    setEditingSection(null);
   };
+
+  const filteredConversations = conversations.filter(c => 
+    c.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="flex flex-col min-h-screen bg-[#fafafa] font-sans antialiased text-slate-800">
@@ -368,298 +481,273 @@ export default function AIHomePage() {
             <Bot className="size-5" />
           </div>
           <div>
-            <h1 className="text-base font-semibold tracking-tight text-slate-900">AI Workspace Home</h1>
-            <p className="text-xs text-slate-500 font-medium">Mycroft PM lifecycle assistant</p>
+            <h1 className="text-base font-semibold tracking-tight text-slate-900">Mycroft AI</h1>
+            <p className="text-xs text-slate-500 font-medium">Conversational Product Workspace</p>
           </div>
         </div>
 
         {/* Stepper Progress Tracker */}
-        <div className="hidden md:flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
-          {STEPS.map((step, idx) => {
-            const isActive = activeStep === step;
-            const isCompleted = STEPS.indexOf(activeStep) > idx;
-            return (
-              <React.Fragment key={step}>
-                {idx > 0 && <span className="text-[10px] text-slate-300 font-bold">→</span>}
-                <button
-                  onClick={() => handleAction({ label: `Goto ${step}`, stage: step })}
-                  className={`px-2 py-0.5 text-[10px] font-bold rounded-lg transition-all ${isActive ? 'bg-slate-900 text-white shadow-xs' : isCompleted ? 'bg-slate-200 text-slate-600' : 'text-slate-400 hover:text-slate-600'}`}
-                >
-                  {step}
-                </button>
-              </React.Fragment>
-            );
-          })}
-        </div>
+        {activeConv && (
+          <div className="hidden md:flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
+            {STEPS.map((step, idx) => {
+              const isActive = activeConv.activeStep === step;
+              const isCompleted = STEPS.indexOf(activeConv.activeStep) > idx;
+              return (
+                <React.Fragment key={step}>
+                  {idx > 0 && <span className="text-[10px] text-slate-300 font-bold">→</span>}
+                  <button
+                    onClick={() => handleAction({ label: `Goto ${step}`, stage: step })}
+                    className={`px-2.5 py-0.5 text-[10px] font-bold rounded-lg transition-all ${isActive ? 'bg-slate-900 text-white shadow-xs' : isCompleted ? 'bg-slate-200 text-slate-600' : 'text-slate-400 hover:text-slate-600'}`}
+                  >
+                    {step}
+                  </button>
+                </React.Fragment>
+              );
+            })}
+          </div>
+        )}
       </header>
 
-      {/* Main Split-Screen Workspace (Left Pane: Chat | Right Pane: Interactive Workspace Canvas) */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden">
+      {/* Main Split-Screen Workspace (Left Area: Chats List Sidebar | Right Area: Clean Claude Chat Screen) */}
+      <div className="flex-1 flex overflow-hidden">
         
-        {/* Left Pane (AI Copilot Chat Interface - 6 cols / 50%) */}
-        <section className="lg:col-span-6 bg-white border-r border-slate-100 p-6 flex flex-col h-full overflow-y-auto pb-28">
-          <div className="flex items-center gap-2 mb-4 pb-2 border-b border-slate-50">
-            <div className="flex size-6 items-center justify-center rounded-md bg-blue-50 text-primary">
-              <Sparkles className="size-3.5" />
-            </div>
-            <h2 className="text-sm font-bold text-slate-950 tracking-tight">Active Conversation</h2>
-            <StatusBadge tone="info" className="ml-auto">Stage: {activeStep}</StatusBadge>
+        {/* Left Area (Conversations Sidebar Panel - 260px) */}
+        <aside className="w-64 bg-slate-50 border-r border-slate-150 flex flex-col h-full p-4 flex-shrink-0 hidden md:flex">
+          
+          {/* New Chat Action */}
+          <Button 
+            onClick={handleNewChat}
+            className="w-full h-9 rounded-xl bg-white hover:bg-slate-55 border border-slate-200 text-slate-800 text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs mb-4"
+          >
+            <Plus className="size-3.5" />
+            New Chat
+          </Button>
+
+          {/* Search bar */}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-2.5 size-3.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search conversations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 text-[11px] border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-900 bg-white"
+            />
           </div>
 
-          {/* Conversation History Stream */}
-          <div className="flex-1 overflow-y-auto space-y-5 pr-1 max-h-[500px]">
-            {messages.map((msg, idx) => {
-              const isAi = msg.sender === "ai";
+          {/* Chat List Stream */}
+          <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block pl-2 mb-1">Previous Conversations</span>
+            {filteredConversations.map((c) => {
+              const isActive = c.id === activeConvId;
+              const isRenaming = renamingId === c.id;
+
               return (
-                <div key={idx} className={`flex gap-3 ${!isAi && 'justify-end'}`}>
-                  {isAi && (
-                    <div className="flex size-7 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-700 flex-shrink-0">M</div>
-                  )}
-                  <div className="space-y-2 max-w-[85%]">
-                    <div 
-                      className={`px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed ${isAi ? 'bg-slate-100/80 text-slate-800 rounded-tl-xs' : 'bg-slate-900 text-white rounded-tr-xs shadow-xs'}`}
-                      style={{ whiteSpace: "pre-line" }}
-                    >
-                      {msg.text}
-                    </div>
-                    {isAi && msg.action && (
-                      <Button 
-                        onClick={() => handleAction(msg.action!)}
-                        className="h-8 px-3 rounded-lg bg-primary text-white hover:bg-blue-700 text-[11px] font-semibold flex items-center gap-1 mt-2"
-                      >
-                        {msg.action.label}
-                        <ArrowRight className="size-3.5" />
-                      </Button>
+                <div
+                  key={c.id}
+                  onClick={() => {
+                    if (!isRenaming) setActiveConvId(c.id);
+                  }}
+                  className={`group w-full text-left p-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-between ${isActive ? 'bg-white border border-slate-200 shadow-2xs text-slate-950 font-semibold' : 'text-slate-500 hover:bg-slate-100/50 hover:text-slate-850'}`}
+                >
+                  <div className="flex items-center gap-2 flex-1 min-w-0 mr-1.5">
+                    <MessageSquare className="size-3.5 text-slate-400 flex-shrink-0" />
+                    {isRenaming ? (
+                      <input
+                        type="text"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        className="w-full px-1.5 py-0.5 text-xs border rounded bg-white"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleRenameChat(c.id);
+                          if (e.key === "Escape") setRenamingId(null);
+                        }}
+                        autoFocus
+                      />
+                    ) : (
+                      <span className="text-xs truncate">{c.title}</span>
                     )}
                   </div>
+
+                  {/* Actions (Rename, Delete) */}
+                  {!isRenaming && (
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRenamingId(c.id);
+                          setRenameValue(c.title);
+                        }}
+                        className="p-1 rounded hover:bg-slate-200 text-slate-400 hover:text-slate-650"
+                      >
+                        <Edit className="size-3" />
+                      </button>
+                      <button
+                        onClick={(e) => handleDeleteChat(c.id, e)}
+                        className="p-1 rounded hover:bg-slate-200 text-slate-400 hover:text-red-500"
+                      >
+                        <Trash2 className="size-3" />
+                      </button>
+                    </div>
+                  )}
+
+                  {isRenaming && (
+                    <div className="flex items-center gap-0.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRenameChat(c.id);
+                        }}
+                        className="p-1 rounded hover:bg-green-100 text-green-600"
+                      >
+                        <Check className="size-3" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRenamingId(null);
+                        }}
+                        className="p-1 rounded hover:bg-red-100 text-red-500"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
-            {isGenerating && (
-              <div className="flex gap-3">
-                <div className="flex size-7 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-700 flex-shrink-0">M</div>
-                <div className="bg-slate-100/80 text-slate-400 px-3.5 py-2.5 rounded-2xl rounded-tl-xs text-xs animate-pulse">
-                  Mycroft is compiling workspace details...
-                </div>
-              </div>
-            )}
-            <div ref={chatEndRef} />
           </div>
+        </aside>
 
-          {/* Fixed Chat Input Composer at the bottom */}
-          <div className="border-t border-slate-100 pt-4 mt-auto flex flex-col gap-2.5">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder={`Ask Mycroft about ${activeStep} details...`}
-                className="flex-1 px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-900 bg-slate-50/50 font-sans"
-                onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-              />
-              <Button 
-                onClick={() => handleSendMessage()} 
-                disabled={isGenerating || !chatInput.trim()}
-                className="h-9 px-4 rounded-xl bg-slate-950 text-white hover:bg-slate-800 text-xs font-semibold flex items-center gap-1"
-              >
-                Send
-                <Send className="size-3" />
-              </Button>
-            </div>
-            
-            {/* Quick action chips */}
-            <div className="flex flex-wrap items-center gap-1.5 pl-0.5">
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mr-1">Prompts:</span>
-              {activeStep === "Discovery" ? (
-                <>
-                  <button onClick={() => handleSendMessage("Analyze Zepto grocery delivery reviews")} className="h-5 px-2 text-[9px] font-semibold rounded-md border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-950">Analyze Zepto reviews</button>
-                  <button onClick={() => handleSendMessage("Set target users to students in university campuses")} className="h-5 px-2 text-[9px] font-semibold rounded-md border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-950">Set target users</button>
-                  <button onClick={() => handleSendMessage("Define success metrics as Quality score >= 90")} className="h-5 px-2 text-[9px] font-semibold rounded-md border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-950">Define success metrics</button>
-                </>
-              ) : (
-                <>
-                  <button onClick={() => handleSendMessage("Add RBI compliance guidelines to Section 8")} className="h-5 px-2 text-[9px] font-semibold rounded-md border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-950">Add RBI Guidelines</button>
-                  <button onClick={() => handleSendMessage("Run compliance spec audit")} className="h-5 px-2 text-[9px] font-semibold rounded-md border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-950">Audit spec quality</button>
-                  <button onClick={() => handleSendMessage("Lock and Approve PRD")} className="h-5 px-2 text-[9px] font-semibold rounded-md border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-950">Approve PRD</button>
-                </>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* Right Pane: Interactive Supporting Workspace Canvas (6 cols / 50%) */}
-        <main className="lg:col-span-6 bg-white p-6 overflow-y-auto h-full flex flex-col border-l border-slate-50">
+        {/* Right Area (Clean centered Conversation stream - Hero element) */}
+        <main className="flex-1 bg-white flex flex-col items-center justify-between p-6 relative overflow-y-auto">
           
-          {/* Tab Selector Headers */}
-          <div className="flex justify-between items-center border-b border-slate-100 pb-3 mb-6">
-            <div className="flex gap-2">
-              {(["Discovery", "PRD", "Stats"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`h-8 px-3 text-xs font-semibold rounded-lg transition-all border ${activeTab === tab ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-slate-100'}`}
-                >
-                  {tab === "Discovery" ? "Discovery Spec" : tab === "PRD" ? "PRD Spec Editor" : "Workspace Stats"}
-                </button>
-              ))}
-            </div>
+          {/* Centered clean container */}
+          <div className="w-full max-w-2xl flex-1 flex flex-col justify-between pb-28">
             
-            {/* Direct Link Anchor Button */}
-            <Button 
-              variant="secondary" 
-              className="h-8 px-2.5 text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg flex items-center gap-1 font-semibold text-slate-600 shadow-2xs"
-              onClick={() => {
-                const target = activeTab === "Discovery" ? "/product/discovery" : activeTab === "PRD" ? "/product/prds" : "/product/dashboard";
-                window.location.assign(target);
-              }}
-            >
-              Open Workspace
-              <ArrowUpRight className="size-3" />
-            </Button>
-          </div>
+            {activeConv ? (
+              <div className="space-y-6 pt-4">
+                {activeConv.messages.map((msg, idx) => {
+                  const isAi = msg.sender === "ai";
+                  return (
+                    <div key={idx} className="space-y-3">
+                      <div className={`flex gap-3.5 ${!isAi && 'justify-end'}`}>
+                        {isAi && (
+                          <div className="flex size-7 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white flex-shrink-0">M</div>
+                        )}
+                        <div className="space-y-2 max-w-[85%]">
+                          <div 
+                            className={`px-4 py-3 rounded-2xl text-[13px] leading-relaxed shadow-3xs ${isAi ? 'bg-slate-50 text-slate-800 rounded-tl-xs border border-slate-100' : 'bg-slate-900 text-white rounded-tr-xs'}`}
+                            style={{ whiteSpace: "pre-line" }}
+                          >
+                            {msg.text}
+                          </div>
+                          
+                          {/* Embedded workspace update card */}
+                          {isAi && msg.workspaceCard && (
+                            <Card className="p-4 border border-slate-100 bg-slate-50 shadow-2xs rounded-xl flex items-center justify-between gap-4 mt-2 max-w-md">
+                              <div className="flex items-center gap-3">
+                                <div className="flex size-8 items-center justify-center rounded-lg bg-blue-50 text-primary">
+                                  {msg.workspaceCard.type === "Discovery" ? (
+                                    <Compass className="size-4" />
+                                  ) : msg.workspaceCard.type === "PRD" ? (
+                                    <ClipboardList className="size-4" />
+                                  ) : (
+                                    <Activity className="size-4" />
+                                  )}
+                                </div>
+                                <div>
+                                  <h4 className="text-xs font-bold text-slate-900">{msg.workspaceCard.title}</h4>
+                                  <p className="text-[10px] text-slate-500 font-medium mt-0.5">{msg.workspaceCard.description}</p>
+                                </div>
+                              </div>
+                              <Button
+                                onClick={() => window.location.assign(msg.workspaceCard!.targetUrl)}
+                                className="h-8 px-3 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold flex items-center gap-1 shadow-2xs shrink-0"
+                              >
+                                Open Workspace
+                                <ArrowUpRight className="size-3.5" />
+                              </Button>
+                            </Card>
+                          )}
 
-          {/* Content Pane depending on Active Tab */}
-          <div className="flex-1">
-            
-            {/* Discovery Workspace View */}
-            {activeTab === "Discovery" && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">{appName} Reviews Summary</h3>
-                    <p className="text-[10px] text-slate-450 font-semibold uppercase tracking-wider mt-0.5">Sentiment analysis</p>
-                  </div>
-                  <StatusBadge tone="info">{sentiment}</StatusBadge>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <span className="text-[10px] font-bold text-green-600 uppercase tracking-wider flex items-center gap-1">
-                      <ThumbsUp className="size-3.5" />
-                      Positive Themes
-                    </span>
-                    <ul className="text-xs text-slate-650 space-y-1.5 font-medium bg-green-50/20 border border-green-100/50 p-3 rounded-xl leading-relaxed">
-                      {positiveThemes.map((item, idx) => (
-                        <li key={idx}>• {item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="space-y-2">
-                    <span className="text-[10px] font-bold text-red-500 uppercase tracking-wider flex items-center gap-1">
-                      <ThumbsDown className="size-3.5" />
-                      Complaints
-                    </span>
-                    <ul className="text-xs text-slate-650 space-y-1.5 font-medium bg-red-50/10 border border-red-100/30 p-3 rounded-xl leading-relaxed">
-                      {complaints.map((item, idx) => (
-                        <li key={idx}>• {item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-blue-50/30 border border-blue-100/50 rounded-xl space-y-1.5 text-xs leading-relaxed">
-                  <span className="text-[10px] font-bold text-primary uppercase tracking-wider flex items-center gap-1">
-                    <Zap className="size-3.5 text-primary" />
-                    AI Opportunity Recommendation
-                  </span>
-                  <div className="font-semibold text-slate-700">
-                    {opportunityRecommendations.map((rec, i) => (
-                      <p key={i} className="mt-1">{rec}</p>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* PRD Workspace Editor View */}
-            {activeTab === "PRD" && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center border-b pb-3 border-slate-100">
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">{prdTitle}</h3>
-                    <p className="text-[10px] text-slate-450 font-semibold mt-0.5">Version v{prdVersion} • Status: {prdStatus}</p>
-                  </div>
-                  <StatusBadge tone={prdStatus === "Approved" ? "healthy" : "warning"}>{prdStatus}</StatusBadge>
-                </div>
-
-                <div className="space-y-6">
-                  {Object.keys(prdSections).map((key) => {
-                    const sec = prdSections[key];
-                    const isEditing = editingSection === key;
-                    return (
-                      <div key={key} className="group flex flex-col gap-1 border-b border-slate-50 pb-3 last:border-0">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{sec.title}</span>
-                          {!isEditing && (
-                            <button
-                              onClick={() => handleEditSection(key, sec.content)}
-                              className="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity hover:underline"
+                          {/* Suggested next step transition button */}
+                          {isAi && msg.action && (
+                            <Button 
+                              onClick={() => handleAction(msg.action!)}
+                              className="h-8 px-3.5 rounded-lg bg-primary text-white hover:bg-blue-700 text-[11px] font-semibold flex items-center gap-1.5 mt-2"
                             >
-                              Edit
-                            </button>
+                              {msg.action.label}
+                              <ArrowRight className="size-3.5" />
+                            </Button>
                           )}
                         </div>
-                        {isEditing ? (
-                          <div className="flex flex-col gap-2 mt-1 bg-slate-50 p-2 rounded-lg">
-                            <textarea
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              rows={3}
-                              className="w-full p-2 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-slate-900 bg-white"
-                            />
-                            <div className="flex gap-1.5 justify-end">
-                              <Button variant="secondary" className="h-7 px-2 text-[10px] border" onClick={() => setEditingSection(null)}>Cancel</Button>
-                              <Button className="h-7 px-2 text-[10px]" onClick={() => handleSaveSection(key)}>Save</Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="text-[13px] text-slate-650 leading-relaxed font-normal whitespace-pre-line bg-slate-50/30 p-2 rounded-lg border border-slate-100/50">
-                            {sec.content}
-                          </p>
-                        )}
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Workspace Stats View */}
-            {activeTab === "Stats" && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <Card className="p-4 bg-white border border-slate-100 shadow-2xs flex flex-col justify-between h-20 rounded-xl">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">PRDs Created</span>
-                    <span className="text-xl font-bold tracking-tight text-slate-900">12</span>
-                  </Card>
-                  <Card className="p-4 bg-white border border-slate-100 shadow-2xs flex flex-col justify-between h-20 rounded-xl">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">AI Generations</span>
-                    <span className="text-xl font-bold tracking-tight text-slate-900">240</span>
-                  </Card>
-                </div>
-
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-3">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Governance & Milestones</span>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-semibold text-slate-700 flex items-center gap-1.5">
-                        <Calendar className="size-4 text-slate-400" />
-                        MAS Compliance Audit Submission
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-medium">July 15, 2026</span>
                     </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-semibold text-slate-700 flex items-center gap-1.5">
-                        <Calendar className="size-4 text-slate-400" />
-                        Sandbox Merchant Launch
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-medium">August 1, 2026</span>
+                  );
+                })}
+                {isGenerating && (
+                  <div className="flex gap-3.5">
+                    <div className="flex size-7 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white flex-shrink-0">M</div>
+                    <div className="bg-slate-50 border border-slate-100 text-slate-400 px-4 py-3 rounded-2xl rounded-tl-xs text-[13px] animate-pulse">
+                      Mycroft is thinking...
                     </div>
                   </div>
-                </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center py-20 text-slate-400 italic">
+                <Bot className="size-10 text-slate-200 mb-2.5" />
+                <p className="text-xs">No active conversation. Create or select a conversation on the left.</p>
               </div>
             )}
 
+          </div>
+
+          {/* Floating Composer Area at bottom of main area */}
+          <div className="absolute bottom-6 left-0 right-0 flex justify-center px-6 pointer-events-none z-20">
+            <div className="w-full max-w-2xl bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-lg p-3 pointer-events-auto flex flex-col gap-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder={activeConv ? `Ask Mycroft about ${activeConv.activeStep} stage...` : "Type a message..."}
+                  className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-900 bg-slate-50/30 font-sans"
+                  onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                  disabled={isGenerating || !activeConv}
+                />
+                <Button 
+                  onClick={() => handleSendMessage()}
+                  disabled={isGenerating || !chatInput.trim() || !activeConv}
+                  className="px-4 py-1.5 rounded-xl bg-slate-950 text-white hover:bg-slate-800 text-xs font-semibold flex items-center gap-1 transition-colors"
+                >
+                  Send
+                  <Send className="size-3" />
+                </Button>
+              </div>
+
+              {/* Quick sample chips depending on step */}
+              {activeConv && (
+                <div className="flex flex-wrap items-center gap-1.5 pl-0.5">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mr-1">Examples:</span>
+                  {activeConv.activeStep === "Discovery" ? (
+                    <>
+                      <button onClick={() => handleSendMessage("Analyze Zepto reviews")} className="h-5 px-2 text-[9px] font-semibold rounded-md border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-950">Analyze reviews</button>
+                      <button onClick={() => handleSendMessage("Set target users to student corridors")} className="h-5 px-2 text-[9px] font-semibold rounded-md border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-950">Set target users</button>
+                      <button onClick={() => handleSendMessage("Lock Discovery details")} className="h-5 px-2 text-[9px] font-semibold rounded-md border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-950">Lock Discovery</button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => handleSendMessage("Add India compliance laws")} className="h-5 px-2 text-[9px] font-semibold rounded-md border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-950">Add compliance rules</button>
+                      <button onClick={() => handleSendMessage("Perform PRD audit checks")} className="h-5 px-2 text-[9px] font-semibold rounded-md border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-950">Audit checks</button>
+                      <button onClick={() => handleSendMessage("Transition to Design stage")} className="h-5 px-2 text-[9px] font-semibold rounded-md border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-950">Transition to Design</button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
         </main>
