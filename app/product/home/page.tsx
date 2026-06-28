@@ -339,7 +339,7 @@ export default function AIHomePage() {
   const [showChatView, setShowChatView] = useState(false);
 
   // Sidebar collapse states
-  const [convSidebarCollapsed, setConvSidebarCollapsed] = useState(false);
+  const [convSidebarCollapsed, setConvSidebarCollapsed] = useState(true);
   const [disclaimerVisible, setDisclaimerVisible] = useState(true);
   const [attachedFile, setAttachedFile] = useState<string | null>(null);
 
