@@ -4,30 +4,36 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Bell,
-  Bot,
-  BrainCircuit,
-  Bug,
-  FolderKanban,
-  MessageSquare,
-  Settings,
-  Sparkles,
-  TerminalSquare,
-  LayoutDashboard,
+  Home,
   Compass,
   ClipboardList,
+  GitBranch,
+  Users,
+  Target,
+  BarChart2,
+  FileText,
+  Settings,
+  Bot,
+  FolderKanban,
+  MessageSquare,
+  Bug,
+  BrainCircuit,
+  TerminalSquare,
   ChevronDown,
   ChevronRight,
   ChevronLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 
 const productItems = [
-  { label: "AI Home", href: "/product/home", icon: Bot },
-  { label: "Dashboard", href: "/product/dashboard", icon: LayoutDashboard },
-  { label: "Opportunity Discovery", href: "/product/discovery", icon: Compass },
-  { label: "PRD Workspace", href: "/product/prds", icon: ClipboardList }
+  { label: "AI Home", href: "/product/home", icon: Home },
+  { label: "Product Discovery", href: "/product/discovery", icon: Compass },
+  { label: "PRD Workspace", href: "/product/prds", icon: ClipboardList },
+  { label: "Roadmap", href: "#", icon: GitBranch },
+  { label: "User Research", href: "#", icon: Users },
+  { label: "Competitors", href: "#", icon: Target },
+  { label: "Analytics", href: "#", icon: BarChart2 },
+  { label: "Documents", href: "#", icon: FileText },
 ];
 
 const engineeringItems = [
@@ -37,34 +43,19 @@ const engineeringItems = [
   { label: "Debug", href: "/debug", icon: Bug },
   { label: "GitHub", href: "/github", icon: TerminalSquare },
   { label: "Memory", href: "/memory", icon: BrainCircuit },
-  { label: "Settings", href: "/settings", icon: Settings }
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
-  
-  // Collapse/Expand state with localStorage persistence
-  const [productExpanded, setProductExpanded] = useState(true);
   const [engineeringExpanded, setEngineeringExpanded] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    const prodState = localStorage.getItem("sidebar_product_expanded");
-    const engState = localStorage.getItem("sidebar_engineering_expanded");
     const collapsedState = localStorage.getItem("sidebar_collapsed_pref");
-    
-    if (prodState !== null) setProductExpanded(prodState === "true");
-    if (engState !== null) setEngineeringExpanded(engState === "true");
+    const engState = localStorage.getItem("sidebar_engineering_expanded");
     if (collapsedState !== null) setIsSidebarCollapsed(collapsedState === "true");
-    setIsLoaded(true);
+    if (engState !== null) setEngineeringExpanded(engState === "true");
   }, []);
-
-  const toggleProduct = () => {
-    const val = !productExpanded;
-    setProductExpanded(val);
-    localStorage.setItem("sidebar_product_expanded", String(val));
-  };
 
   const toggleEngineering = () => {
     const val = !engineeringExpanded;
@@ -76,172 +67,170 @@ export function Sidebar() {
     const val = !isSidebarCollapsed;
     setIsSidebarCollapsed(val);
     localStorage.setItem("sidebar_collapsed_pref", String(val));
-    // Dispatch custom window event to notify parent layouts
     window.dispatchEvent(new Event("sidebar_toggle"));
   };
 
   return (
     <>
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-30 hidden flex-col border-r bg-[#f7f7fe] py-6 lg:flex overflow-y-auto transition-all duration-350 ease-in-out",
-        isSidebarCollapsed ? "w-[64px] px-2" : "w-[240px] px-4"
+        "fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-slate-100 bg-white py-5 lg:flex overflow-y-auto transition-all duration-300 ease-in-out",
+        isSidebarCollapsed ? "w-[64px] px-2" : "w-[220px] px-4"
       )}>
-        
-        {/* Logo header */}
-        <Link href="/command-center" className={cn("mb-8 flex items-center gap-3 px-2", isSidebarCollapsed && "justify-center px-0")}>
-          <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-white shadow-[0_12px_24px_rgba(0,91,211,0.2)] shrink-0">
-            <TerminalSquare className="size-5" />
+
+        {/* ── Logo ── */}
+        <Link
+          href="/product/home"
+          className={cn(
+            "mb-7 flex items-center gap-2.5 px-1 rounded-lg",
+            isSidebarCollapsed && "justify-center px-0"
+          )}
+        >
+          <span className="flex size-8 items-center justify-center rounded-lg bg-slate-900 text-white font-bold text-sm shrink-0 shadow-sm">
+            M
           </span>
           {!isSidebarCollapsed && (
-            <span className="transition-opacity duration-300">
-              <span className="block text-2xl font-bold tracking-[-0.03em] text-slate-950">Mycroft PM</span>
-              <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">AI Operating System</span>
-            </span>
+            <div className="min-w-0">
+              <span className="block text-[13px] font-bold text-slate-900 leading-tight">Mycroft</span>
+              <span className="block text-[10px] text-slate-400 font-medium leading-tight">AI Product Manager</span>
+            </div>
           )}
         </Link>
 
-        {/* Navigation list */}
-        <div className="space-y-6 flex-1">
-          {/* Section: Product Workspace */}
-          <div>
-            {!isSidebarCollapsed ? (
-              <button
-                onClick={toggleProduct}
-                className="flex w-full items-center justify-between px-2 py-1 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-900 transition-colors"
+        {/* ── Product Nav ── */}
+        <nav className="flex-1 space-y-0.5">
+          {productItems.map((item) => {
+            const active = pathname === item.href;
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.label}
+                href={item.href}
+                title={isSidebarCollapsed ? item.label : undefined}
+                className={cn(
+                  "flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium transition-all",
+                  active
+                    ? "bg-blue-50 text-blue-600"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
+                  isSidebarCollapsed && "justify-center px-0"
+                )}
               >
-                <span>Product Workspace</span>
-                {productExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-              </button>
-            ) : (
-              <hr className="border-slate-200/80 my-2 mx-1" />
-            )}
-            
-            {(!isSidebarCollapsed ? productExpanded : true) && (
-              <nav className={cn("mt-2 space-y-1.5", !isSidebarCollapsed && "pl-1")}>
-                {productItems.map((item) => {
-                  const active = pathname === item.href;
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      title={isSidebarCollapsed ? item.label : undefined}
-                      className={cn(
-                        "group relative flex h-10 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-100 hover:text-slate-950",
-                        active && "bg-[#e9ebfb] text-primary",
-                        isSidebarCollapsed && "justify-center px-0"
-                      )}
-                    >
-                      {active ? <span className="absolute left-0 h-4 w-1 rounded-r-full bg-primary" /> : null}
-                      <Icon className="size-4.5 shrink-0" />
-                      {!isSidebarCollapsed && <span className="truncate">{item.label}</span>}
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
+                <Icon className="size-4 shrink-0" />
+                {!isSidebarCollapsed && <span className="truncate">{item.label}</span>}
+              </Link>
+            );
+          })}
+
+          {/* Settings */}
+          <div className="pt-1 mt-2 border-t border-slate-100">
+            <Link
+              href="/settings"
+              title={isSidebarCollapsed ? "Settings" : undefined}
+              className={cn(
+                "flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium transition-all",
+                pathname === "/settings"
+                  ? "bg-blue-50 text-blue-600"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
+                isSidebarCollapsed && "justify-center px-0"
+              )}
+            >
+              <Settings className="size-4 shrink-0" />
+              {!isSidebarCollapsed && <span>Settings</span>}
+            </Link>
           </div>
 
-          {/* Section: Engineering Workspace */}
-          <div>
-            {!isSidebarCollapsed ? (
+          {/* Engineering (collapsible, hidden when sidebar collapsed) */}
+          {!isSidebarCollapsed && (
+            <div className="pt-1 mt-1 border-t border-slate-100">
               <button
                 onClick={toggleEngineering}
-                className="flex w-full items-center justify-between px-2 py-1 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-900 transition-colors"
+                className="flex w-full items-center justify-between px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-600 transition-colors"
               >
-                <span>Engineering Workspace</span>
-                {engineeringExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+                <span>Engineering</span>
+                {engineeringExpanded
+                  ? <ChevronDown className="size-3" />
+                  : <ChevronRight className="size-3" />
+                }
               </button>
-            ) : (
-              <hr className="border-slate-200/80 my-2 mx-1" />
-            )}
-            
-            {(!isSidebarCollapsed ? engineeringExpanded : true) && (
-              <nav className={cn("mt-2 space-y-1.5", !isSidebarCollapsed && "pl-1")}>
-                {engineeringItems.map((item) => {
-                  const active = pathname === item.href || (pathname === "/" && item.href === "/command-center");
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      title={isSidebarCollapsed ? item.label : undefined}
-                      className={cn(
-                        "group relative flex h-10 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-100 hover:text-slate-950",
-                        active && "bg-[#e9ebfb] text-primary",
-                        isSidebarCollapsed && "justify-center px-0"
-                      )}
-                    >
-                      {active ? <span className="absolute left-0 h-4 w-1 rounded-r-full bg-primary" /> : null}
-                      <Icon className="size-4.5 shrink-0" />
-                      {!isSidebarCollapsed && <span className="truncate">{item.label}</span>}
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
-          </div>
-        </div>
-
-        {/* Footer CTAs / User profile */}
-        <div className="mt-auto space-y-4 pt-4 border-t border-slate-100/80">
-          
-          {/* Ask Mycroft CTA */}
-          <Button 
-            className={cn("h-10 w-full rounded-xl flex items-center justify-center gap-1.5", isSidebarCollapsed && "p-0 rounded-full size-10 mx-auto")} 
-            variant="primary" 
-            onClick={() => window.location.assign("/chat")}
-            title={isSidebarCollapsed ? "Ask Mycroft" : undefined}
-          >
-            <Sparkles className="size-4 shrink-0" />
-            {!isSidebarCollapsed && <span>Ask Mycroft</span>}
-          </Button>
-
-          {/* Profile card */}
-          <div className={cn(
-            "flex items-center gap-3 rounded-2xl bg-white/70 border border-slate-100",
-            isSidebarCollapsed ? "p-1 justify-center rounded-full bg-transparent border-0" : "p-3"
-          )}>
-            <div className="flex size-9 items-center justify-center rounded-full bg-slate-950 text-xs font-bold text-white shrink-0 shadow-xs">AC</div>
-            {!isSidebarCollapsed && (
-              <>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-slate-950 truncate">Alex Chen</p>
-                  <p className="text-xs font-semibold text-slate-500 truncate">Premium Plan</p>
+              {engineeringExpanded && (
+                <div className="space-y-0.5 mt-0.5">
+                  {engineeringItems.map((item) => {
+                    const active = pathname === item.href || (pathname === "/" && item.href === "/command-center");
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={cn(
+                          "flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium transition-all",
+                          active ? "bg-blue-50 text-blue-600" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                        )}
+                      >
+                        <Icon className="size-4 shrink-0" />
+                        <span className="truncate">{item.label}</span>
+                      </Link>
+                    );
+                  })}
                 </div>
-                <Bell className="size-4 text-slate-400 cursor-pointer hover:text-slate-600" />
-              </>
-            )}
-          </div>
+              )}
+            </div>
+          )}
+        </nav>
 
-          {/* Collapse sidebar toggle */}
+        {/* ── Profile + Collapse toggle ── */}
+        <div className="mt-auto pt-4 border-t border-slate-100 space-y-1">
+          {!isSidebarCollapsed ? (
+            <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors">
+              <div className="flex size-8 items-center justify-center rounded-full bg-slate-900 text-white text-[11px] font-bold shrink-0">AK</div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[12px] font-semibold text-slate-900 truncate leading-tight">Akshay Anand</p>
+                <p className="text-[10px] text-slate-400 truncate leading-tight">Product Manager</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-center py-1">
+              <div className="flex size-8 items-center justify-center rounded-full bg-slate-900 text-white text-[11px] font-bold cursor-pointer">AK</div>
+            </div>
+          )}
+
           <button
             onClick={toggleSidebarCollapse}
-            className="flex w-full items-center justify-center h-10 rounded-xl hover:bg-slate-100 text-slate-450 hover:text-slate-900 transition-colors"
+            className="flex w-full items-center justify-center h-8 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
             title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
           >
-            {isSidebarCollapsed ? <ChevronRight className="size-4.5" /> : <ChevronLeft className="size-4.5" />}
+            {isSidebarCollapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
           </button>
-
         </div>
       </aside>
-      
-      {/* Mobile nav */}
-      <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-11 rounded-2xl border bg-white/90 p-2 shadow-soft backdrop-blur-xl lg:hidden">
-        {[...productItems, ...engineeringItems].map((item) => {
-          const active = pathname === item.href || (pathname === "/" && item.href === "/command-center");
+
+      {/* ── Mobile nav (bottom bar) ── */}
+      <nav className="fixed inset-x-3 bottom-3 z-40 flex rounded-2xl border bg-white/90 p-2 shadow-lg backdrop-blur-xl lg:hidden gap-1">
+        {productItems.slice(0, 5).map((item) => {
+          const active = pathname === item.href;
           const Icon = item.icon;
           return (
             <Link
-              key={item.href}
+              key={item.label}
               href={item.href}
-              className={cn("flex h-10 items-center justify-center rounded-xl text-slate-500", active && "bg-[#e9ebfb] text-primary")}
+              className={cn(
+                "flex flex-1 h-10 items-center justify-center rounded-xl text-slate-500",
+                active && "bg-blue-50 text-blue-600"
+              )}
               aria-label={item.label}
             >
-              <Icon className="size-4.5" />
+              <Icon className="size-4" />
             </Link>
           );
         })}
+        <Link
+          href="/settings"
+          className={cn(
+            "flex flex-1 h-10 items-center justify-center rounded-xl text-slate-500",
+            pathname === "/settings" && "bg-blue-50 text-blue-600"
+          )}
+          aria-label="Settings"
+        >
+          <Settings className="size-4" />
+        </Link>
       </nav>
     </>
   );

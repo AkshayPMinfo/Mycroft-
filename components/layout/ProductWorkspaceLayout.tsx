@@ -21,7 +21,7 @@ export function ProductWorkspaceLayout({ children }: Readonly<{ children: React.
       <Sidebar />
       <main className={cn(
         "min-h-screen pb-20 lg:pb-0 transition-all duration-350 ease-in-out",
-        sidebarCollapsed ? "lg:pl-[64px]" : "lg:pl-[240px]"
+        sidebarCollapsed ? "lg:pl-[64px]" : "lg:pl-[220px]"
       )}>
         {children}
       </main>

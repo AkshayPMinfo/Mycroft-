@@ -21,7 +21,15 @@ import {
   Activity,
   ChevronRight,
   Clock,
-  Sparkles
+  Sparkles,
+  Paperclip,
+  Bell,
+  ChevronDown,
+  GitBranch,
+  Users,
+  Target,
+  FileText,
+  ChevronLeft
 } from "lucide-react";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -61,6 +69,7 @@ interface Conversation {
   prdVersion: number;
   prdStatus: "Draft" | "Review" | "Approved";
   prdSections: Record<string, PRDSection>;
+  displayTime?: string; // Seeded string for exact match
 }
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
@@ -108,223 +117,182 @@ const makeDefaultConv = (): Conversation => ({
   prdSections: defaultPRDSections()
 });
 
-// ─── History Drawer Component ─────────────────────────────────────────────────
-function HistoryDrawer({
-  open,
-  onClose,
-  conversations,
-  activeConvId,
-  onSelect,
-  onNewChat,
-  renamingId,
-  renameValue,
-  setRenamingId,
-  setRenameValue,
-  onRename,
-  onDelete
-}: {
-  open: boolean;
-  onClose: () => void;
-  conversations: Conversation[];
-  activeConvId: string;
-  onSelect: (id: string) => void;
-  onNewChat: () => void;
-  renamingId: string | null;
-  renameValue: string;
-  setRenamingId: (id: string | null) => void;
-  setRenameValue: (v: string) => void;
-  onRename: (id: string) => void;
-  onDelete: (id: string, e: React.MouseEvent) => void;
-}) {
-  const [search, setSearch] = useState("");
-  const drawerRef = useRef<HTMLDivElement>(null);
+const makeSeededConversations = (): Conversation[] => [
+  {
+    id: "conv_upi_expense",
+    title: "UPI Expense Manager",
+    activeStep: "Discovery",
+    createdAt: new Date(Date.now() - 2 * 3600000).toISOString(),
+    appName: "UPI Expense Manager",
+    sentiment: "88% Positive • 12% Negative",
+    positiveThemes: ["Seamless UPI integration", "Intuitive budget category tagger"],
+    complaints: ["Manual bank SMS matching is slow"],
+    opportunityRecommendations: ["Implement automated split bill reminders directly via WhatsApp triggers"],
+    prdTitle: "UPI Expense Manager PRD",
+    prdVersion: 1,
+    prdStatus: "Draft",
+    prdSections: defaultPRDSections(),
+    displayTime: "2:30 PM",
+    messages: [
+      {
+        sender: "ai",
+        text: "Welcome back, Akshay. I have gathered the initial telemetry analysis for UPI Expense Manager. The discovery card is ready. What feature set or transaction flow should we define next?",
+        timestamp: "2:30 PM",
+        workspaceCard: {
+          type: "Discovery",
+          title: "Discovery Workspace Active",
+          description: "UPI Expense Manager user clusters loaded.",
+          targetUrl: "/product/discovery"
+        }
+      }
+    ]
+  },
+  {
+    id: "conv_zepto_checkout",
+    title: "Zepto Checkout Improvement",
+    activeStep: "Define",
+    createdAt: new Date(Date.now() - 4 * 3600000).toISOString(),
+    appName: "Zepto",
+    sentiment: "82% Positive • 18% Negative",
+    positiveThemes: ["Fast payment processing", "Coupons apply cleanly"],
+    complaints: ["Items go out of stock mid-checkout", "Packaging fee increases"],
+    opportunityRecommendations: ["Launch a 60-Second Add-On buffer before order sealing"],
+    prdTitle: "Zepto Checkout Optimisation Spec",
+    prdVersion: 2,
+    prdStatus: "Review",
+    prdSections: defaultPRDSections(),
+    displayTime: "11:15 AM",
+    messages: [
+      {
+        sender: "ai",
+        text: "Welcome back, Akshay. We are currently in the **Define** stage for Zepto Checkout Improvement. The checkout friction logs have been loaded. What section of the PRD should we update next?",
+        timestamp: "11:15 AM",
+        workspaceCard: {
+          type: "PRD",
+          title: "PRD Spec Draft (v2)",
+          description: "Zepto checkout optimizations ready for review.",
+          targetUrl: "/product/prds"
+        }
+      }
+    ]
+  },
+  {
+    id: "conv_healthtech_ai",
+    title: "HealthTech AI Assistant",
+    activeStep: "Research",
+    createdAt: new Date(Date.now() - 24 * 3600000).toISOString(),
+    appName: "HealthTech AI Assistant",
+    sentiment: "85% Positive",
+    positiveThemes: ["Accurate initial triage", "Friendly tone"],
+    complaints: ["Triage takes too many questions"],
+    opportunityRecommendations: ["Pre-populate vitals from smartwatch sync APIs"],
+    prdTitle: "HealthTech Symptom Checker Spec",
+    prdVersion: 1,
+    prdStatus: "Draft",
+    prdSections: defaultPRDSections(),
+    displayTime: "8:45 PM",
+    messages: [
+      {
+        sender: "ai",
+        text: "Welcome back, Akshay. I have compiled the patient triage user research and competitor maps. What part of the design flow should we review first?",
+        timestamp: "8:45 PM"
+      }
+    ]
+  },
+  {
+    id: "conv_fintech_students",
+    title: "Fintech for Students",
+    activeStep: "Discovery",
+    createdAt: new Date(Date.now() - 48 * 3600000).toISOString(),
+    appName: "Fintech for Students",
+    sentiment: "90% Positive",
+    positiveThemes: ["Easy card lock toggle", "Pocket money charts"],
+    complaints: ["Transaction failure rates on campus wifi"],
+    opportunityRecommendations: ["Introduce offline tokenized campus payments"],
+    prdTitle: "Student Fintech Card Specification",
+    prdVersion: 1,
+    prdStatus: "Draft",
+    prdSections: defaultPRDSections(),
+    displayTime: "5:20 PM",
+    messages: [
+      {
+        sender: "ai",
+        text: "Welcome back, Akshay. We are analyzing student pocket money trends in urban colleges. How would you like to update the discovery profile?",
+        timestamp: "5:20 PM"
+      }
+    ]
+  },
+  {
+    id: "conv_saas_onboarding",
+    title: "SaaS Onboarding Redesign",
+    activeStep: "Design",
+    createdAt: new Date(Date.now() - 4 * 86400000).toISOString(),
+    appName: "SaaS Onboarding Redesign",
+    sentiment: "80% Positive",
+    positiveThemes: ["Clean wizard layout"],
+    complaints: ["Drop-offs at workspace creation screen"],
+    opportunityRecommendations: ["Default templates based on role choice during sign-up"],
+    prdTitle: "SaaS Onboarding Spec",
+    prdVersion: 1,
+    prdStatus: "Draft",
+    prdSections: defaultPRDSections(),
+    displayTime: "Jun 24",
+    messages: [
+      {
+        sender: "ai",
+        text: "Welcome back, Akshay. The onboarding layout wireframes have been mapped. Should we review the interactive setup wizard specs?",
+        timestamp: "Jun 24"
+      }
+    ]
+  },
+  {
+    id: "conv_ai_meeting_notes",
+    title: "AI Meeting Notes App",
+    activeStep: "PRD",
+    createdAt: new Date(Date.now() - 6 * 86400000).toISOString(),
+    appName: "AI Meeting Notes App",
+    sentiment: "84% Positive",
+    positiveThemes: ["Auto-summarize accuracy"],
+    complaints: ["Slow transcription processing"],
+    opportunityRecommendations: ["Implement client-side speech processing for short snippets"],
+    prdTitle: "AI Meeting Notes Specification",
+    prdVersion: 1,
+    prdStatus: "Draft",
+    prdSections: defaultPRDSections(),
+    displayTime: "Jun 22",
+    messages: [
+      {
+        sender: "ai",
+        text: "Welcome back, Akshay. The PRD is drafted. Should we run an automated compliance or clarity audit on the sections?",
+        timestamp: "Jun 22"
+      }
+    ]
+  },
+  {
+    id: "conv_food_loyalty",
+    title: "Food Delivery Loyalty",
+    activeStep: "Discovery",
+    createdAt: new Date(Date.now() - 8 * 86400000).toISOString(),
+    appName: "Food Delivery Loyalty",
+    sentiment: "75% Positive",
+    positiveThemes: ["Points match discount values"],
+    complaints: ["Redemption is hidden under many screens"],
+    opportunityRecommendations: ["Inject direct point apply checkboxes at the cart checkout page"],
+    prdTitle: "Food Loyalty Spec",
+    prdVersion: 1,
+    prdStatus: "Draft",
+    prdSections: defaultPRDSections(),
+    displayTime: "Jun 20",
+    messages: [
+      {
+        sender: "ai",
+        text: "Welcome back, Akshay. I have prepared the competitive maps for food delivery subscription models. Shall we explore customer churn indicators?",
+        timestamp: "Jun 20"
+      }
+    ]
+  }
+];
 
-  const filtered = conversations.filter(c =>
-    c.title.toLowerCase().includes(search.toLowerCase())
-  );
-
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [open, onClose]);
-
-  const formatDate = (iso: string) => {
-    const d = new Date(iso);
-    const now = new Date();
-    const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Yesterday";
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  };
-
-  return (
-    <>
-      {/* Backdrop */}
-      <div
-        className={cn(
-          "fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px] transition-opacity duration-250",
-          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        )}
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      {/* Drawer panel */}
-      <div
-        ref={drawerRef}
-        className={cn(
-          "fixed top-0 left-0 h-full z-50 w-[320px] bg-white border-r border-slate-100 shadow-2xl flex flex-col transition-transform duration-300 ease-out",
-          open ? "translate-x-0" : "-translate-x-full"
-        )}
-        role="dialog"
-        aria-label="Conversation History"
-      >
-        {/* Drawer header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-7 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
-              <Clock className="size-3.5" />
-            </div>
-            <span className="text-sm font-semibold text-slate-900 tracking-tight">History</span>
-          </div>
-          <button
-            onClick={onClose}
-            className="flex size-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-
-        {/* Search */}
-        <div className="px-4 pt-3 pb-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400 pointer-events-none" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search conversations..."
-              className="w-full pl-8 pr-3 py-2 text-[12px] bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 placeholder:text-slate-400 text-slate-800"
-              autoFocus
-            />
-          </div>
-        </div>
-
-        {/* Section label */}
-        <div className="px-5 py-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-            {filtered.length} conversation{filtered.length !== 1 ? "s" : ""}
-          </span>
-        </div>
-
-        {/* Conversation list */}
-        <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
-          {filtered.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-              <MessageSquare className="size-8 mb-2 text-slate-200" />
-              <p className="text-xs italic">No conversations found</p>
-            </div>
-          )}
-          {filtered.map((c) => {
-            const isActive = c.id === activeConvId;
-            const isRenaming = renamingId === c.id;
-
-            return (
-              <div
-                key={c.id}
-                onClick={() => { if (!isRenaming) { onSelect(c.id); onClose(); } }}
-                className={cn(
-                  "group w-full text-left px-3 py-2.5 rounded-xl transition-all cursor-pointer",
-                  isActive
-                    ? "bg-slate-950 text-white"
-                    : "hover:bg-slate-50 text-slate-600"
-                )}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    {isRenaming ? (
-                      <input
-                        type="text"
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        className="w-full px-1.5 py-0.5 text-xs border rounded bg-white text-slate-900 focus:outline-none"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") onRename(c.id);
-                          if (e.key === "Escape") setRenamingId(null);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        autoFocus
-                      />
-                    ) : (
-                      <p className="text-[12px] font-medium truncate leading-snug">{c.title}</p>
-                    )}
-                    <div className={cn("flex items-center gap-1.5 mt-0.5", isActive ? "text-white/50" : "text-slate-400")}>
-                      <span className="text-[10px]">{formatDate(c.createdAt)}</span>
-                      <span className="text-[10px]">·</span>
-                      <span className={cn(
-                        "text-[10px] px-1 py-px rounded font-medium",
-                        isActive ? "bg-white/10" : "bg-slate-100 text-slate-500"
-                      )}>
-                        {c.activeStep}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  {!isRenaming && (
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setRenamingId(c.id); setRenameValue(c.title); }}
-                        className={cn("p-1 rounded-md transition-colors", isActive ? "hover:bg-white/20 text-white/60" : "hover:bg-slate-200 text-slate-400")}
-                      >
-                        <Edit className="size-3" />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onDelete(c.id, e); }}
-                        className={cn("p-1 rounded-md transition-colors", isActive ? "hover:bg-red-500/30 text-white/60" : "hover:bg-red-50 text-slate-400 hover:text-red-500")}
-                      >
-                        <Trash2 className="size-3" />
-                      </button>
-                    </div>
-                  )}
-
-                  {isRenaming && (
-                    <div className="flex items-center gap-0.5 shrink-0">
-                      <button onClick={(e) => { e.stopPropagation(); onRename(c.id); }} className="p-1 rounded hover:bg-green-100 text-green-600">
-                        <Check className="size-3" />
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); setRenamingId(null); }} className="p-1 rounded hover:bg-red-100 text-red-400">
-                        <X className="size-3" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Footer: New Chat CTA */}
-        <div className="px-4 py-4 border-t border-slate-100">
-          <Button
-            onClick={() => { onNewChat(); onClose(); }}
-            className="w-full h-10 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-[12px] font-semibold flex items-center justify-center gap-2 transition-colors"
-          >
-            <Plus className="size-4" />
-            New Conversation
-          </Button>
-        </div>
-      </div>
-    </>
-  );
-}
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AIHomePage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConvId, setActiveConvId] = useState<string>("");
@@ -332,49 +300,61 @@ export default function AIHomePage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // History drawer state
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  // Home Screen Layout views
+  const [showChatView, setShowChatView] = useState(false);
 
-  // Rename inline states
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState("");
+  // Sidebar collapse states
+  const [convSidebarCollapsed, setConvSidebarCollapsed] = useState(false);
+  const [disclaimerVisible, setDisclaimerVisible] = useState(true);
+  const [attachedFile, setAttachedFile] = useState<string | null>(null);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
-  // ── Bootstrap from localStorage ──
+  // Greeting based on time
+  const [greeting, setGreeting] = useState("Good morning");
+
+  // Bootstrap state
   useEffect(() => {
     const savedConvs = localStorage.getItem("mycroft_home_conversations");
     const savedActiveId = localStorage.getItem("mycroft_home_active_conv_id");
+    const savedConvCollapse = localStorage.getItem("mycroft_conv_sidebar_collapsed_home");
+
+    if (savedConvCollapse !== null) {
+      setConvSidebarCollapsed(savedConvCollapse === "true");
+    }
 
     let loadedConvs: Conversation[] = [];
     if (savedConvs) {
-      try { loadedConvs = JSON.parse(savedConvs); } catch (e) { console.error(e); }
+      try {
+        loadedConvs = JSON.parse(savedConvs);
+      } catch (e) {
+        console.error(e);
+      }
     }
 
     if (loadedConvs.length === 0) {
-      const initial = makeDefaultConv();
-      setConversations([initial]);
-      setActiveConvId(initial.id);
+      const seeded = makeSeededConversations();
+      setConversations(seeded);
+      setActiveConvId("conv_upi_expense");
     } else {
       setConversations(loadedConvs);
       setActiveConvId(savedActiveId || loadedConvs[0].id);
     }
+
+    const hours = new Date().getHours();
+    if (hours >= 17) {
+      setGreeting("Good evening");
+    } else if (hours >= 12) {
+      setGreeting("Good afternoon");
+    } else {
+      setGreeting("Good morning");
+    }
+
     setIsLoaded(true);
   }, []);
 
-  // ── Cmd/Ctrl + K to open drawer ──
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setDrawerOpen((prev) => !prev);
-      }
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, []);
-
-  // ── Persist state to localStorage ──
+  // Sync state to localStorage
   useEffect(() => {
     if (!isLoaded) return;
     localStorage.setItem("mycroft_home_conversations", JSON.stringify(conversations));
@@ -396,7 +376,13 @@ export default function AIHomePage() {
       const savedPrdsHistory = localStorage.getItem("mycroft_prds_history");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let history: any[] = [];
-      if (savedPrdsHistory) { try { history = JSON.parse(savedPrdsHistory); } catch (e) { console.error(e); } }
+      if (savedPrdsHistory) {
+        try {
+          history = JSON.parse(savedPrdsHistory);
+        } catch (e) {
+          console.error(e);
+        }
+      }
 
       const activePrd = {
         id: history.length > 0 ? history[0].id : `prd_${active.id}`,
@@ -418,32 +404,40 @@ export default function AIHomePage() {
         },
         versions: history.length > 0 ? history[0].versions || [1] : [1]
       };
-      if (history.length > 0) { history[0] = activePrd; } else { history = [activePrd]; }
+      if (history.length > 0) {
+        history[0] = activePrd;
+      } else {
+        history = [activePrd];
+      }
       localStorage.setItem("mycroft_prds_history", JSON.stringify(history));
     }
   }, [conversations, activeConvId, isLoaded]);
 
-  // ── Auto-scroll ──
+  // Scroll to bottom on chat view
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [conversations, activeConvId]);
+    if (showChatView) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [conversations, activeConvId, showChatView]);
 
   const activeConv = conversations.find(c => c.id === activeConvId);
 
-  // ── Handlers ──
+  // Toggle conversations sidebar collapse
+  const toggleConvSidebar = () => {
+    const nextVal = !convSidebarCollapsed;
+    setConvSidebarCollapsed(nextVal);
+    localStorage.setItem("mycroft_conv_sidebar_collapsed_home", String(nextVal));
+  };
+
+  // Start new clean conversation
   const handleNewChat = useCallback(() => {
     const newConv = makeDefaultConv();
     setConversations(prev => [newConv, ...prev]);
     setActiveConvId(newConv.id);
+    setShowChatView(false);
+    setChatInput("");
+    setAttachedFile(null);
   }, []);
-
-  const handleRenameChat = useCallback((id: string) => {
-    setConversations(prev => prev.map(c =>
-      c.id === id ? { ...c, title: renameValue.trim() || c.title } : c
-    ));
-    setRenamingId(null);
-    setRenameValue("");
-  }, [renameValue]);
 
   const handleDeleteChat = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -451,6 +445,7 @@ export default function AIHomePage() {
     setConversations(updated.length > 0 ? updated : [makeDefaultConv()]);
     if (activeConvId === id) {
       setActiveConvId(updated.length > 0 ? updated[0].id : "");
+      setShowChatView(false);
     }
   }, [conversations, activeConvId]);
 
@@ -476,13 +471,16 @@ export default function AIHomePage() {
     const input = textToSend || chatInput;
     if (!input.trim() || !activeConv) return;
 
+    // Transition to chat view
+    setShowChatView(true);
+
     const userMsg: Message = {
       sender: "user",
       text: input,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     };
 
-    const updatedTitle = activeConv.title === "New Chat"
+    const updatedTitle = activeConv.title === "New Chat" || activeConv.title === "UPI Expense Manager" && activeConv.messages.length <= 1
       ? (input.length > 28 ? `${input.substring(0, 28)}...` : input)
       : activeConv.title;
 
@@ -490,8 +488,10 @@ export default function AIHomePage() {
       c.id === activeConvId ? { ...c, title: updatedTitle, messages: [...c.messages, userMsg] } : c
     ));
     if (!textToSend) setChatInput("");
+    setAttachedFile(null);
     setIsGenerating(true);
 
+    // AI Mock Response Logic
     setTimeout(() => {
       const userText = input.toLowerCase();
       let aiText = "";
@@ -500,22 +500,22 @@ export default function AIHomePage() {
       let card: Message["workspaceCard"] = undefined;
 
       if (activeConv.activeStep === "Discovery") {
-        if (userText.includes("grocery") || userText.includes("zepto") || userText.includes("delivery")) {
+        if (userText.includes("grocery") || userText.includes("zepto") || userText.includes("delivery") || userText.includes("reviews")) {
           aiText = "Excellent. I have analyzed review clusters for grocery delivery apps in India. Opportunity discovery details are ready in your Discovery Workspace. What is the primary customer profile and target region we want to capture first?";
           card = { type: "Discovery", title: "Discovery Workspace Updated", description: "Review Intelligence clusters synced for Zepto.", targetUrl: "/product/discovery" };
-        } else if (userText.includes("student") || userText.includes("bangalore") || userText.includes("campuses")) {
+        } else if (userText.includes("student") || userText.includes("bangalore") || userText.includes("campuses") || userText.includes("users")) {
           aiText = "Got it. I have logged 'Students in university campuses in Bangalore' under Target Users in our active workspace schema. Next: What are the core success metrics or KPI targets we need to achieve?";
-        } else if (userText.includes("metrics") || userText.includes("score") || userText.includes("seconds")) {
+        } else if (userText.includes("metrics") || userText.includes("score") || userText.includes("seconds") || userText.includes("roadmap")) {
           aiText = "Understood. The Discovery phase is complete. I have successfully gathered the requirements baseline. We can now transition to Define to generate the PRD Specification.";
           nextAction = { label: "Move to Define (PRD)", stage: "Define" };
         } else {
-          aiText = "I have logged that research topic. Let me know if you would like me to calculate the sentiment metrics or outline the compliance maps.";
+          aiText = "I have logged that research topic in the UPI Expense Manager scope. Let me know if you would like me to calculate the sentiment metrics or outline the compliance maps.";
         }
       } else if (activeConv.activeStep === "Define") {
         if (userText.includes("compliance") || userText.includes("rbi") || userText.includes("dpdp")) {
           aiText = "Updated. I have added India DPDP Act 2023 regulations and RBI payment guidelines to Section 8 (Compliance). Let me know if you are ready to transition to the Design & Develop phase.";
           card = { type: "PRD", title: "PRD Draft Updated (v2)", description: "Section 8 Compliance rules appended with India regulatory acts.", targetUrl: "/product/prds" };
-        } else if (userText.includes("audit") || userText.includes("review")) {
+        } else if (userText.includes("audit") || userText.includes("review") || userText.includes("prd")) {
           aiText = "Spec quality score is currently 95/100. All 8 requirements sections are populated cleanly. The spec is audit ready.";
         } else if (userText.includes("move") || userText.includes("design") || userText.includes("develop")) {
           aiText = "PRD is approved. I have populated the engineering milestone targets and Q3 core payments roadmap. Let's move to the Design & Develop stage.";
@@ -569,246 +569,728 @@ export default function AIHomePage() {
     }, 800);
   }, [chatInput, activeConv, activeConvId]);
 
-  // ─── Render ────────────────────────────────────────────────────────────────
-  return (
-    <div className="flex flex-col h-screen bg-white font-sans antialiased text-slate-800 overflow-hidden">
+  // Handle Attachment trigger
+  const handleAttachmentClick = () => {
+    fileInputRef.current?.click();
+  };
 
-      {/* ── History Drawer (overlays, does not push content) ── */}
-      <HistoryDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        conversations={conversations}
-        activeConvId={activeConvId}
-        onSelect={(id) => setActiveConvId(id)}
-        onNewChat={handleNewChat}
-        renamingId={renamingId}
-        renameValue={renameValue}
-        setRenamingId={setRenamingId}
-        setRenameValue={setRenameValue}
-        onRename={handleRenameChat}
-        onDelete={handleDeleteChat}
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setAttachedFile(e.target.files[0].name);
+    }
+  };
+
+  // Group conversations for sidebar history
+  const getGroupedConversations = () => {
+    const today: Conversation[] = [];
+    const yesterday: Conversation[] = [];
+    const earlier: Conversation[] = [];
+
+    conversations.forEach(c => {
+      if (c.displayTime) {
+        if (c.displayTime.includes("AM") || c.displayTime.includes("PM")) {
+          // Hardcoded seed groups
+          if (c.id === "conv_upi_expense" || c.id === "conv_zepto_checkout") {
+            today.push(c);
+          } else {
+            yesterday.push(c);
+          }
+        } else {
+          earlier.push(c);
+        }
+      } else {
+        const diff = Date.now() - new Date(c.createdAt).getTime();
+        const diffDays = Math.floor(diff / (1000 * 60 * 60 * 24));
+        if (diffDays === 0) {
+          today.push(c);
+        } else if (diffDays === 1) {
+          yesterday.push(c);
+        } else {
+          earlier.push(c);
+        }
+      }
+    });
+
+    return { today, yesterday, earlier };
+  };
+
+  const grouped = getGroupedConversations();
+
+  return (
+    <div className="flex h-screen bg-white font-sans antialiased text-slate-800 overflow-hidden relative">
+
+      {/* Hidden File Input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
       />
 
-      {/* ── Top Header ── */}
-      <header className="shrink-0 flex items-center justify-between px-6 py-3.5 border-b border-slate-100 bg-white/95 backdrop-blur-sm z-20">
-        
-        {/* Left: Brand */}
-        <div className="flex items-center gap-3">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-slate-900 text-white shadow-sm">
-            <Bot className="size-4" />
-          </div>
-          <div>
-            <h1 className="text-sm font-semibold tracking-tight text-slate-900 leading-none">Mycroft AI</h1>
-            <p className="text-[10px] text-slate-400 font-medium mt-0.5 leading-none">Product Workspace</p>
+      {/* ── Column 1: Collapsible Conversation History Sidebar (250px) ── */}
+      <div className={cn(
+        "border-r border-slate-100 bg-[#fafafa] flex flex-col h-full shrink-0 transition-all duration-300 ease-in-out relative z-10",
+        convSidebarCollapsed ? "w-0 opacity-0 overflow-hidden pointer-events-none" : "w-[250px]"
+      )}>
+        {/* Sidebar Header */}
+        <div className="flex items-center justify-between px-4 py-4 border-b border-slate-100 bg-white">
+          <span className="text-sm font-semibold text-slate-800 tracking-tight">Conversations</span>
+          <div className="flex items-center gap-1">
+            <button className="p-1 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors">
+              <Search className="size-3.5" />
+            </button>
+            <button
+              onClick={toggleConvSidebar}
+              className="p-1 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+              title="Collapse Panel"
+            >
+              <ChevronLeft className="size-4" />
+            </button>
           </div>
         </div>
 
-        {/* Center: Lifecycle stepper */}
-        {activeConv && (
-          <div className="hidden lg:flex items-center gap-0.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-150 select-none">
-            {STEPS.map((step, idx) => {
-              const isActive = activeConv.activeStep === step;
-              const isCompleted = STEPS.indexOf(activeConv.activeStep) > idx;
-              return (
-                <React.Fragment key={step}>
-                  {idx > 0 && <ChevronRight className="size-3 text-slate-250 mx-0.5" />}
-                  <button
-                    onClick={() => handleAction({ label: `Goto ${step}`, stage: step })}
+        {/* Sidebar Groups */}
+        <div className="flex-1 overflow-y-auto p-2 space-y-4">
+          
+          {/* Today Group */}
+          {grouped.today.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2.5 mb-1.5">Today</p>
+              {grouped.today.map(c => {
+                const isActive = c.id === activeConvId;
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => {
+                      setActiveConvId(c.id);
+                      setShowChatView(true);
+                    }}
                     className={cn(
-                      "px-1.5 py-0.5 rounded-md text-[10px] font-semibold transition-all duration-200",
+                      "group flex flex-col px-3 py-2 rounded-xl cursor-pointer transition-all relative border border-transparent",
                       isActive
-                        ? "bg-slate-950 text-white font-bold px-2"
-                        : isCompleted
-                          ? "text-slate-700 hover:text-slate-950"
-                          : "text-slate-400 hover:text-slate-600"
+                        ? "bg-violet-50/70 border-violet-100 text-slate-900"
+                        : "hover:bg-slate-50 text-slate-600 hover:text-slate-950"
                     )}
                   >
-                    {step}
-                  </button>
-                </React.Fragment>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Right: History toggle */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setDrawerOpen(true)}
-            title="History (⌘K)"
-            className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors text-[12px] font-medium"
-          >
-            <Clock className="size-3.5" />
-            <span className="hidden sm:inline">History</span>
-            <kbd className="hidden md:inline ml-1 text-[9px] font-mono bg-slate-100 text-slate-400 px-1 py-0.5 rounded border border-slate-200">⌘K</kbd>
-          </button>
-        </div>
-      </header>
-
-      {/* ── Full-width Chat Canvas ── */}
-      <main className="flex-1 overflow-y-auto relative">
-        <div className="mx-auto max-w-3xl px-6 pt-8 pb-48">
-
-          {activeConv ? (
-            <div className="space-y-6">
-              {activeConv.messages.map((msg, idx) => {
-                const isAi = msg.sender === "ai";
-                return (
-                  <div key={idx} className="space-y-2.5">
-                    <div className={`flex gap-3.5 ${!isAi && "justify-end"}`}>
-                      {isAi && (
-                        <div className="flex size-7 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white flex-shrink-0 mt-0.5">
-                          M
-                        </div>
-                      )}
-                      <div className="space-y-2 max-w-[82%]">
-                        {/* Message bubble */}
-                        <div
-                          className={cn(
-                            "px-4 py-3 rounded-2xl text-[13px] leading-relaxed",
-                            isAi
-                              ? "bg-slate-50 text-slate-800 rounded-tl-[4px] border border-slate-100"
-                              : "bg-slate-900 text-white rounded-tr-[4px]"
-                          )}
-                          style={{ whiteSpace: "pre-line" }}
-                        >
-                          {msg.text}
-                        </div>
-
-                        {/* Timestamp */}
-                        <p className={cn(
-                          "text-[10px] font-medium px-1",
-                          isAi ? "text-slate-400" : "text-right text-slate-400"
-                        )}>
-                          {msg.timestamp}
-                        </p>
-
-                        {/* Workspace card */}
-                        {isAi && msg.workspaceCard && (
-                          <Card className="p-3.5 border border-slate-100 bg-white shadow-xs rounded-xl flex items-center justify-between gap-4 max-w-sm">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="flex size-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 shrink-0">
-                                {msg.workspaceCard.type === "Discovery" ? (
-                                  <Compass className="size-4" />
-                                ) : msg.workspaceCard.type === "PRD" ? (
-                                  <ClipboardList className="size-4" />
-                                ) : (
-                                  <Activity className="size-4" />
-                                )}
-                              </div>
-                              <div className="min-w-0">
-                                <h4 className="text-[11px] font-bold text-slate-900 truncate">{msg.workspaceCard.title}</h4>
-                                <p className="text-[10px] text-slate-500 mt-0.5 truncate">{msg.workspaceCard.description}</p>
-                              </div>
-                            </div>
-                            <Button
-                              onClick={() => window.location.assign(msg.workspaceCard!.targetUrl)}
-                              className="h-8 px-3 rounded-lg bg-slate-900 hover:bg-slate-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs shrink-0 transition-colors"
-                            >
-                              Open
-                              <ArrowUpRight className="size-3" />
-                            </Button>
-                          </Card>
-                        )}
-
-                        {/* Stage action button */}
-                        {isAi && msg.action && (
-                          <Button
-                            onClick={() => handleAction(msg.action!)}
-                            className="h-8 px-3.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold flex items-center gap-1.5 transition-colors"
-                          >
-                            {msg.action.label}
-                            <ArrowRight className="size-3.5" />
-                          </Button>
-                        )}
-                      </div>
+                    <div className="flex items-start justify-between gap-1.5 w-full">
+                      <span className="text-xs font-semibold truncate flex-1 leading-snug">{c.title}</span>
+                      <span className="text-[9px] text-slate-400 whitespace-nowrap pt-0.5">{c.displayTime || "Today"}</span>
                     </div>
+                    <span className="text-[10px] text-slate-400 mt-0.5 font-medium">Stage: {c.activeStep}</span>
+                    {isActive && (
+                      <span className="absolute right-3.5 bottom-3.5 size-1.5 rounded-full bg-violet-600 animate-pulse" />
+                    )}
                   </div>
                 );
               })}
+            </div>
+          )}
 
-              {/* Thinking indicator */}
-              {isGenerating && (
-                <div className="flex gap-3.5">
-                  <div className="flex size-7 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white flex-shrink-0 mt-0.5">M</div>
-                  <div className="bg-slate-50 border border-slate-100 text-slate-400 px-4 py-3 rounded-2xl rounded-tl-[4px] text-[13px]">
-                    <span className="inline-flex gap-1 items-center">
-                      <span className="animate-bounce [animation-delay:0ms]">·</span>
-                      <span className="animate-bounce [animation-delay:150ms]">·</span>
-                      <span className="animate-bounce [animation-delay:300ms]">·</span>
-                    </span>
+          {/* Yesterday Group */}
+          {grouped.yesterday.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2.5 mb-1.5">Yesterday</p>
+              {grouped.yesterday.map(c => {
+                const isActive = c.id === activeConvId;
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => {
+                      setActiveConvId(c.id);
+                      setShowChatView(true);
+                    }}
+                    className={cn(
+                      "group flex flex-col px-3 py-2 rounded-xl cursor-pointer transition-all relative border border-transparent",
+                      isActive
+                        ? "bg-violet-50/70 border-violet-100 text-slate-900"
+                        : "hover:bg-slate-50 text-slate-600 hover:text-slate-950"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-1.5 w-full">
+                      <span className="text-xs font-semibold truncate flex-1 leading-snug">{c.title}</span>
+                      <span className="text-[9px] text-slate-400 whitespace-nowrap pt-0.5">{c.displayTime || "Yesterday"}</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-0.5 font-medium">Stage: {c.activeStep}</span>
+                    {isActive && (
+                      <span className="absolute right-3.5 bottom-3.5 size-1.5 rounded-full bg-violet-600 animate-pulse" />
+                    )}
                   </div>
-                </div>
-              )}
-
-              <div ref={chatEndRef} />
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-32 text-slate-400">
-              <Bot className="size-12 text-slate-150 mb-3" />
-              <p className="text-sm font-medium text-slate-500">Select or start a conversation</p>
-              <p className="text-xs text-slate-400 mt-1">Use History (⌘K) to browse past conversations</p>
+                );
+              })}
             </div>
           )}
+
+          {/* Earlier Group */}
+          {grouped.earlier.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2.5 mb-1.5">Earlier</p>
+              {grouped.earlier.map(c => {
+                const isActive = c.id === activeConvId;
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => {
+                      setActiveConvId(c.id);
+                      setShowChatView(true);
+                    }}
+                    className={cn(
+                      "group flex flex-col px-3 py-2 rounded-xl cursor-pointer transition-all relative border border-transparent",
+                      isActive
+                        ? "bg-violet-50/70 border-violet-100 text-slate-900"
+                        : "hover:bg-slate-50 text-slate-600 hover:text-slate-950"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-1.5 w-full">
+                      <span className="text-xs font-semibold truncate flex-1 leading-snug">{c.title}</span>
+                      <span className="text-[9px] text-slate-400 whitespace-nowrap pt-0.5">{c.displayTime || "Earlier"}</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-0.5 font-medium">Stage: {c.activeStep}</span>
+                    {isActive && (
+                      <span className="absolute right-3.5 bottom-3.5 size-1.5 rounded-full bg-violet-600 animate-pulse" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
         </div>
-      </main>
 
-      {/* ── Floating Composer (pinned above FAB) ── */}
-      <div className="absolute bottom-20 left-0 right-0 flex justify-center px-6 pointer-events-none z-10">
-        <div className="w-full max-w-3xl bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg p-3.5 pointer-events-auto flex flex-col gap-2.5 transition-all">
-          <div className="flex gap-2.5 items-center">
-            <input
-              type="text"
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder={activeConv ? `Ask Mycroft about the ${activeConv.activeStep} stage…` : "Type a message…"}
-              className="flex-1 px-4 py-2.5 text-[13px] border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900/10 bg-slate-50/60 placeholder:text-slate-400 leading-relaxed transition-shadow"
-              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
-              disabled={isGenerating || !activeConv}
-            />
-            <Button
-              onClick={() => handleSendMessage()}
-              disabled={isGenerating || !chatInput.trim() || !activeConv}
-              className="h-[42px] px-4 rounded-xl bg-slate-950 text-white hover:bg-slate-800 text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0 disabled:opacity-40"
-            >
-              <Send className="size-3.5" />
-              <span className="hidden sm:inline">Send</span>
-            </Button>
-          </div>
-
-          {/* Suggestion chips */}
-          {activeConv && (
-            <div className="flex flex-wrap items-center gap-1.5 pl-0.5">
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mr-0.5">Try:</span>
-              {activeConv.activeStep === "Discovery" ? (
-                <>
-                  <button onClick={() => handleSendMessage("Analyze Zepto reviews")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Analyze Reviews</button>
-                  <button onClick={() => handleSendMessage("Set target users to students in university campuses")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Identify Users</button>
-                  <button onClick={() => handleSendMessage("Define success metrics as Quality score >= 90")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Define Metrics</button>
-                </>
-              ) : (
-                <>
-                  <button onClick={() => handleSendMessage("Add India compliance laws")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Add Compliance</button>
-                  <button onClick={() => handleSendMessage("Perform PRD audit checks")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• PRD Audit</button>
-                  <button onClick={() => handleSendMessage("Transition to Design & Develop stage")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Build Roadmap</button>
-                </>
-              )}
-            </div>
-          )}
+        {/* Sidebar Footer */}
+        <div className="p-3 border-t border-slate-100 bg-white flex justify-center">
+          <button className="text-[11px] font-semibold text-slate-500 hover:text-slate-900 flex items-center gap-1 transition-colors">
+            View all conversations
+            <ArrowRight className="size-3" />
+          </button>
         </div>
       </div>
 
-      {/* ── FAB: New Chat ── */}
-      <button
-        onClick={handleNewChat}
-        title="New Chat"
-        className="fixed bottom-6 right-6 z-30 flex items-center gap-2 h-12 px-5 rounded-2xl bg-slate-950 hover:bg-slate-800 text-white text-[13px] font-semibold shadow-xl hover:shadow-2xl transition-all duration-200 active:scale-95 group"
-      >
-        <Plus className="size-4 transition-transform duration-200 group-hover:rotate-90" />
-        <span>New Chat</span>
-        <Sparkles className="size-3.5 text-white/50" />
-      </button>
+      {/* ── Column 2: Main Workspace Canvas ── */}
+      <div className="flex-1 flex flex-col h-full bg-white overflow-hidden relative">
 
+        {/* ── Top Navigation Bar ── */}
+        <header className="shrink-0 flex items-center justify-between px-6 py-3.5 border-b border-slate-100 bg-white z-20">
+          
+          {/* Left Controls: Conversations expand button if collapsed */}
+          <div className="flex items-center gap-3">
+            {convSidebarCollapsed && (
+              <button
+                onClick={toggleConvSidebar}
+                className="flex items-center gap-1.5 text-slate-500 hover:bg-slate-150 hover:text-slate-900 transition-colors p-1.5 rounded-lg border border-slate-200/60"
+                title="Expand Conversations History"
+              >
+                <ChevronRight className="size-4" />
+                <span className="text-[11px] font-semibold pr-1">Conversations</span>
+              </button>
+            )}
+
+            {/* Stepper Selector (only in active chat view) */}
+            {showChatView && activeConv && (
+              <div className="hidden md:flex items-center gap-0.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-150 select-none">
+                {STEPS.map((step, idx) => {
+                  const isActive = activeConv.activeStep === step;
+                  const isCompleted = STEPS.indexOf(activeConv.activeStep) > idx;
+                  return (
+                    <React.Fragment key={step}>
+                      {idx > 0 && <ChevronRight className="size-3 text-slate-250 mx-0.5" />}
+                      <button
+                        onClick={() => handleAction({ label: `Goto ${step}`, stage: step })}
+                        className={cn(
+                          "px-1.5 py-0.5 rounded-md text-[10px] font-semibold transition-all duration-200",
+                          isActive
+                            ? "bg-slate-950 text-white font-bold px-2"
+                            : isCompleted
+                              ? "text-slate-700 hover:text-slate-950"
+                              : "text-slate-400 hover:text-slate-600"
+                        )}
+                      >
+                        {step}
+                      </button>
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            )}
+            
+            {showChatView && (
+              <button
+                onClick={() => setShowChatView(false)}
+                className="text-[11px] font-semibold text-slate-500 hover:text-slate-955 flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-slate-50 border border-slate-200/40"
+              >
+                ← Back to Home
+              </button>
+            )}
+          </div>
+
+          {/* Right Controls */}
+          <div className="flex items-center gap-4">
+            {/* New Chat Button */}
+            <Button
+              onClick={handleNewChat}
+              variant="secondary"
+              className="h-8 px-3.5 rounded-lg border-violet-200 text-violet-600 hover:bg-violet-50/50 text-[12px] font-semibold flex items-center gap-1.5 transition-all shadow-2xs"
+            >
+              <Plus className="size-3.5" />
+              New Chat
+            </Button>
+
+            {/* Search Icon */}
+            <button className="text-slate-500 hover:text-slate-800 transition-colors">
+              <Search className="size-4.5" />
+            </button>
+
+            {/* Notification Bell */}
+            <div className="relative cursor-pointer">
+              <Bell className="size-4.5 text-slate-500 hover:text-slate-800 transition-colors" />
+              <span className="absolute -top-0.5 -right-0.5 size-1.5 bg-violet-600 rounded-full" />
+            </div>
+
+            {/* User Profile Avatar dropdown indicator */}
+            <div className="flex items-center gap-1 cursor-pointer">
+              <div className="size-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 text-[11px] font-bold border border-slate-200">
+                AA
+              </div>
+              <ChevronDown className="size-3 text-slate-400" />
+            </div>
+          </div>
+        </header>
+
+        {/* ── View Container ── */}
+        <div className="flex-1 overflow-y-auto bg-white flex flex-col">
+
+          {/* ==================== VIEW 1: WIREFRAME LANDING SCREEN ==================== */}
+          {!showChatView ? (
+            <div className="flex-1 w-full max-w-4xl mx-auto px-6 py-8 space-y-10 pb-24">
+              
+              {/* Header Titles */}
+              <div className="space-y-2 mt-4">
+                <p className="text-[13px] font-semibold text-slate-500">{greeting}, Akshay! 👋</p>
+                <h2 className="text-[34px] font-bold text-slate-900 tracking-tight leading-tight">What are we building today?</h2>
+                <p className="text-[13px] text-slate-500">I&apos;ll help you discover, define and build products users love.</p>
+              </div>
+
+              {/* Large Prompt Input Box */}
+              <div className="border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow focus-within:border-violet-400 focus-within:ring-2 focus-within:ring-violet-100 bg-white">
+                <textarea
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Describe your product idea or ask anything..."
+                  rows={3}
+                  className="w-full text-[13px] text-slate-800 placeholder:text-slate-400 resize-none bg-transparent focus:outline-none leading-relaxed"
+                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
+                />
+                
+                {/* Attached File indicator */}
+                {attachedFile && (
+                  <div className="flex items-center gap-1.5 self-start px-2.5 py-1 bg-violet-50 text-violet-700 text-[11px] rounded-lg border border-violet-100 font-semibold mb-2 mt-1 shrink-0 max-w-fit">
+                    <Paperclip className="size-3" />
+                    <span className="truncate max-w-[150px]">{attachedFile}</span>
+                    <button onClick={() => setAttachedFile(null)} className="hover:text-red-500 font-bold ml-1">×</button>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 mt-2">
+                  <button
+                    onClick={handleAttachmentClick}
+                    className="p-2 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors"
+                    title="Attach file"
+                  >
+                    <Paperclip className="size-4.5" />
+                  </button>
+                  <button
+                    onClick={() => handleSendMessage()}
+                    disabled={!chatInput.trim()}
+                    className="size-8.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center transition-all disabled:opacity-40 disabled:hover:bg-violet-600 shadow-sm"
+                  >
+                    <Send className="size-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Suggested Actions (Popular things to try) */}
+              <div className="space-y-3">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Popular things to try</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  
+                  {/* Card 1 */}
+                  <div
+                    onClick={() => handleSendMessage("Analyze Reviews for Zepto Checkout Improvement")}
+                    className="p-3 bg-white border border-slate-150/75 hover:border-slate-350 hover:shadow-2xs transition-all cursor-pointer flex items-center gap-3 rounded-xl"
+                  >
+                    <div className="size-9 bg-violet-50 rounded-lg flex items-center justify-center text-violet-600 shrink-0">
+                      <Search className="size-4.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[12px] font-bold text-slate-900 leading-snug">Analyze Reviews</p>
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">Find user pain points</p>
+                    </div>
+                  </div>
+
+                  {/* Card 2 */}
+                  <div
+                    onClick={() => handleSendMessage("Generate PRD draft for UPI Expense Manager")}
+                    className="p-3 bg-white border border-slate-150/75 hover:border-slate-350 hover:shadow-2xs transition-all cursor-pointer flex items-center gap-3 rounded-xl"
+                  >
+                    <div className="size-9 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 shrink-0">
+                      <FileText className="size-4.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[12px] font-bold text-slate-900 leading-snug">Generate PRD</p>
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">Create PRD draft</p>
+                    </div>
+                  </div>
+
+                  {/* Card 3 */}
+                  <div
+                    onClick={() => handleSendMessage("Build Roadmap and product milestones")}
+                    className="p-3 bg-white border border-slate-150/75 hover:border-slate-350 hover:shadow-2xs transition-all cursor-pointer flex items-center gap-3 rounded-xl"
+                  >
+                    <div className="size-9 bg-amber-50 rounded-lg flex items-center justify-center text-amber-600 shrink-0">
+                      <GitBranch className="size-4.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[12px] font-bold text-slate-900 leading-snug">Build Roadmap</p>
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">Plan product journey</p>
+                    </div>
+                  </div>
+
+                  {/* Card 4 */}
+                  <div
+                    onClick={() => handleSendMessage("Identify target users and success metrics")}
+                    className="p-3 bg-white border border-slate-150/75 hover:border-slate-350 hover:shadow-2xs transition-all cursor-pointer flex items-center gap-3 rounded-xl"
+                  >
+                    <div className="size-9 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 shrink-0">
+                      <Users className="size-4.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[12px] font-bold text-slate-900 leading-snug">Identify Users</p>
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">Define target users</p>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Continue Your Work (Active project tracker card) */}
+              <div className="space-y-3">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Continue your work</p>
+                <Card className="p-4 border border-slate-150/75 bg-white rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="size-10 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center shrink-0">
+                      <FileText className="size-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-[13px] font-bold text-slate-900">UPI Expense Manager</h4>
+                        <span className="text-[10px] font-semibold bg-violet-50 text-violet-600 px-2.5 py-0.5 rounded-full">Discovery</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-1 font-medium">Fintech • Last updated 2 hours ago</p>
+                    </div>
+                  </div>
+
+                  {/* 6D Stepper progress tracker bar */}
+                  <div className="flex items-center justify-center md:justify-start gap-1 py-2 overflow-x-auto max-w-full">
+                    {STEPS.map((step, index) => {
+                      const isCompleted = index === 0; // Discovery checked
+                      return (
+                        <div key={step} className="flex items-center shrink-0">
+                          {index > 0 && (
+                            <div className="w-6 sm:w-10 h-0.5 bg-slate-150" />
+                          )}
+                          <div className="flex flex-col items-center mx-1 relative group">
+                            <div className={cn(
+                              "size-5 rounded-full flex items-center justify-center text-[9px] font-bold border transition-colors",
+                              isCompleted
+                                ? "bg-violet-600 border-violet-600 text-white"
+                                : "bg-white border-slate-200 text-slate-400"
+                            )}>
+                              {isCompleted ? "✓" : index + 1}
+                            </div>
+                            <span className={cn(
+                              "text-[8.5px] mt-1.5 font-semibold transition-all",
+                              isCompleted ? "text-violet-600" : "text-slate-400"
+                            )}>
+                              {step}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <Button
+                    onClick={() => {
+                      setActiveConvId("conv_upi_expense");
+                      setShowChatView(true);
+                    }}
+                    variant="secondary"
+                    className="h-9 px-4 rounded-xl border-violet-200 text-violet-600 hover:bg-violet-50/50 text-[12px] font-semibold shrink-0 shadow-2xs"
+                  >
+                    Continue
+                  </Button>
+                </Card>
+              </div>
+
+              {/* Recent Projects */}
+              <div className="space-y-3">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Recent projects</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                  
+                  {/* Project 1 */}
+                  <div
+                    onClick={() => {
+                      setActiveConvId("conv_zepto_checkout");
+                      setShowChatView(true);
+                    }}
+                    className="p-3.5 bg-white border border-slate-150/75 hover:border-slate-350 hover:shadow-2xs transition-all cursor-pointer rounded-xl flex items-center gap-3"
+                  >
+                    <div className="size-8.5 rounded-lg bg-pink-50 text-pink-650 font-bold flex items-center justify-center shrink-0 text-[12px]">
+                      Z
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11.5px] font-bold text-slate-900 truncate leading-snug">Zepto Checkout</p>
+                      <p className="text-[9.5px] text-slate-400 mt-0.5 truncate font-medium">Define • Updated 4h ago</p>
+                    </div>
+                  </div>
+
+                  {/* Project 2 */}
+                  <div
+                    onClick={() => {
+                      setActiveConvId("conv_healthtech_ai");
+                      setShowChatView(true);
+                    }}
+                    className="p-3.5 bg-white border border-slate-150/75 hover:border-slate-350 hover:shadow-2xs transition-all cursor-pointer rounded-xl flex items-center gap-3"
+                  >
+                    <div className="size-8.5 rounded-lg bg-emerald-50 text-emerald-650 font-bold flex items-center justify-center shrink-0 text-[12px]">
+                      H
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11.5px] font-bold text-slate-900 truncate leading-snug">HealthTech AI</p>
+                      <p className="text-[9.5px] text-slate-400 mt-0.5 truncate font-medium">Research • 1d ago</p>
+                    </div>
+                  </div>
+
+                  {/* Project 3 */}
+                  <div
+                    onClick={() => {
+                      setActiveConvId("conv_fintech_students");
+                      setShowChatView(true);
+                    }}
+                    className="p-3.5 bg-white border border-slate-150/75 hover:border-slate-350 hover:shadow-2xs transition-all cursor-pointer rounded-xl flex items-center gap-3"
+                  >
+                    <div className="size-8.5 rounded-lg bg-blue-50 text-blue-650 font-bold flex items-center justify-center shrink-0 text-[12px]">
+                      F
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11.5px] font-bold text-slate-900 truncate leading-snug">Fintech Students</p>
+                      <p className="text-[9.5px] text-slate-400 mt-0.5 truncate font-medium">Discovery • 2d ago</p>
+                    </div>
+                  </div>
+
+                  {/* View all projects */}
+                  <div
+                    onClick={() => window.location.assign("/projects")}
+                    className="p-3.5 bg-slate-50 border border-slate-150/75 hover:bg-slate-100 hover:border-slate-350 hover:shadow-2xs transition-all cursor-pointer rounded-xl flex items-center justify-center"
+                  >
+                    <p className="text-[11.5px] font-bold text-slate-600 flex items-center gap-1.5">
+                      View all projects
+                      <ArrowRight className="size-3" />
+                    </p>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+          ) : (
+            /* ==================== VIEW 2: ACTIVE CONVERSATION / CHAT INTERFACE ==================== */
+            <div className="flex-1 w-full max-w-3xl mx-auto px-6 pt-6 pb-48">
+              {activeConv ? (
+                <div className="space-y-6">
+                  {activeConv.messages.map((msg, idx) => {
+                    const isAi = msg.sender === "ai";
+                    return (
+                      <div key={idx} className="space-y-2.5">
+                        <div className={`flex gap-3.5 ${!isAi && "justify-end"}`}>
+                          {isAi && (
+                            <div className="flex size-7 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white flex-shrink-0 mt-0.5">
+                              M
+                            </div>
+                          )}
+                          <div className="space-y-2 max-w-[82%]">
+                            {/* Message bubble */}
+                            <div
+                              className={cn(
+                                "px-4 py-3 rounded-2xl text-[13px] leading-relaxed",
+                                isAi
+                                  ? "bg-slate-50 text-slate-800 rounded-tl-[4px] border border-slate-100"
+                                  : "bg-violet-600 text-white rounded-tr-[4px]"
+                              )}
+                              style={{ whiteSpace: "pre-line" }}
+                            >
+                              {msg.text}
+                            </div>
+
+                            {/* Timestamp */}
+                            <p className={cn(
+                              "text-[10px] font-medium px-1 text-slate-400",
+                              !isAi && "text-right"
+                            )}>
+                              {msg.timestamp}
+                            </p>
+
+                            {/* Workspace card */}
+                            {isAi && msg.workspaceCard && (
+                              <Card className="p-3.5 border border-slate-100 bg-white shadow-xs rounded-xl flex items-center justify-between gap-4 max-w-sm">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="flex size-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 shrink-0">
+                                    {msg.workspaceCard.type === "Discovery" ? (
+                                      <Compass className="size-4" />
+                                    ) : msg.workspaceCard.type === "PRD" ? (
+                                      <ClipboardList className="size-4" />
+                                    ) : (
+                                      <Activity className="size-4" />
+                                    )}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <h4 className="text-[11px] font-bold text-slate-900 truncate">{msg.workspaceCard.title}</h4>
+                                    <p className="text-[10px] text-slate-500 mt-0.5 truncate">{msg.workspaceCard.description}</p>
+                                  </div>
+                                </div>
+                                <Button
+                                  onClick={() => window.location.assign(msg.workspaceCard!.targetUrl)}
+                                  className="h-8 px-3 rounded-lg bg-slate-900 hover:bg-slate-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs shrink-0 transition-colors"
+                                >
+                                  Open
+                                  <ArrowUpRight className="size-3" />
+                                </Button>
+                              </Card>
+                            )}
+
+                            {/* Stage action button */}
+                            {isAi && msg.action && (
+                              <Button
+                                onClick={() => handleAction(msg.action!)}
+                                className="h-8 px-3.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-semibold flex items-center gap-1.5 transition-colors"
+                              >
+                                {msg.action.label}
+                                <ArrowRight className="size-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Thinking indicator */}
+                  {isGenerating && (
+                    <div className="flex gap-3.5">
+                      <div className="flex size-7 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white flex-shrink-0 mt-0.5">M</div>
+                      <div className="bg-slate-50 border border-slate-100 text-slate-400 px-4 py-3 rounded-2xl rounded-tl-[4px] text-[13px]">
+                        <span className="inline-flex gap-1 items-center">
+                          <span className="animate-bounce [animation-delay:0ms]">·</span>
+                          <span className="animate-bounce [animation-delay:150ms]">·</span>
+                          <span className="animate-bounce [animation-delay:300ms]">·</span>
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div ref={chatEndRef} />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-32 text-slate-400">
+                  <Bot className="size-12 text-slate-150 mb-3" />
+                  <p className="text-sm font-medium text-slate-500">Select or start a conversation</p>
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
+
+        {/* ── Active Chat Composer (displayed only when chatting) ── */}
+        {showChatView && (
+          <div className="absolute bottom-6 left-0 right-0 flex justify-center px-6 pointer-events-none z-10">
+            <div className="w-full max-w-3xl bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg p-3.5 pointer-events-auto flex flex-col gap-2.5 transition-all">
+              <div className="flex gap-2.5 items-center">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder={activeConv ? `Ask Mycroft about the ${activeConv.activeStep} stage…` : "Type a message…"}
+                  className="flex-1 px-4 py-2.5 text-[13px] border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900/10 bg-slate-50/60 placeholder:text-slate-400 leading-relaxed transition-shadow"
+                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
+                  disabled={isGenerating || !activeConv}
+                />
+                
+                {/* Inline attached file display in chat composer */}
+                {attachedFile && (
+                  <div className="flex items-center gap-1 bg-violet-50 text-violet-700 text-[10px] font-semibold px-2 py-1 rounded border border-violet-100 truncate shrink-0 max-w-[120px]">
+                    <Paperclip className="size-3" />
+                    <span>{attachedFile}</span>
+                  </div>
+                )}
+
+                <button
+                  onClick={handleAttachmentClick}
+                  className="p-2 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors shrink-0"
+                  title="Attach file"
+                >
+                  <Paperclip className="size-4" />
+                </button>
+
+                <Button
+                  onClick={() => handleSendMessage()}
+                  disabled={isGenerating || !chatInput.trim() || !activeConv}
+                  className="h-[42px] px-4 rounded-xl bg-slate-950 text-white hover:bg-slate-800 text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0 disabled:opacity-40"
+                >
+                  <Send className="size-3.5" />
+                  <span className="hidden sm:inline">Send</span>
+                </Button>
+              </div>
+
+              {/* Suggestion Chips */}
+              {activeConv && (
+                <div className="flex flex-wrap items-center gap-1.5 pl-0.5">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mr-0.5">Try:</span>
+                  {activeConv.activeStep === "Discovery" ? (
+                    <>
+                      <button onClick={() => handleSendMessage("Analyze reviews for Zepto Checkout")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Analyze Reviews</button>
+                      <button onClick={() => handleSendMessage("Set target users to students in university campuses")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Identify Users</button>
+                      <button onClick={() => handleSendMessage("Define success metrics as Quality score >= 90")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Define Metrics</button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => handleSendMessage("Add India compliance laws to Section 8")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Add Compliance</button>
+                      <button onClick={() => handleSendMessage("Perform PRD audit checks")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• PRD Audit</button>
+                      <button onClick={() => handleSendMessage("Transition to Design & Develop stage")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Build Roadmap</button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Disclaimer Banner at Bottom ── */}
+        {disclaimerVisible && (
+          <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-6 py-2.5 flex items-center justify-between z-10 shadow-sm">
+            <div className="flex items-center gap-2 text-slate-500 text-[11px] font-medium leading-none">
+              <Sparkles className="size-3.5 text-violet-500 shrink-0" />
+              <span>Mycroft can make mistakes. Please review important information.</span>
+            </div>
+            <button
+              onClick={() => setDisclaimerVisible(false)}
+              className="text-slate-400 hover:text-slate-700 transition-colors p-1 rounded-md"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }

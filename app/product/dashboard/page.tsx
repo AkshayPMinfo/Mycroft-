@@ -297,7 +297,7 @@ export default function DashboardPage() {
       </main>
 
       {/* Section 5: Ask Mycroft (Persistent AI Input near bottom) */}
-      <div className={cn("fixed bottom-6 right-0 flex justify-center px-6 z-40 pointer-events-none transition-all duration-300", sidebarCollapsed ? "lg:left-[64px]" : "lg:left-[240px]")}>
+      <div className={cn("fixed bottom-6 right-0 flex justify-center px-6 z-40 pointer-events-none transition-all duration-300", sidebarCollapsed ? "lg:left-[64px]" : "lg:left-[220px]")}>
         <div className="w-full max-w-2xl bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-lg p-3 pointer-events-auto flex flex-col gap-2">
           
           {/* Active status result loader */}
