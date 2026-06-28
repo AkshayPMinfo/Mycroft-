@@ -7,17 +7,15 @@ import { StatusBadge } from "@/components/ui/badge";
 import { 
   Bot, 
   Sparkles, 
-  CheckCircle2, 
-  Circle,
-  Calendar,
   Send,
-  ChevronDown,
   ArrowUpRight,
   Newspaper,
-  TerminalSquare
+  TrendingUp,
+  TrendingDown,
+  Activity
 } from "lucide-react";
 
-// Mock news data (Section 4)
+// Mock news data
 interface NewsStory {
   id: string;
   title: string;
@@ -70,21 +68,42 @@ const mockNewsStories: NewsStory[] = [
   }
 ];
 
+// Mock KPI metrics based on timeframe
+interface KpiData {
+  created: { count: number; trend: string; positive: boolean };
+  downloaded: { count: number; trend: string; positive: boolean };
+  review: { count: number; trend: string; positive: boolean };
+  approved: { count: number; trend: string; positive: boolean };
+}
+
+const mockKpiData: Record<"Today" | "This Week" | "This Month", KpiData> = {
+  Today: {
+    created: { count: 3, trend: "+20%", positive: true },
+    downloaded: { count: 5, trend: "+12%", positive: true },
+    review: { count: 2, trend: "0%", positive: true },
+    approved: { count: 1, trend: "-10%", positive: false }
+  },
+  "This Week": {
+    created: { count: 12, trend: "+8%", positive: true },
+    downloaded: { count: 28, trend: "+18%", positive: true },
+    review: { count: 4, trend: "-5%", positive: false },
+    approved: { count: 6, trend: "+12%", positive: true }
+  },
+  "This Month": {
+    created: { count: 45, trend: "+15%", positive: true },
+    downloaded: { count: 98, trend: "+22%", positive: true },
+    review: { count: 8, trend: "+4%", positive: true },
+    approved: { count: 22, trend: "+19%", positive: true }
+  }
+};
+
 export default function DashboardPage() {
   const [greeting, setGreeting] = useState("Good morning");
   const [dateString, setDateString] = useState("");
   const [newsRegion, setNewsRegion] = useState<"India" | "Global">("India");
+  const [kpiTimeframe, setKpiTimeframe] = useState<"Today" | "This Week" | "This Month">("This Week");
   const [askInput, setAskInput] = useState("");
   const [askStatus, setAskStatus] = useState<string | null>(null);
-
-  // Section 3: Today's Priorities state
-  const [priorities, setPriorities] = useState([
-    { id: 1, label: "Finish UPI P2P payments PRD compliance check", done: false },
-    { id: 2, label: "Review Swiggy feedback Discovery Report", done: false },
-    { id: 3, label: "Validate user research tags in settings", done: true },
-    { id: 4, label: "Approve Q3 core payments roadmap scope", done: false },
-    { id: 5, label: "Complete competitive checkout analysis logs", done: false }
-  ]);
 
   // Set greeting and date dynamically on mount
   useEffect(() => {
@@ -93,16 +112,9 @@ export default function DashboardPage() {
     else if (hours < 17) setGreeting("Good Afternoon");
     else setGreeting("Good Evening");
 
-    // Format date: June 28, 2026
     const options: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     setDateString(new Date().toLocaleDateString('en-US', options));
   }, []);
-
-  const togglePriority = (id: number) => {
-    setPriorities(current => 
-      current.map(p => p.id === id ? { ...p, done: !p.done } : p)
-    );
-  };
 
   const handleAsk = () => {
     if (!askInput.trim()) return;
@@ -114,10 +126,11 @@ export default function DashboardPage() {
     }, 1000);
   };
 
-  // Filter and limit to top 3 stories
   const filteredStories = mockNewsStories
     .filter(story => story.region === newsRegion)
     .slice(0, 3);
+
+  const activeKpis = mockKpiData[kpiTimeframe];
 
   return (
     <div className="flex flex-col min-h-screen bg-[#fafafa] font-sans antialiased text-slate-800 pb-36">
@@ -139,11 +152,11 @@ export default function DashboardPage() {
         {/* Two Column Grid */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-10 items-start">
           
-          {/* Left Panel (7 cols / 58%): Executive Summary & Priorities */}
+          {/* Left Panel (7 cols / 58%): Executive Summary & Activity Snapshot */}
           <div className="md:col-span-7 space-y-10">
             
             {/* Section 2: AI Executive Summary */}
-            <section className="space-y-4">
+            <section className="space-y-3.5">
               <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
                 <div className="flex size-5 items-center justify-center rounded-md bg-blue-50 text-primary">
                   <Sparkles className="size-3" />
@@ -170,30 +183,48 @@ export default function DashboardPage() {
               </ul>
             </section>
 
-            {/* Section 3: Today's Priorities */}
+            {/* Section 3: Product Activity Snapshot (Replacing Today's Priorities) */}
             <section className="space-y-4">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                <div className="flex size-5 items-center justify-center rounded-md bg-green-50 text-green-600">
-                  <CheckCircle2 className="size-3" />
-                </div>
-                <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider">Today's Priorities</h2>
-              </div>
-              <div className="space-y-1.5">
-                {priorities.map((item) => (
-                  <div 
-                    key={item.id} 
-                    onClick={() => togglePriority(item.id)}
-                    className="group flex items-start gap-3 p-2.5 -mx-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors"
-                  >
-                    {item.done ? (
-                      <CheckCircle2 className="size-4.5 text-slate-400 flex-shrink-0 mt-0.5" />
-                    ) : (
-                      <Circle className="size-4.5 text-slate-300 group-hover:text-slate-500 flex-shrink-0 mt-0.5 transition-colors" />
-                    )}
-                    <span className={`text-[13px] font-semibold leading-relaxed transition-all ${item.done ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
-                      {item.label}
-                    </span>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex size-5 items-center justify-center rounded-md bg-slate-100 text-slate-700">
+                    <Activity className="size-3" />
                   </div>
+                  <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider">Product Activity Snapshot</h2>
+                </div>
+                
+                {/* Time filter controls */}
+                <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200/40">
+                  {(["Today", "This Week", "This Month"] as const).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setKpiTimeframe(t)}
+                      className={`px-2 py-0.5 text-[9px] font-bold rounded-md transition-all ${kpiTimeframe === t ? 'bg-white text-slate-950 shadow-2xs' : 'text-slate-400 hover:text-slate-750'}`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Grid of 4 Compact KPI Cards */}
+              <div className="grid grid-cols-2 gap-3.5">
+                {[
+                  { label: "PRDs Created", kpi: activeKpis.created },
+                  { label: "PRDs Downloaded", kpi: activeKpis.downloaded },
+                  { label: "PRDs Under Review", kpi: activeKpis.review },
+                  { label: "PRDs Approved", kpi: activeKpis.approved }
+                ].map((item, idx) => (
+                  <Card key={idx} className="p-3 bg-white border border-slate-100 shadow-2xs flex flex-col justify-between h-20 rounded-xl">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{item.label}</span>
+                    <div className="flex justify-between items-baseline mt-2">
+                      <span className="text-xl font-bold tracking-tight text-slate-900">{item.kpi.count}</span>
+                      <span className={`text-[10px] font-bold flex items-center gap-0.5 ${item.kpi.positive ? 'text-green-600' : item.kpi.trend === "0%" ? 'text-slate-400' : 'text-red-500'}`}>
+                        {item.kpi.positive ? <TrendingUp className="size-2.5" /> : item.kpi.trend === "0%" ? null : <TrendingDown className="size-2.5" />}
+                        {item.kpi.trend}
+                      </span>
+                    </div>
+                  </Card>
                 ))}
               </div>
             </section>
@@ -213,25 +244,25 @@ export default function DashboardPage() {
                   <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider">Industry News</h2>
                 </div>
                 
-                {/* Region Filter Toggle */}
-                <div className="relative inline-block text-left">
-                  <select
-                    value={newsRegion}
-                    onChange={(e) => setNewsRegion(e.target.value as any)}
-                    className="h-6 text-[10px] font-bold uppercase tracking-wider border border-slate-200 rounded-md bg-white pl-2 pr-6 focus:outline-none cursor-pointer appearance-none text-slate-500"
-                  >
-                    <option value="India">India</option>
-                    <option value="Global">Global</option>
-                  </select>
-                  <ChevronDown className="absolute right-1.5 top-2 size-2.5 text-slate-400 pointer-events-none" />
+                {/* Horizontal Filter Chips (Replacing Dropdown) */}
+                <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200/40">
+                  {(["India", "Global"] as const).map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => setNewsRegion(r)}
+                      className={`px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all ${newsRegion === r ? 'bg-white text-slate-950 shadow-2xs' : 'text-slate-400 hover:text-slate-750'}`}
+                    >
+                      {r}
+                    </button>
+                  ))}
                 </div>
               </div>
 
               {/* News list - top 3 stories */}
-              <div className="space-y-4">
+              <div className="space-y-3.5">
                 {filteredStories.map((story) => (
-                  <Card key={story.id} className="p-3.5 bg-white border border-slate-100 shadow-2xs hover:shadow-xs transition-all space-y-2 rounded-xl">
-                    <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400">
+                  <Card key={story.id} className="p-3 bg-white border border-slate-100 shadow-2xs hover:shadow-xs transition-all space-y-1.5 rounded-xl">
+                    <div className="flex justify-between items-center text-[9px] font-semibold text-slate-450">
                       <span>{story.source}</span>
                       <span>{story.time}</span>
                     </div>
@@ -239,7 +270,7 @@ export default function DashboardPage() {
                     <p className="text-[11px] text-slate-500 leading-relaxed">{story.aiSummary}</p>
                     <button 
                       onClick={() => window.location.assign("/product/discovery")}
-                      className="text-[10px] font-bold text-primary hover:underline flex items-center gap-0.5 pt-1"
+                      className="text-[9px] font-bold text-primary hover:underline flex items-center gap-0.5 pt-0.5"
                     >
                       Read More
                       <ArrowUpRight className="size-2.5" />
@@ -257,7 +288,7 @@ export default function DashboardPage() {
 
       {/* Section 5: Ask Mycroft (Persistent AI Input near bottom) */}
       <div className="fixed bottom-6 left-0 lg:left-[280px] right-0 flex justify-center px-6 z-40 pointer-events-none">
-        <div className="w-full max-w-2xl bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-lg p-3.5 pointer-events-auto flex flex-col gap-2.5">
+        <div className="w-full max-w-2xl bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-lg p-3 pointer-events-auto flex flex-col gap-2">
           
           {/* Active status result loader */}
           {askStatus && (
@@ -274,13 +305,13 @@ export default function DashboardPage() {
               value={askInput}
               onChange={(e) => setAskInput(e.target.value)}
               placeholder="Ask anything about your product..."
-              className="flex-1 px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-900 bg-slate-50/30 font-sans"
+              className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-900 bg-slate-50/30 font-sans"
               onKeyDown={(e) => e.key === "Enter" && handleAsk()}
             />
             <button 
               onClick={handleAsk}
               disabled={!askInput.trim()}
-              className="px-3.5 py-2 rounded-xl bg-slate-950 text-white hover:bg-slate-800 text-xs font-semibold flex items-center gap-1 transition-colors disabled:opacity-50"
+              className="px-3.5 py-1.5 rounded-xl bg-slate-950 text-white hover:bg-slate-800 text-xs font-semibold flex items-center gap-1 transition-colors disabled:opacity-50"
             >
               Ask
               <Send className="size-3" />
