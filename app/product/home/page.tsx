@@ -569,21 +569,86 @@ export default function AIHomePage() {
         // Path A: Existing Product
         if (step === 1) {
           step = 2;
-          aiText = `Objective logged. Now let's challenge our assumptions. Why do we think this drop-off or problem exists? Is it due to packaging/delivery fees, out-of-stock items, or payment friction?\n\n**Step 2: Secondary Research (User Complaints & Reviews)**\nLet's analyze Play Store/App Store feedback. What user pain points or feature requests have you observed? Or would you like me to import and cluster the review intelligence for this product?`;
+          aiText = `Objective baseline logged. Now let's challenge our assumptions first. Why do we think this drop-off or problem exists? Is it due to packaging/delivery fees, out-of-stock items, or payment friction?
+
+**Step 2: Secondary Research (User Complaints & Reviews)**
+I have aggregated and analyzed the latest reviews from the Google Play Store and Apple App Store.
+* Google Play reviews analyzed: 100
+* Apple App Store reviews analyzed: 100
+
+### Top recurring complaints
+1. **Out-of-stock items during checkout** (41%) — Users report items showing as available during browsing but disappearing right at final checkout.
+2. **Unexpectedly high delivery charges** (27%) — High fees added at checkout cause immediate cart abandonment.
+3. **Coupon failures at final step** (18%) — Promo codes apply in cart but fail at payment.
+4. **Payment gateway failures** (9%) — UPI or card transaction timeouts.
+5. **App lag/performance issues** (5%) — Delayed checkout page loads.
+
+### Common feature requests
+* Save multiple carts for later checkout.
+* Better item substitutions (e.g., auto-replace out-of-stock items with closest match).
+* High-accuracy delivery ETA indicators.
+
+One concern I have is that coupon failures and out-of-stock drop-offs are creating a trust barrier. Let's think aloud: should we focus on fixing the inventory auto-substitution model first, or should we design a checkout-recovery mechanism?
+
+What other user request patterns or complaints have we observed? Or should we proceed to competitor profiling?`;
         } else if (step === 2) {
           step = 3;
-          aiText = `Secondary research compiled and clustered. I've logged the complaints (checkout out-of-stock drop-offs, pricing clarity) in our Discovery Workspace.\n\n**Step 3: Competitor Research**\nLet's look at direct and indirect competitors. What do competitors do well or poorly? Where are the gaps and where is our opportunity to win?`;
+          aiText = `Let's perform a competitor landscape mapping. I've synthesized competitor behavior for major players in this category:
+
+### Direct Competitors
+* **Competitor X (e.g., Blinkit)**:
+  * *Strengths*: Highly optimized checkout flow (2 clicks to order); clear real-time item availability status.
+  * *Weaknesses*: No post-order item addition; rigid delivery fee structures.
+* **Competitor Y (e.g., Instamart)**:
+  * *Strengths*: Flexible order-modification window (1-minute after checkout).
+  * *Weaknesses*: Confusing coupon application flows; frequent payment gateway lag.
+
+### Indirect Competitors
+* **Large Grocery Apps**: Great inventory predictability, but checkout is slow and requires multi-step slot selection.
+
+### Market Gaps & Recommended Opportunities
+1. **Post-Checkout Order Modifications (RICE Rank 1)**: Users frequently forget 1 or 2 items. Letting them add items within a brief window eliminates double shipping fees and increases Average Order Value (AOV).
+2. **Real-time Predictive Substitution Engine (RICE Rank 2)**: Recommending immediate alternatives for low-stock items before checkout completes.
+
+I recommend prioritizing the **Post-Checkout Order Modification** opportunity because it directly targets the high-friction "forgotten items" paint point without requiring heavy machine learning pipelines. 
+
+I'd like to validate one assumption first: does our warehouse packing workflow support a 60-second delay to allow item addition? If so, we can move forward. What are your thoughts on this operational constraint?`;
         } else if (step === 3) {
           step = 4;
-          aiText = `Competitor profiles mapped. We identified key gaps in inventory substitution and checkout recovery flows.\n\n**Step 4: Opportunity Discovery**\nHere are the top opportunities and solutions I have synthesized:\n- *Solution 1*: '60-Second Add-On Buffer'. Let users append forgotten items to an active packing order to reduce duplicate delivery fees.\n- *Solution 2*: Real-time inventory auto-substitution suggestions.\n\nLet's challenge this: A 60-second buffer increases packing warehouse operational latency. How severe is the packing constraint? Should we prioritize the Add-On buffer or inventory auto-substitute?`;
+          aiText = `I recommend we focus on the **'60-Second Add-On Buffer'** solution. 
+
+I recommend this specific opportunity because our competitor research showed that none of our direct competitors currently support clean post-order merging without cancelling the active order. This gives us a strong market differentiator while directly resolving the 27% checkout drop-off caused by unexpected delivery charges (since users won't pay double shipping to get forgotten items).
+
+### Let's map out the proposed solution:
+* **The '60-Second Add-On Buffer'**: A sticky, low-friction banner appears on the checkout success screen with a 60-second countdown timer. It lets the user browse and append items to their active packing order in a single click.
+
+I don't think we should jump to a full PRD yet. First, how severe is our packing constraint? Can we afford to delay packing by 60 seconds? Or should we investigate real-time auto-substitution first?`;
         } else if (step === 4) {
           step = 5;
-          aiText = `Opportunity validated. Let's prioritize the '60-Second Add-On Buffer' feature.\n\n**Step 5: Prioritization (RICE/Kano)**\nWe score this solution:\n- *Reach*: High (all users who forget items).\n- *Impact*: High (increases CSAT and reduces double delivery costs).\n- *Confidence*: High (supported by review analysis).\n- *Effort*: Medium.\n\nWe are ready to transition to the **Define** stage to draft the PRD and roadmap. Click the action button below to move to the Define stage.`;
+          aiText = `I've mapped out the prioritization matrices. I recommend the '60-Second Add-On Buffer' as our primary candidate.
+
+### Prioritization Reasoning
+* **Reach**: High. Approximately 34% of checkout users report forgetting an item or placing a duplicate order within 5 minutes.
+* **Impact**: High. Reduces duplicate delivery fleet trips, saving shipping subsidy costs, and boosts customer retention.
+* **Confidence**: 80%. Validated by direct feedback complaining about secondary delivery charges.
+* **Effort**: Medium. Built entirely on top of our existing checkout state transition hooks.
+
+I recommend this because it has the highest RICE score compared to alternative models like machine-learning based predictive carts, which would require extensive training data and time.
+
+We are ready to transition to the **Define** stage to draft the PRD and roadmap. Click the action button below to move to the Define stage.`;
           nextAction = { label: "Move to Define (PRD)", stage: "Define" };
         } else if (step === 5) {
           step = 6;
           targetStage = "Define";
-          aiText = `We have transitioned to **Define**. I have generated the following workspace artifacts:\n- **Product Discovery**: Updated with review clusters and competitive gap analysis.\n- **PRD Workspace**: Created a new draft spec (v1) with sections for Objective, Target Users, Success Metrics, and Proposed Solution.\n- **Dashboard**: Added the payment tokenization and checkout roadmap milestones.\n\nI've also generated a low-fidelity wireframe concept:\n*Wireframe concept*: A sticky 'Add item to order' banner on the checkout success screen showing a 60-second countdown timer.\n\nYou can open these workspaces directly using the cards below to review and edit.`;
+          aiText = `We have transitioned to **Define**. I have generated the following workspace artifacts:
+- **Product Discovery**: Updated with review clusters and competitive gap analysis.
+- **PRD Workspace**: Created a new draft spec (v1) with sections for Objective, Target Users, Success Metrics, and Proposed Solution.
+- **Dashboard**: Added the payment tokenization and checkout roadmap milestones.
+
+I've also generated a low-fidelity wireframe concept:
+*Wireframe concept*: A sticky 'Add item to order' banner on the checkout success screen showing a 60-second countdown timer.
+
+You can open these workspaces directly using the cards below to review and edit.`;
           card = { type: "PRD", title: "PRD Spec Draft (v2)", description: "Zepto checkout optimizations ready for review.", targetUrl: "/product/prds" };
         } else {
           aiText = "The discovery and definition cycles are complete. What part of the design or development milestone would you like to review next?";
@@ -592,40 +657,96 @@ export default function AIHomePage() {
         // Path B: New Product
         if (step === 1) {
           step = 2;
-          aiText = `Objective baseline logged.\n\n**Step 2: Target Users**\nWho experiences this problem? What is their persona, and how do they solve it today? Why will they switch to our solution?`;
+          aiText = `Objective baseline logged. I noticed something interesting: for a new product, we often fail by defining our target audience too broadly. Let's narrow it down. 
+
+I'd like to validate one assumption first: do our target users prioritize onboarding speed or transaction security? 
+
+I recommend we focus initially on a tight niche (e.g. urban college students) because they have high viral potential and low customer acquisition costs (CAC). Let's define the primary persona and why they will switch to our solution today.`;
         } else if (step === 2) {
           step = 3;
-          aiText = `Target persona defined. Now let's analyze the market.\n\n**Step 3: Market Research**\nWhat is the market size, major trends, and regulatory barriers? What assumptions are we making about market adoption?`;
+          aiText = `Target persona defined. Let's analyze the market size and structural barriers. 
+
+Based on my analysis, the TAM (Total Addressable Market) is substantial, but I have one concern: regulatory compliance (such as DPDP Act 2023 and local FinTech licensing) represents a massive barrier. 
+
+I recommend a compliance-first launch strategy because launching without secure card tokenization and audit trails is high risk. Let's outline what market assumptions we are making.`;
         } else if (step === 3) {
           step = 4;
-          aiText = `Market landscape mapped. Let's look at current alternatives.\n\n**Step 4: Competitor Research**\nWho are the direct and indirect competitors? What do they do well or poorly? What is missing in their offerings?`;
+          aiText = `Here is our competitor gap analysis for the new product domain:
+
+### Direct Competitors
+* **Competitor A**:
+  * *Strengths*: Large distribution network; rich loyalty integrations.
+  * *Weaknesses*: Complex multi-step transaction steps; poor offline support.
+* **Competitor B**:
+  * *Strengths*: Minimalist interface.
+  * *Weaknesses*: Slow settlement times; lack of transparent pricing.
+
+### Market Gaps & USP Recommendation
+We have identified a significant gap in instant, offline-capable microtransactions. 
+
+I recommend we position our product around a **'Minimalist, Offline-First Micro-Wallet'** because it directly addresses the high transaction failure rates on campus network zones, giving us a clear competitive edge. What are your thoughts on this positioning?`;
         } else if (step === 4) {
           step = 5;
-          aiText = `Competitor profiles mapped.\n\n**Step 5: Find USP & Positioning**\nHere are 3 positioning options:\n1. Low-cost leader\n2. Premium specialized service\n3. Integrated ecosystem\n\nI challenge the low-cost positioning as it has high risk of cash burn. I recommend the premium specialized service as it addresses the key user pain points. Which USP do you want to lock in?`;
+          aiText = `Competitor profiles mapped. I recommend the premium specialized micro-wallet service positioning option because it addresses the key user pain points in offline environments without triggering high cash burn risk. Which USP do you want to lock in?`;
         } else if (step === 5) {
           step = 6;
-          aiText = `USP selected and positioning locked. Let's define the feature set.\n\n**Step 6: Feature List Generation**\nI've generated a draft feature list. Let's categorize them:\n- *Must Have*: Core functional flow.\n- *Should Have*: User convenience features.\n- *Could Have*: Notifications and loyalty.\n- *Future*: AI-driven predictive search.\n\nLet's move to Step 7 to prioritize these using the Kano Model.`;
+          aiText = `USP selected and positioning locked. Let's define the feature set.
+
+I've generated a draft feature list. Let's categorize them:
+- *Must Have*: Core offline token authentication.
+- *Should Have*: Quick merchant payment widgets.
+- *Could Have*: Notifications and loyalty stamps.
+- *Future*: AI-driven predictive balance top-ups.
+
+I recommend we prioritize these using the Kano framework first rather than jumping directly to execution. Let's move to Step 7.`;
         } else if (step === 6) {
           step = 7;
-          aiText = `**Step 7: Prioritize (Kano Model)**\nI have prioritized the features using the Kano framework:\n- Core checkout flows belong to Must Have (basic expectation).\n- Offline tokenized cards belong to Performance (adds user value proportionally).\n- One-click split bills belong to Delighter.\n\nDo you agree with this categorization, or should we adjust any feature placement?`;
+          aiText = `**Step 7: Prioritize (Kano Model)**
+I have prioritized the features using the Kano framework:
+- Core transaction flows belong to Must Have (basic expectation).
+- Offline tokenized cards belong to Performance (adds user value proportionally).
+- One-click split bills belong to Delighter.
+
+I recommend this breakdown because it balances absolute baseline stability with high-delight features. Do you agree with this categorization, or should we adjust any feature placement?`;
         } else if (step === 7) {
           step = 8;
-          aiText = `Feature priority aligned. Let's outline the layout.\n\n**Step 8: Generate Low Fidelity Wireframes**\n*Wireframe concept*: A simple 3-tab layout: Home, Payments, and Transactions. Focus on distraction-free flows to reduce user cognitive load.\n\nLet's move to Step 9 to write the PRD Specification.`;
+          aiText = `Feature priority aligned. Let's outline the layout.
+
+*Wireframe concept*: A simple 3-tab layout: Home, Payments, and Transactions. Focus on distraction-free flows to reduce user cognitive load.
+
+I don't think we should jump to coding yet. Let's write the PRD Specification first.`;
         } else if (step === 8) {
           step = 9;
-          aiText = `**Step 9: Generate PRD**\nI have created a new draft PRD containing the Objective, Target Users, Feature prioritization, and compliance mappings in the PRD Workspace.\n\nLet's move to Step 10 to establish our Success Metrics.`;
+          aiText = `**Step 9: Generate PRD**
+I have created a new draft PRD containing the Objective, Target Users, Feature prioritization, and compliance mappings in the PRD Workspace.
+
+I recommend we review this PRD carefully before defining Success Metrics in Step 10.`;
           card = { type: "PRD", title: "PRD Spec Draft (v1)", description: "PRD Draft ready for target app in PRD Workspace.", targetUrl: "/product/prds" };
         } else if (step === 9) {
           step = 10;
-          aiText = `**Step 10: Generate Success Metrics**\n- *North Star*: Weekly Active Transactions.\n- *Input Metrics*: User onboarding time, payment success rates.\n- *Output Metrics*: Month 1 retention rates.\n- *Guardrail Metrics*: Transaction latency (must be < 2 seconds).\n\nLet's define the release roadmap milestones in Step 11.`;
+          aiText = `**Step 10: Generate Success Metrics**
+- *North Star*: Weekly Active Transactions.
+- *Input Metrics*: User onboarding time, payment success rates.
+- *Output Metrics*: Month 1 retention rates.
+- *Guardrail Metrics*: Transaction latency (must be < 2 seconds).
+
+I recommend this set of metrics because they directly measure product value delivery (North Star) and operational health (latency). Let's define the release roadmap milestones in Step 11.`;
         } else if (step === 10) {
           step = 11;
-          aiText = `**Step 11: Generate Roadmap**\n- *Milestone 1 (Month 1)*: MVP Core Flow release.\n- *Milestone 2 (Month 2)*: Security auditing and compliance setup.\n- *Milestone 3 (Month 3)*: Analytics integration and dashboard reporting.\n\nLet's consolidate our PM decisions and notes in Step 12.`;
+          aiText = `**Step 11: Generate Roadmap**
+- *Milestone 1 (Month 1)*: MVP Core Flow release.
+- *Milestone 2 (Month 2)*: Security auditing and compliance setup.
+- *Milestone 3 (Month 3)*: Analytics integration and dashboard reporting.
+
+I recommend this phased release schedule because it validates core product market fit before spending effort on secondary compliance auditing. Let's consolidate our PM decisions and notes in Step 12.`;
           card = { type: "Dashboard", title: "Roadmap Milestones Loaded", description: "Payments roadmap generated on active Dashboard.", targetUrl: "/product/dashboard" };
         } else if (step === 11) {
           step = 12;
           targetStage = "Define";
-          aiText = `**Step 12: Generate Product Notes**\nI have summarized our research, assumptions, risk mitigation strategies, and trade-offs into the Product Discovery and PRD workspaces. The discovery phase is officially complete!\n\nYou can continue exploring the product roadmap and workspace dashboards using the links.`;
+          aiText = `**Step 12: Generate Product Notes**
+I have summarized our research, assumptions, risk mitigation strategies, and trade-offs into the Product Discovery and PRD workspaces. The discovery phase is officially complete!
+
+I recommend transitioning to design sprints next. You can continue exploring the product roadmap and workspace dashboards using the links.`;
         } else {
           aiText = "Our discovery and requirements planning is fully complete. What area should we deep-dive next?";
         }
