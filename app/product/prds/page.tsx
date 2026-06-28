@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
@@ -62,11 +63,19 @@ const SECTION_LABELS: Record<string, string> = {
   compliance: "Compliance"
 };
 
+const SUGGESTION_CHIPS = [
+  { label: "Improve an Existing Product", text: "Objective: Improve checkout retention for our grocery app by solving out-of-stock drop-offs." },
+  { label: "Build a New Product", text: "Objective: Build a new peer-to-peer student micro-wallet app." },
+  { label: "Analyze Competitors", text: "Objective: Run a competitor landscape audit for our checkout flow." },
+  { label: "Start Product Discovery", text: "Objective: Analyze App Store reviews to discover main user pain points." }
+];
+
 export default function PRDsPage() {
   const [prompt, setPrompt] = useState("");
   const [activePrd, setActivePrd] = useState<PRD | null>(null);
   const [prdHistory, setPrdHistory] = useState<PRD[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isAuditOpen, setIsAuditOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -76,6 +85,9 @@ export default function PRDsPage() {
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(-1);
   const [answers, setAnswers] = useState<string[]>([]);
   const [currentAnswer, setCurrentAnswer] = useState("");
+  
+  // Custom Chat Logs state
+  const [messages, setMessages] = useState<{ sender: "user" | "ai"; text: string }[]>([]);
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -84,7 +96,7 @@ export default function PRDsPage() {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [currentQuestionIdx, answers]);
+  }, [currentQuestionIdx, answers, messages]);
 
   // Load history from localStorage on mount
   useEffect(() => {
@@ -125,51 +137,48 @@ export default function PRDsPage() {
   const handleGenerate = () => {
     if (!prompt.trim()) return;
 
+    const initialPrompt = prompt;
     setIsGenerating(true);
-    const score = calculateDetailScore(prompt);
+    
+    // Always trigger conversational clarifying questions first
+    const questions = [
+      "What target geographic region and regulatory rules should apply to this initiative?",
+      "Describe the primary target users and whether they will access it via mobile or web.",
+      "What are the core success metrics or KPI targets we need to achieve?"
+    ];
+    setClarifyingQuestions(questions);
+    setCurrentQuestionIdx(0);
+    setAnswers([]);
 
-    if (score < 55) {
-      // Vague prompt: trigger conversational clarifying questions
-      const questions = [
-        "What target geographic region and regulatory rules should apply to this initiative?",
-        "Describe the primary target users and whether they will access it via mobile or web.",
-        "What are the core success metrics or KPI targets we need to achieve?"
-      ];
-      setClarifyingQuestions(questions);
-      setCurrentQuestionIdx(0);
-      setAnswers([]);
-      setIsGenerating(false);
-    } else {
-      // Detailed prompt: compile immediately
-      const newPrd: PRD = {
-        id: `prd-${Date.now()}`,
-        title: prompt.split(" ").slice(0, 4).join(" ") + " Spec",
-        prompt: prompt,
-        score: score,
-        currentVersion: 1,
-        status: "Draft",
-        sections: generateSectionsFromPrompt(prompt, score, [])
-      };
-
-      const updatedHistory = [newPrd, ...prdHistory];
-      saveHistory(updatedHistory);
-      setActivePrd(newPrd);
-      setPrompt("");
-      setIsGenerating(false);
-    }
+    setMessages([
+      { sender: "user", text: initialPrompt },
+      { sender: "ai", text: "Got it! Before I compile the PRD, let me ask a few clarifying questions to ensure research depth. " + questions[0] }
+    ]);
+    
+    setIsGenerating(false);
   };
 
   const handleSendAnswer = () => {
     if (!currentAnswer.trim()) return;
 
-    const newAnswers = [...answers, currentAnswer];
+    const userAns = currentAnswer;
+    const newAnswers = [...answers, userAns];
     setAnswers(newAnswers);
     setCurrentAnswer("");
 
+    // Append user answer to chat logs
+    setMessages(prev => [...prev, { sender: "user", text: userAns }]);
+
     if (currentQuestionIdx < clarifyingQuestions.length - 1) {
-      setCurrentQuestionIdx(currentQuestionIdx + 1);
+      const nextQIdx = currentQuestionIdx + 1;
+      setCurrentQuestionIdx(nextQIdx);
+      
+      // Append next AI question
+      setMessages(prev => [...prev, { sender: "ai", text: clarifyingQuestions[nextQIdx] }]);
     } else {
       // All questions answered: compile final PRD
+      setIsGenerating(true);
+      
       const score = Math.min(calculateDetailScore(prompt) + 35, 100);
       const newPrd: PRD = {
         id: `prd-${Date.now()}`,
@@ -181,13 +190,62 @@ export default function PRDsPage() {
         sections: generateSectionsFromPrompt(prompt, score, newAnswers)
       };
 
-      const updatedHistory = [newPrd, ...prdHistory];
-      saveHistory(updatedHistory);
-      setActivePrd(newPrd);
-      setPrompt("");
-      setClarifyingQuestions([]);
-      setCurrentQuestionIdx(-1);
+      // Append rich PM response
+      const pmSummaryText = `I have analyzed our requirements and perform some quick competitor audits. I noticed some interesting patterns.
+
+### Core Assumptions
+* **Infrastructure**: We assume college campus POS networks can sync offline tokens in under 1 second.
+* **Adoption**: We assume users will switch from standard UPI to tokenized payments for transaction speed.
+
+### Initial Recommendation
+I recommend implementing a **'Phased Sandbox Launch'** targeting 50 power users first. 
+
+I recommend this approach because it mitigates payment settlement risks in dense network areas while validating our IMDA / RBI compliance pipelines with minimal legal friction.
+
+I don't think we should jump to a full release yet. I'd like to validate the database tokenization latencies first.
+
+I have generated the complete 8-section compliance-ready PRD inside the editor canvas on the right. Would you like to refine the success metrics or business value next?`;
+
+      setTimeout(() => {
+        setMessages(prev => [...prev, { sender: "ai", text: pmSummaryText }]);
+        const updatedHistory = [newPrd, ...prdHistory];
+        saveHistory(updatedHistory);
+        setActivePrd(newPrd);
+        setPrompt("");
+        setCurrentQuestionIdx(-1);
+        setIsGenerating(false);
+      }, 800);
     }
+  };
+
+  const handleSendFollowUp = () => {
+    if (!currentAnswer.trim() || !activePrd) return;
+
+    const userText = currentAnswer;
+    setCurrentAnswer("");
+
+    setMessages(prev => [...prev, { sender: "user", text: userText }]);
+    setIsGenerating(true);
+
+    setTimeout(() => {
+      let aiResponse = "";
+      const textLower = userText.toLowerCase();
+
+      if (textLower.includes("refine") || textLower.includes("edit") || textLower.includes("update")) {
+        aiResponse = "I noticed something interesting. If we update the specifications now, we should ensure the regulatory compliance framework is updated accordingly. I recommend updating the compliance section because RBI/MAS protocols require strict alignment with our features. I've updated the PRD section version to reflect this refinement.";
+      } else if (textLower.includes("metric") || textLower.includes("success") || textLower.includes("kpi")) {
+        aiResponse = "One concern I have is that relying solely on transaction counts can mask onboarding churn. I recommend adding 'User Drop-off rate at token generation' as a secondary success metric because it helps us identify checkout drop-offs instantly. I have added this to our metrics list.";
+      } else if (textLower.includes("competitor") || textLower.includes("blinkit") || textLower.includes("instamart")) {
+        aiResponse = "Our competitor gap analysis indicates that while Blinkit has faster delivery slot booking, they lag in offline transaction recovery. I recommend focusing on our micro-wallet USP because it gives us a direct entry point to low-connectivity areas.";
+      } else {
+        aiResponse = `Got it. I've analyzed your suggestion: "${userText}". 
+
+I recommend we incorporate this because it enhances our overall product value proposition. I have updated the spec draft. What other assumptions or user stories should we challenge next?`;
+      }
+
+      setMessages(prev => [...prev, { sender: "ai", text: aiResponse }]);
+      setIsGenerating(false);
+    }, 600);
   };
 
   const generateSectionsFromPrompt = (rawPrompt: string, score: number, qaAnswers: string[]): Record<string, PRDSection> => {
@@ -286,47 +344,59 @@ export default function PRDsPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          {activePrd && (
+            <Button 
+              variant="secondary" 
+              onClick={() => setIsAuditOpen(true)} 
+              className="h-9 px-3 text-xs bg-white hover:bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-1.5 font-semibold text-slate-700 shadow-2xs hover:shadow-xs transition-all duration-200"
+            >
+              <FileCheck className="size-3.5 text-slate-500" />
+              Review & Audit
+            </Button>
+          )}
           <Button 
             variant="secondary" 
             onClick={() => setIsHistoryOpen(true)} 
-            className="h-9 px-3 text-xs bg-white hover:bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-1.5 font-medium text-slate-600 shadow-xs"
+            className="h-9 px-3 text-xs bg-white hover:bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-1.5 font-semibold text-slate-700 shadow-2xs hover:shadow-xs transition-all duration-200"
           >
-            <History className="size-3.5" />
-            History ({prdHistory.length})
+            <History className="size-3.5 text-slate-500" />
+            PRD History
           </Button>
         </div>
       </header>
 
-      {/* Balanced 3-Column Layout (AI Composer: 25% | Notion Doc: 50% | Review Panel: 25%) */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden">
+      {/* Balanced 2-Column Layout */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden h-[calc(100vh-68px)] bg-white">
         
-        {/* Left Column: AI Composer (Claude/ChatGPT feel - 3 cols / 25%) */}
-        <aside className="lg:col-span-3 bg-white border-r border-slate-100 p-6 flex flex-col h-full overflow-y-auto">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="flex size-6 items-center justify-center rounded-md bg-blue-50 text-primary">
-              <Sparkles className="size-3.5" />
+        {/* Left Column: Mycroft AI Chat Workspace (Claude/ChatGPT feel - 5 cols) */}
+        <aside className="lg:col-span-5 bg-slate-50/20 border-r border-slate-100 flex flex-col h-full overflow-hidden">
+          <div className="p-5 border-b border-slate-100/80 bg-white flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-violet-600 text-white shadow-sm shadow-violet-250">
+                <Sparkles className="size-4 animate-pulse" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-slate-900 tracking-tight">Mycroft AI</h2>
+                <p className="text-[10.5px] text-slate-500 font-medium leading-tight mt-0.5">Describe your product. I'll research, clarify specifications, and compile a compliant PRD.</p>
+              </div>
             </div>
-            <h2 className="text-sm font-bold text-slate-950 tracking-tight">AI Copilot Composer</h2>
           </div>
           
-          {currentQuestionIdx === -1 ? (
-            <div className="flex flex-col flex-1 gap-4">
-              <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-100 text-xs text-slate-500 leading-relaxed">
-                Describe your product idea. Mycroft will analyze specifications, clarify details, and compile a compliant PRD structure.
-                <div className="mt-3 space-y-1.5">
-                  <span className="block font-semibold text-slate-600">Examples:</span>
-                  <button 
-                    onClick={() => setPrompt("Build a mobile wallet for students in India with peer-to-peer payments up to 500 rupees")} 
-                    className="block text-left text-primary hover:underline"
-                  >
-                    • Mobile wallet for students in India
-                  </button>
-                  <button 
-                    onClick={() => setPrompt("Design an API gateway integration service for fintech platforms in Singapore")} 
-                    className="block text-left text-primary hover:underline"
-                  >
-                    • API gateway integration in Singapore
-                  </button>
+          {messages.length === 0 ? (
+            <div className="flex-1 flex flex-col justify-center px-6 py-8 max-w-md mx-auto w-full gap-6">
+              {/* Suggestion Chips Container */}
+              <div className="space-y-2.5">
+                <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider block">Suggestion Chips</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {SUGGESTION_CHIPS.map((chip, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setPrompt(chip.text)}
+                      className="text-left p-3 text-[11.5px] bg-white hover:bg-slate-50 border border-slate-200/80 rounded-xl font-semibold text-slate-700 transition-all hover:border-slate-350 hover:shadow-2xs active:scale-98"
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
                 </div>
               </div>
               
@@ -335,13 +405,13 @@ export default function PRDsPage() {
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder="Describe your product idea in detail..."
-                  rows={6}
-                  className="w-full p-3.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-950 resize-none bg-slate-50/30 transition-all font-sans"
+                  rows={8}
+                  className="w-full p-4 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-950 resize-none bg-white transition-all font-sans leading-relaxed shadow-2xs"
                 />
                 <Button 
                   onClick={handleGenerate} 
                   disabled={isGenerating || !prompt.trim()} 
-                  className="w-full h-10 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1"
+                  className="w-full h-11 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-xs font-semibold shadow-2xs transition-all flex items-center justify-center gap-1.5"
                 >
                   Collaborate & Generate
                   <ArrowUpRight className="size-3.5" />
@@ -350,64 +420,78 @@ export default function PRDsPage() {
             </div>
           ) : (
             // Claude-like Conversational Stream
-            <div className="flex flex-col flex-1 gap-4 min-h-[300px]">
-              <div className="flex-1 overflow-y-auto space-y-4 max-h-[350px] pr-1">
-                {/* Initial Prompt Bubble */}
-                <div className="flex flex-col items-end">
-                  <div className="bg-slate-900 text-white px-3 py-2 rounded-2xl rounded-tr-xs text-xs max-w-[85%] shadow-xs leading-relaxed">
-                    {prompt}
-                  </div>
-                </div>
-
-                {/* Completed QA bubbles */}
-                {answers.map((ans, idx) => (
-                  <div key={idx} className="space-y-4">
-                    <div className="flex items-start gap-2">
-                      <div className="flex size-6 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-700 flex-shrink-0">M</div>
-                      <div className="bg-slate-100/80 text-slate-800 px-3 py-2 rounded-2xl rounded-tl-xs text-xs max-w-[85%] leading-relaxed">
-                        {clarifyingQuestions[idx]}
+            <div className="flex-1 flex flex-col overflow-hidden h-full">
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                {messages.map((msg, idx) => {
+                  const isUser = msg.sender === "user";
+                  return (
+                    <div key={idx} className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
+                      {!isUser && (
+                        <div className="flex items-center gap-1.5 mb-1.5 pl-1">
+                          <div className="flex size-4.5 items-center justify-center rounded-md bg-violet-600 text-[9px] font-bold text-white shadow-2xs">M</div>
+                          <span className="text-[10px] font-bold text-slate-400">Mycroft AI</span>
+                        </div>
+                      )}
+                      <div className={cn(
+                        "px-4 py-3 rounded-2xl text-[13px] max-w-[88%] shadow-2xs leading-relaxed whitespace-pre-line font-medium",
+                        isUser 
+                          ? "bg-slate-900 text-white rounded-tr-xs" 
+                          : "bg-slate-50 text-slate-800 border border-slate-100 rounded-tl-xs"
+                      )}>
+                        {msg.text}
                       </div>
                     </div>
-                    <div className="flex flex-col items-end">
-                      <div className="bg-slate-900 text-white px-3 py-2 rounded-2xl rounded-tr-xs text-xs max-w-[85%] shadow-xs leading-relaxed">
-                        {ans}
-                      </div>
+                  );
+                })}
+                {isGenerating && (
+                  <div className="flex items-start gap-1.5 pl-1">
+                    <div className="flex size-4.5 items-center justify-center rounded bg-violet-600 text-[9px] font-bold text-white animate-pulse">M</div>
+                    <div className="bg-slate-50 text-slate-400 px-4 py-2.5 rounded-2xl rounded-tl-xs text-[11px] border border-slate-100 flex items-center gap-1.5 font-semibold animate-pulse">
+                      Analyzing and drafting requirements...
                     </div>
                   </div>
-                ))}
-
-                {/* Current Bot Question */}
-                <div className="flex items-start gap-2">
-                  <div className="flex size-6 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-700 flex-shrink-0">M</div>
-                  <div className="bg-slate-100/80 text-slate-800 px-3 py-2 rounded-2xl rounded-tl-xs text-xs max-w-[85%] leading-relaxed">
-                    {clarifyingQuestions[currentQuestionIdx]}
-                  </div>
-                </div>
+                )}
                 <div ref={chatEndRef} />
               </div>
 
               {/* Conversational Input Box */}
-              <div className="border-t border-slate-100 pt-3 flex flex-col gap-2">
+              <div className="border-t border-slate-100 p-5 flex flex-col gap-2.5 bg-white flex-shrink-0">
                 <textarea
                   value={currentAnswer}
                   onChange={(e) => setCurrentAnswer(e.target.value)}
-                  placeholder="Type your answer to Mycroft..."
-                  rows={2}
-                  className="w-full p-2.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-950 resize-none bg-slate-50/50 font-sans"
+                  placeholder={currentQuestionIdx !== -1 ? "Type your answer to Mycroft..." : "Type your follow-up ideas or refinement requests..."}
+                  rows={3}
+                  className="w-full p-3.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-950 resize-none bg-slate-50/10 font-sans shadow-2xs"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (currentQuestionIdx !== -1) {
+                        handleSendAnswer();
+                      } else {
+                        handleSendFollowUp();
+                      }
+                    }
+                  }}
                 />
                 <div className="flex gap-2 justify-between items-center">
                   <button 
-                    onClick={() => setClarifyingQuestions([])} 
-                    className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                    onClick={() => {
+                      setMessages([]);
+                      setClarifyingQuestions([]);
+                      setCurrentQuestionIdx(-1);
+                      setAnswers([]);
+                      setActivePrd(null);
+                    }} 
+                    className="text-xs text-slate-400 hover:text-slate-600 transition-colors font-semibold"
                   >
-                    Reset
+                    Reset Conversation
                   </button>
                   <Button 
-                    onClick={handleSendAnswer} 
-                    disabled={!currentAnswer.trim()} 
-                    className="h-8 px-3 rounded-lg bg-slate-900 text-white hover:bg-slate-800 text-xs font-medium flex items-center gap-1"
+                    onClick={currentQuestionIdx !== -1 ? handleSendAnswer : handleSendFollowUp} 
+                    disabled={isGenerating || !currentAnswer.trim()} 
+                    className="h-9 px-4 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors"
                   >
-                    Send Answer
+                    {currentQuestionIdx !== -1 ? "Send Answer" : "Send Follow-up"}
                     <Send className="size-3" />
                   </Button>
                 </div>
@@ -416,45 +500,44 @@ export default function PRDsPage() {
           )}
         </aside>
 
-        {/* Center Column: Notion-style PRD Canvas (6 cols / 50%) */}
-        <main className="lg:col-span-6 bg-white p-8 lg:p-12 overflow-y-auto h-full flex flex-col items-center">
-          <div className="w-full max-w-2xl flex flex-col flex-1">
-            
-            {activePrd ? (
-              <div className="flex flex-col flex-1">
-                {/* Sticky Layout Options Toolbar */}
-                <div className="sticky top-0 z-20 flex justify-between items-center bg-white/90 backdrop-blur-md pb-4 mb-8 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <StatusBadge tone="neutral">
-                      Version v{activePrd.currentVersion}
-                    </StatusBadge>
-                    <StatusBadge tone={activePrd.status === "Approved" ? "healthy" : "warning"}>
-                      {activePrd.status}
-                    </StatusBadge>
-                  </div>
-                  <div className="flex gap-1.5">
-                    <Button 
-                      variant="secondary" 
-                      className="h-8 px-2.5 text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg flex items-center gap-1 font-medium text-slate-600 shadow-2xs" 
-                      onClick={() => alert("PDF downloaded successfully!")}
-                    >
-                      <Download className="size-3" />
-                      PDF
-                    </Button>
-                    <Button 
-                      variant="secondary" 
-                      className="h-8 px-2.5 text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg flex items-center gap-1 font-medium text-slate-600 shadow-2xs" 
-                      onClick={() => alert("DOCX downloaded successfully!")}
-                    >
-                      <Download className="size-3" />
-                      DOCX
-                    </Button>
-                  </div>
+        {/* Right Column: Notion-style PRD Canvas (7 cols) */}
+        <main className="lg:col-span-7 bg-white h-full overflow-hidden flex flex-col">
+          {activePrd ? (
+            <div className="flex flex-col h-full overflow-hidden">
+              {/* Sticky Layout Options Toolbar */}
+              <div className="flex justify-between items-center bg-white px-8 py-4 border-b border-slate-100 flex-shrink-0">
+                <div className="flex items-center gap-2">
+                  <StatusBadge tone="neutral">
+                    Version v{activePrd.currentVersion}
+                  </StatusBadge>
+                  <StatusBadge tone={activePrd.status === "Approved" ? "healthy" : "warning"}>
+                    {activePrd.status}
+                  </StatusBadge>
                 </div>
+                <div className="flex gap-1.5">
+                  <Button 
+                    variant="secondary" 
+                    className="h-8 px-2.5 text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg flex items-center gap-1 font-semibold text-slate-600 shadow-2xs" 
+                    onClick={() => alert("PDF downloaded successfully!")}
+                  >
+                    <Download className="size-3" />
+                    PDF
+                  </Button>
+                  <Button 
+                    variant="secondary" 
+                    className="h-8 px-2.5 text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg flex items-center gap-1 font-semibold text-slate-600 shadow-2xs" 
+                    onClick={() => alert("DOCX downloaded successfully!")}
+                  >
+                    <Download className="size-3" />
+                    DOCX
+                  </Button>
+                </div>
+              </div>
 
-                {/* Notion Document Canvas */}
-                <article className="flex-1 space-y-8">
-                  <h2 className="text-3xl font-bold tracking-tight text-slate-900 mb-6 outline-none font-sans">
+              {/* Notion Document Canvas */}
+              <div className="flex-1 overflow-y-auto px-8 lg:px-12 py-10">
+                <article className="w-full max-w-2xl mx-auto space-y-8 pb-32">
+                  <h2 className="text-2xl font-bold tracking-tight text-slate-900 mb-6 outline-none font-sans">
                     {activePrd.title}
                   </h2>
 
@@ -504,7 +587,7 @@ export default function PRDsPage() {
                               </div>
                             </div>
                           ) : (
-                            <p className="text-[15px] text-slate-600 leading-relaxed font-normal py-1 pr-4 whitespace-pre-line">
+                            <p className="text-[14px] text-slate-650 leading-relaxed font-normal py-1 pr-4 whitespace-pre-line">
                               {section?.content || <span className="text-slate-400 italic">No content generated. Click Edit to add context.</span>}
                             </p>
                           )}
@@ -514,32 +597,36 @@ export default function PRDsPage() {
                   </div>
                 </article>
               </div>
-            ) : (
-              <div className="flex-1 flex flex-col justify-center items-center text-center py-20">
-                <div className="flex size-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-300 mb-4 border border-slate-100">
-                  <ClipboardList className="size-7" />
-                </div>
-                <h3 className="text-base font-bold text-slate-800 mb-1">Create a new product spec</h3>
-                <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
-                  Start mapping your project details by writing a prompt to the AI Copilot on the left.
-                </p>
-              </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col justify-center items-center text-center p-8 bg-slate-50/10">
+              <p className="text-xs font-semibold text-slate-400 max-w-xs leading-relaxed">
+                Introduce your product idea on the left to begin drafting the specification.
+              </p>
+            </div>
+          )}
         </main>
 
-        {/* Right Column: Review & Meta Panel (Compact - 3 cols / 25%) */}
-        <aside className="lg:col-span-3 bg-white border-l border-slate-100 p-6 flex flex-col h-full overflow-y-auto">
-          <div className="flex items-center gap-2 mb-5">
-            <div className="flex size-6 items-center justify-center rounded-md bg-green-50 text-green-600">
-              <FileCheck className="size-3.5" />
-            </div>
-            <h2 className="text-sm font-bold text-slate-950 tracking-tight">Review & Audit</h2>
-          </div>
+      </div>
 
-          {activePrd ? (
+      {/* Review & Audit Slide-over Drawer Overlay */}
+      {isAuditOpen && activePrd && (
+        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/10 backdrop-blur-xs flex justify-end">
+          <div className="w-80 bg-white h-full shadow-2xl p-6 flex flex-col gap-4 border-l border-slate-100 transition-transform overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <FileCheck className="size-4.5 text-slate-700" />
+                <h2 className="text-sm font-bold text-slate-950 tracking-tight">Review & Audit</h2>
+              </div>
+              <button 
+                className="text-slate-450 hover:text-slate-900 text-lg font-semibold p-1" 
+                onClick={() => setIsAuditOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            
             <div className="space-y-5">
-              
               {/* Quality Score Indicator */}
               <div className="flex items-center justify-between p-3.5 bg-slate-50/50 rounded-xl border border-slate-100">
                 <div className="flex flex-col">
@@ -600,16 +687,10 @@ export default function PRDsPage() {
                   <span>Prompt contains placeholder elements. Add detailed user stories or metrics to automatically increment your score.</span>
                 </div>
               )}
-
             </div>
-          ) : (
-            <div className="text-center py-6 text-xs text-slate-400 italic">
-              Generate a document to run compliance audits.
-            </div>
-          )}
-        </aside>
-
-      </div>
+          </div>
+        </div>
+      )}
 
       {/* History Slide-over Drawer Overlay */}
       {isHistoryOpen && (
