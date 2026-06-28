@@ -963,23 +963,23 @@ export default function AIHomePage() {
 
           {/* ==================== VIEW 1: WIREFRAME LANDING SCREEN ==================== */}
           {!showChatView ? (
-            <div className="flex-1 w-full max-w-4xl mx-auto px-6 py-8 space-y-10 pb-24">
+            <div className="flex-1 flex flex-col justify-center items-center max-w-2xl mx-auto w-full px-6 py-12 space-y-8 pb-32">
               
               {/* Header Titles */}
-              <div className="space-y-2 mt-4">
+              <div className="space-y-2 text-center w-full">
                 <p className="text-[13px] font-semibold text-slate-500">{greeting}, Akshay! 👋</p>
-                <h2 className="text-[34px] font-bold text-slate-900 tracking-tight leading-tight">What are we building today?</h2>
-                <p className="text-[13px] text-slate-500">I&apos;ll help you discover, define and build products users love.</p>
+                <h2 className="text-[36px] font-bold text-slate-900 tracking-tight leading-tight">What are we building today?</h2>
+                <p className="text-[13.5px] text-slate-500 font-medium">I&apos;ll help you discover, define and build products users love.</p>
               </div>
 
               {/* Large Prompt Input Box */}
-              <div className="border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow focus-within:border-violet-400 focus-within:ring-2 focus-within:ring-violet-100 bg-white">
+              <div className="border border-slate-200/90 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all focus-within:border-violet-400 focus-within:ring-2 focus-within:ring-violet-100/50 bg-white w-full">
                 <textarea
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Describe your product idea or ask anything..."
-                  rows={3}
-                  className="w-full text-[13px] text-slate-800 placeholder:text-slate-400 resize-none bg-transparent focus:outline-none leading-relaxed"
+                  placeholder="Describe your product idea or improvement goal..."
+                  rows={4}
+                  className="w-full text-[14px] text-slate-800 placeholder:text-slate-400 resize-none bg-transparent focus:outline-none leading-relaxed"
                   onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
                 />
                 
@@ -995,7 +995,7 @@ export default function AIHomePage() {
                 <div className="flex items-center justify-between pt-2 border-t border-slate-100 mt-2">
                   <button
                     onClick={handleAttachmentClick}
-                    className="p-2 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors"
+                    className="p-2 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-655 transition-colors"
                     title="Attach file"
                   >
                     <Paperclip className="size-4.5" />
@@ -1003,137 +1003,14 @@ export default function AIHomePage() {
                   <button
                     onClick={() => handleSendMessage()}
                     disabled={!chatInput.trim()}
-                    className="size-8.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center transition-all disabled:opacity-40 disabled:hover:bg-violet-600 shadow-sm"
+                    className="size-9 rounded-full bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center transition-all disabled:opacity-40 shadow-sm hover:scale-105 active:scale-95 duration-200"
                   >
                     <Send className="size-3.5" />
                   </button>
                 </div>
               </div>
 
-              {/* Suggested Actions (Popular things to try) */}
-              <div className="space-y-2">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Popular things to try</p>
-                <div className="flex flex-wrap gap-2 py-0.5 overflow-x-auto max-w-full no-scrollbar">
-                  {[
-                    { label: "• Analyze Reviews", query: "Analyze Reviews for Zepto Checkout Improvement" },
-                    { label: "• Generate PRD", query: "Generate PRD draft for UPI Expense Manager" },
-                    { label: "• Find User Pain Points", query: "Find user pain points and review complaints" },
-                    { label: "• Research Competitors", query: "Research competitors and map strategy gaps" },
-                    { label: "• Build Roadmap", query: "Build Roadmap and plan product milestones" }
-                  ].map(chip => (
-                    <button
-                      key={chip.label}
-                      onClick={() => handleSendMessage(chip.query)}
-                      className="h-7 px-3.5 text-[11px] font-semibold rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-350 hover:text-slate-900 transition-all shadow-3xs"
-                    >
-                      {chip.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
 
-              {/* Continue Your Work (Active project tracker card) */}
-              <div className="space-y-2">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Continue your work</p>
-                <Card className="p-4 border border-slate-150/75 bg-white rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3.5">
-                    <div className="size-10 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center shrink-0">
-                      <FileText className="size-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-[13px] font-bold text-slate-900">UPI Expense Manager</h4>
-                        <span className="text-[10px] font-semibold bg-violet-50 text-violet-600 px-2.5 py-0.5 rounded-full">Discovery</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <span className="size-1.5 rounded-full bg-violet-600 shrink-0" />
-                        <p className="text-[11px] font-semibold text-slate-600">{activeConv ? getProjectProgressText(activeConv) : "Current Stage • Discovery"}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button
-                    onClick={() => {
-                      setActiveConvId("conv_upi_expense");
-                      setShowChatView(true);
-                    }}
-                    variant="secondary"
-                    className="h-9 px-4 rounded-xl border-violet-200 text-violet-600 hover:bg-violet-50/50 text-[12px] font-semibold shrink-0 shadow-2xs"
-                  >
-                    Resume Project
-                  </Button>
-                </Card>
-              </div>
-
-              {/* Recent Projects */}
-              <div className="space-y-3">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Recent projects</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                  
-                  {/* Project 1 */}
-                  <div
-                    onClick={() => {
-                      setActiveConvId("conv_zepto_checkout");
-                      setShowChatView(true);
-                    }}
-                    className="p-3.5 bg-white border border-slate-150/75 hover:border-slate-350 hover:shadow-2xs transition-all cursor-pointer rounded-xl flex items-center gap-3"
-                  >
-                    <div className="size-8.5 rounded-lg bg-pink-50 text-pink-650 font-bold flex items-center justify-center shrink-0 text-[12px]">
-                      Z
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[11.5px] font-bold text-slate-900 truncate leading-snug">Zepto Checkout</p>
-                      <p className="text-[9.5px] text-slate-400 mt-0.5 truncate font-medium">Define • Updated 4h ago</p>
-                    </div>
-                  </div>
-
-                  {/* Project 2 */}
-                  <div
-                    onClick={() => {
-                      setActiveConvId("conv_healthtech_ai");
-                      setShowChatView(true);
-                    }}
-                    className="p-3.5 bg-white border border-slate-150/75 hover:border-slate-350 hover:shadow-2xs transition-all cursor-pointer rounded-xl flex items-center gap-3"
-                  >
-                    <div className="size-8.5 rounded-lg bg-emerald-50 text-emerald-650 font-bold flex items-center justify-center shrink-0 text-[12px]">
-                      H
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[11.5px] font-bold text-slate-900 truncate leading-snug">HealthTech AI</p>
-                      <p className="text-[9.5px] text-slate-400 mt-0.5 truncate font-medium">Research • 1d ago</p>
-                    </div>
-                  </div>
-
-                  {/* Project 3 */}
-                  <div
-                    onClick={() => {
-                      setActiveConvId("conv_fintech_students");
-                      setShowChatView(true);
-                    }}
-                    className="p-3.5 bg-white border border-slate-150/75 hover:border-slate-350 hover:shadow-2xs transition-all cursor-pointer rounded-xl flex items-center gap-3"
-                  >
-                    <div className="size-8.5 rounded-lg bg-blue-50 text-blue-650 font-bold flex items-center justify-center shrink-0 text-[12px]">
-                      F
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[11.5px] font-bold text-slate-900 truncate leading-snug">Fintech Students</p>
-                      <p className="text-[9.5px] text-slate-400 mt-0.5 truncate font-medium">Discovery • 2d ago</p>
-                    </div>
-                  </div>
-
-                  {/* View all projects */}
-                  <div
-                    onClick={() => window.location.assign("/projects")}
-                    className="p-3.5 bg-slate-50 border border-slate-150/75 hover:bg-slate-100 hover:border-slate-350 hover:shadow-2xs transition-all cursor-pointer rounded-xl flex items-center justify-center"
-                  >
-                    <p className="text-[11.5px] font-bold text-slate-600 flex items-center gap-1.5">
-                      View all projects
-                      <ArrowRight className="size-3" />
-                    </p>
-                  </div>
-
-                </div>
-              </div>
 
             </div>
           ) : (
