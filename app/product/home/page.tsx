@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { 
-  Bot, 
-  Sparkles, 
+import {
+  Bot,
   Send,
   ArrowUpRight,
   ClipboardList,
@@ -21,13 +20,14 @@ import {
   MessageSquare,
   Activity,
   ChevronRight,
-  PanelLeftClose,
-  PanelLeftOpen
+  Clock,
+  Sparkles
 } from "lucide-react";
 
-// Stepper steps representing PM Lifecycle
+// ─── Constants ───────────────────────────────────────────────────────────────
 const STEPS = ["Discovery", "Define", "Design", "Develop", "Deliver", "Debrief"];
 
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface Message {
   sender: "ai" | "user";
   text: string;
@@ -63,6 +63,7 @@ interface Conversation {
   prdSections: Record<string, PRDSection>;
 }
 
+// ─── Defaults ─────────────────────────────────────────────────────────────────
 const defaultPRDSections = (): Record<string, PRDSection> => ({
   objective: { title: "Objective", content: "Build a 10-minute grocery delivery app designed for university campuses." },
   businessValue: { title: "Business Value", content: "Enables campus expansions and hyper-local monetization." },
@@ -80,93 +81,300 @@ const defaultWelcomeMessage = (): Message => ({
   timestamp: "Just now"
 });
 
+const makeDefaultConv = (): Conversation => ({
+  id: `conv_${Date.now()}`,
+  title: "New Chat",
+  activeStep: "Discovery",
+  messages: [defaultWelcomeMessage()],
+  createdAt: new Date().toISOString(),
+  appName: "Zepto",
+  sentiment: "82% Positive • 18% Negative",
+  positiveThemes: [
+    "Genuinely delivers in 10 minutes for major items.",
+    "Fresh produce quality matches catalog snapshots.",
+    "Extremely clean payment checkout flow."
+  ],
+  complaints: [
+    "Items frequently display 'out of stock' midway through cart creation.",
+    "Recent increases in packaging and delivery convenience fees.",
+    "Riders speed dangerously to maintain delivery timelines."
+  ],
+  opportunityRecommendations: [
+    "Launch a '60-Second Add-On' buffer mechanism that lets users append forgotten items to an active packing order to reduce duplicate deliveries."
+  ],
+  prdTitle: "10-Min Campuses Grocery Delivery Spec",
+  prdVersion: 1,
+  prdStatus: "Draft",
+  prdSections: defaultPRDSections()
+});
+
+// ─── History Drawer Component ─────────────────────────────────────────────────
+function HistoryDrawer({
+  open,
+  onClose,
+  conversations,
+  activeConvId,
+  onSelect,
+  onNewChat,
+  renamingId,
+  renameValue,
+  setRenamingId,
+  setRenameValue,
+  onRename,
+  onDelete
+}: {
+  open: boolean;
+  onClose: () => void;
+  conversations: Conversation[];
+  activeConvId: string;
+  onSelect: (id: string) => void;
+  onNewChat: () => void;
+  renamingId: string | null;
+  renameValue: string;
+  setRenamingId: (id: string | null) => void;
+  setRenameValue: (v: string) => void;
+  onRename: (id: string) => void;
+  onDelete: (id: string, e: React.MouseEvent) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const drawerRef = useRef<HTMLDivElement>(null);
+
+  const filtered = conversations.filter(c =>
+    c.title.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [open, onClose]);
+
+  const formatDate = (iso: string) => {
+    const d = new Date(iso);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Yesterday";
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className={cn(
+          "fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px] transition-opacity duration-250",
+          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        )}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Drawer panel */}
+      <div
+        ref={drawerRef}
+        className={cn(
+          "fixed top-0 left-0 h-full z-50 w-[320px] bg-white border-r border-slate-100 shadow-2xl flex flex-col transition-transform duration-300 ease-out",
+          open ? "translate-x-0" : "-translate-x-full"
+        )}
+        role="dialog"
+        aria-label="Conversation History"
+      >
+        {/* Drawer header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-7 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+              <Clock className="size-3.5" />
+            </div>
+            <span className="text-sm font-semibold text-slate-900 tracking-tight">History</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex size-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="px-4 pt-3 pb-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search conversations..."
+              className="w-full pl-8 pr-3 py-2 text-[12px] bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 placeholder:text-slate-400 text-slate-800"
+              autoFocus
+            />
+          </div>
+        </div>
+
+        {/* Section label */}
+        <div className="px-5 py-2">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            {filtered.length} conversation{filtered.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+
+        {/* Conversation list */}
+        <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
+          {filtered.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+              <MessageSquare className="size-8 mb-2 text-slate-200" />
+              <p className="text-xs italic">No conversations found</p>
+            </div>
+          )}
+          {filtered.map((c) => {
+            const isActive = c.id === activeConvId;
+            const isRenaming = renamingId === c.id;
+
+            return (
+              <div
+                key={c.id}
+                onClick={() => { if (!isRenaming) { onSelect(c.id); onClose(); } }}
+                className={cn(
+                  "group w-full text-left px-3 py-2.5 rounded-xl transition-all cursor-pointer",
+                  isActive
+                    ? "bg-slate-950 text-white"
+                    : "hover:bg-slate-50 text-slate-600"
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    {isRenaming ? (
+                      <input
+                        type="text"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        className="w-full px-1.5 py-0.5 text-xs border rounded bg-white text-slate-900 focus:outline-none"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") onRename(c.id);
+                          if (e.key === "Escape") setRenamingId(null);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        autoFocus
+                      />
+                    ) : (
+                      <p className="text-[12px] font-medium truncate leading-snug">{c.title}</p>
+                    )}
+                    <div className={cn("flex items-center gap-1.5 mt-0.5", isActive ? "text-white/50" : "text-slate-400")}>
+                      <span className="text-[10px]">{formatDate(c.createdAt)}</span>
+                      <span className="text-[10px]">·</span>
+                      <span className={cn(
+                        "text-[10px] px-1 py-px rounded font-medium",
+                        isActive ? "bg-white/10" : "bg-slate-100 text-slate-500"
+                      )}>
+                        {c.activeStep}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  {!isRenaming && (
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setRenamingId(c.id); setRenameValue(c.title); }}
+                        className={cn("p-1 rounded-md transition-colors", isActive ? "hover:bg-white/20 text-white/60" : "hover:bg-slate-200 text-slate-400")}
+                      >
+                        <Edit className="size-3" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onDelete(c.id, e); }}
+                        className={cn("p-1 rounded-md transition-colors", isActive ? "hover:bg-red-500/30 text-white/60" : "hover:bg-red-50 text-slate-400 hover:text-red-500")}
+                      >
+                        <Trash2 className="size-3" />
+                      </button>
+                    </div>
+                  )}
+
+                  {isRenaming && (
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <button onClick={(e) => { e.stopPropagation(); onRename(c.id); }} className="p-1 rounded hover:bg-green-100 text-green-600">
+                        <Check className="size-3" />
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); setRenamingId(null); }} className="p-1 rounded hover:bg-red-100 text-red-400">
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Footer: New Chat CTA */}
+        <div className="px-4 py-4 border-t border-slate-100">
+          <Button
+            onClick={() => { onNewChat(); onClose(); }}
+            className="w-full h-10 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-[12px] font-semibold flex items-center justify-center gap-2 transition-colors"
+          >
+            <Plus className="size-4" />
+            New Conversation
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AIHomePage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConvId, setActiveConvId] = useState<string>("");
-  const [searchQuery, setSearchQuery] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // History drawer state
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Rename inline states
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
-  // Sidebar collapse states
-  const [convSidebarCollapsed, setConvSidebarCollapsed] = useState(false);
-  const [mainSidebarCollapsed, setMainSidebarCollapsed] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Load conversations and sidebar prefs from localStorage on mount
+  // ── Bootstrap from localStorage ──
   useEffect(() => {
     const savedConvs = localStorage.getItem("mycroft_home_conversations");
     const savedActiveId = localStorage.getItem("mycroft_home_active_conv_id");
-    const convCollapsed = localStorage.getItem("conv_sidebar_collapsed");
-    const mainCollapsed = localStorage.getItem("sidebar_collapsed_pref");
 
     let loadedConvs: Conversation[] = [];
-    let activeId = "";
-
     if (savedConvs) {
-      try {
-        loadedConvs = JSON.parse(savedConvs);
-      } catch (e) {
-        console.error("Failed to parse conversations:", e);
-      }
+      try { loadedConvs = JSON.parse(savedConvs); } catch (e) { console.error(e); }
     }
 
     if (loadedConvs.length === 0) {
-      const initialConv: Conversation = {
-        id: `conv_${Date.now()}`,
-        title: "New Chat",
-        activeStep: "Discovery",
-        messages: [defaultWelcomeMessage()],
-        createdAt: new Date().toISOString(),
-        appName: "Zepto",
-        sentiment: "82% Positive • 18% Negative",
-        positiveThemes: [
-          "Genuinely delivers in 10 minutes for major items.",
-          "Fresh produce quality matches catalog snapshots.",
-          "Extremely clean payment checkout flow."
-        ],
-        complaints: [
-          "Items frequently display 'out of stock' midway through cart creation.",
-          "Recent increases in packaging and delivery convenience fees.",
-          "Riders speed dangerously to maintain delivery timelines."
-        ],
-        opportunityRecommendations: [
-          "Launch a '60-Second Add-On' buffer mechanism that lets users append forgotten items to an active packing order to reduce duplicate deliveries."
-        ],
-        prdTitle: "10-Min Campuses Grocery Delivery Spec",
-        prdVersion: 1,
-        prdStatus: "Draft",
-        prdSections: defaultPRDSections()
-      };
-      loadedConvs = [initialConv];
-      activeId = initialConv.id;
+      const initial = makeDefaultConv();
+      setConversations([initial]);
+      setActiveConvId(initial.id);
     } else {
-      activeId = savedActiveId || loadedConvs[0].id;
+      setConversations(loadedConvs);
+      setActiveConvId(savedActiveId || loadedConvs[0].id);
     }
-
-    setConversations(loadedConvs);
-    setActiveConvId(activeId);
-    if (convCollapsed !== null) setConvSidebarCollapsed(convCollapsed === "true");
-    if (mainCollapsed !== null) setMainSidebarCollapsed(mainCollapsed === "true");
     setIsLoaded(true);
   }, []);
 
-  // Listen for main sidebar toggle event from sidebar.tsx
+  // ── Cmd/Ctrl + K to open drawer ──
   useEffect(() => {
-    const sync = () => {
-      setMainSidebarCollapsed(localStorage.getItem("sidebar_collapsed_pref") === "true");
+    const handleKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setDrawerOpen((prev) => !prev);
+      }
     };
-    window.addEventListener("sidebar_toggle", sync);
-    return () => window.removeEventListener("sidebar_toggle", sync);
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
   }, []);
 
-  // Save conversations and active ID to localStorage when they change
+  // ── Persist state to localStorage ──
   useEffect(() => {
     if (!isLoaded) return;
     localStorage.setItem("mycroft_home_conversations", JSON.stringify(conversations));
@@ -188,9 +396,7 @@ export default function AIHomePage() {
       const savedPrdsHistory = localStorage.getItem("mycroft_prds_history");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let history: any[] = [];
-      if (savedPrdsHistory) {
-        try { history = JSON.parse(savedPrdsHistory); } catch (e) { console.error(e); }
-      }
+      if (savedPrdsHistory) { try { history = JSON.parse(savedPrdsHistory); } catch (e) { console.error(e); } }
 
       const activePrd = {
         id: history.length > 0 ? history[0].id : `prd_${active.id}`,
@@ -212,140 +418,86 @@ export default function AIHomePage() {
         },
         versions: history.length > 0 ? history[0].versions || [1] : [1]
       };
-
       if (history.length > 0) { history[0] = activePrd; } else { history = [activePrd]; }
       localStorage.setItem("mycroft_prds_history", JSON.stringify(history));
     }
   }, [conversations, activeConvId, isLoaded]);
 
-  // Auto scroll chat conversation
+  // ── Auto-scroll ──
   useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversations, activeConvId]);
 
   const activeConv = conversations.find(c => c.id === activeConvId);
 
-  const toggleConvSidebar = () => {
-    const val = !convSidebarCollapsed;
-    setConvSidebarCollapsed(val);
-    localStorage.setItem("conv_sidebar_collapsed", String(val));
-  };
-
-  const handleNewChat = () => {
-    const newConv: Conversation = {
-      id: `conv_${Date.now()}`,
-      title: "New Chat",
-      activeStep: "Discovery",
-      messages: [defaultWelcomeMessage()],
-      createdAt: new Date().toISOString(),
-      appName: "Zepto",
-      sentiment: "82% Positive • 18% Negative",
-      positiveThemes: [
-        "Genuinely delivers in 10 minutes for major items.",
-        "Fresh produce quality matches catalog snapshots.",
-        "Extremely clean payment checkout flow."
-      ],
-      complaints: [
-        "Items frequently display 'out of stock' midway through cart creation.",
-        "Recent increases in packaging and delivery convenience fees.",
-        "Riders speed dangerously to maintain delivery timelines."
-      ],
-      opportunityRecommendations: [
-        "Launch a '60-Second Add-On' buffer mechanism that lets users append forgotten items to an active packing order to reduce duplicate deliveries."
-      ],
-      prdTitle: "10-Min Campuses Grocery Delivery Spec",
-      prdVersion: 1,
-      prdStatus: "Draft",
-      prdSections: defaultPRDSections()
-    };
+  // ── Handlers ──
+  const handleNewChat = useCallback(() => {
+    const newConv = makeDefaultConv();
     setConversations(prev => [newConv, ...prev]);
     setActiveConvId(newConv.id);
-  };
+  }, []);
 
-  const handleRenameChat = (id: string) => {
-    setConversations(prev => prev.map(c => {
-      if (c.id === id) return { ...c, title: renameValue.trim() || c.title };
-      return c;
-    }));
+  const handleRenameChat = useCallback((id: string) => {
+    setConversations(prev => prev.map(c =>
+      c.id === id ? { ...c, title: renameValue.trim() || c.title } : c
+    ));
     setRenamingId(null);
     setRenameValue("");
-  };
+  }, [renameValue]);
 
-  const handleDeleteChat = (id: string, e: React.MouseEvent) => {
+  const handleDeleteChat = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const updated = conversations.filter(c => c.id !== id);
-    setConversations(updated);
-
+    setConversations(updated.length > 0 ? updated : [makeDefaultConv()]);
     if (activeConvId === id) {
-      if (updated.length > 0) {
-        setActiveConvId(updated[0].id);
-      } else {
-        const resetConv: Conversation = {
-          id: `conv_${Date.now()}`,
-          title: "New Chat",
-          activeStep: "Discovery",
-          messages: [defaultWelcomeMessage()],
-          createdAt: new Date().toISOString(),
-          appName: "Zepto",
-          sentiment: "82% Positive • 18% Negative",
-          positiveThemes: [
-            "Genuinely delivers in 10 minutes for major items.",
-            "Fresh produce quality matches catalog snapshots.",
-            "Extremely clean payment checkout flow."
-          ],
-          complaints: [
-            "Items frequently display 'out of stock' midway through cart creation.",
-            "Recent increases in packaging and delivery convenience fees.",
-            "Riders speed dangerously to maintain delivery timelines."
-          ],
-          opportunityRecommendations: [
-            "Launch a '60-Second Add-On' buffer mechanism that lets users append forgotten items to an active packing order to reduce duplicate deliveries."
-          ],
-          prdTitle: "10-Min Campuses Grocery Delivery Spec",
-          prdVersion: 1,
-          prdStatus: "Draft",
-          prdSections: defaultPRDSections()
-        };
-        setConversations([resetConv]);
-        setActiveConvId(resetConv.id);
-      }
+      setActiveConvId(updated.length > 0 ? updated[0].id : "");
     }
-  };
+  }, [conversations, activeConvId]);
 
-  const handleSendMessage = (textToSend?: string) => {
+  const handleAction = useCallback((action: { label: string; stage: string }) => {
+    if (!activeConv) return;
+    setConversations(prev => prev.map(c => {
+      if (c.id === activeConvId) {
+        return {
+          ...c,
+          activeStep: action.stage,
+          messages: [...c.messages, {
+            sender: "ai" as const,
+            text: `Lifecycle stage transitioned to: **${action.stage}**. Relevant workspace cards have been generated inline.`,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          }]
+        };
+      }
+      return c;
+    }));
+  }, [activeConv, activeConvId]);
+
+  const handleSendMessage = useCallback((textToSend?: string) => {
     const input = textToSend || chatInput;
     if (!input.trim() || !activeConv) return;
 
     const userMsg: Message = {
       sender: "user",
       text: input,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     };
 
-    let updatedTitle = activeConv.title;
-    if (activeConv.title === "New Chat") {
-      updatedTitle = input.length > 25 ? `${input.substring(0, 25)}...` : input;
-    }
+    const updatedTitle = activeConv.title === "New Chat"
+      ? (input.length > 28 ? `${input.substring(0, 28)}...` : input)
+      : activeConv.title;
 
-    setConversations(prev => prev.map(c => {
-      if (c.id === activeConvId) {
-        return { ...c, title: updatedTitle, messages: [...c.messages, userMsg] };
-      }
-      return c;
-    }));
-
+    setConversations(prev => prev.map(c =>
+      c.id === activeConvId ? { ...c, title: updatedTitle, messages: [...c.messages, userMsg] } : c
+    ));
     if (!textToSend) setChatInput("");
     setIsGenerating(true);
 
     setTimeout(() => {
+      const userText = input.toLowerCase();
       let aiText = "";
       let targetStage = activeConv.activeStep;
-      let nextAction: { label: string; stage: string } | undefined;
+      let nextAction: Message["action"] = undefined;
       let card: Message["workspaceCard"] = undefined;
-
-      const userText = input.toLowerCase();
 
       if (activeConv.activeStep === "Discovery") {
         if (userText.includes("grocery") || userText.includes("zepto") || userText.includes("delivery")) {
@@ -380,447 +532,283 @@ export default function AIHomePage() {
       const aiMsg: Message = {
         sender: "ai",
         text: aiText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         workspaceCard: card,
         action: nextAction
       };
 
       setConversations(prev => prev.map(c => {
-        if (c.id === activeConvId) {
-          const nextStep = nextAction ? nextAction.stage : targetStage;
-          const updatedSections = { ...c.prdSections };
-          let updatedVersion = c.prdVersion;
-          let updatedStatus = c.prdStatus;
+        if (c.id !== activeConvId) return c;
+        const nextStep = nextAction ? nextAction.stage : targetStage;
+        const updatedSections = { ...c.prdSections };
+        let updatedVersion = c.prdVersion;
+        let updatedStatus = c.prdStatus;
 
-          if (userText.includes("student") || userText.includes("bangalore")) {
-            updatedSections.targetUsers.content = "Students in university campuses in Bangalore.";
-          }
-          if (userText.includes("metrics") || userText.includes("score")) {
-            updatedSections.successMetrics.content = "Target Quality score >= 90/100, and packing times under 60 seconds.";
-          }
-          if (userText.includes("compliance") || userText.includes("rbi")) {
-            updatedSections.compliance.content = "RBI FinTech Guidelines, DPDP Act 2023 compliance audits, and PCI-DSS payment tokenization protocols.";
-            updatedVersion += 1;
-          }
-          if (userText.includes("move") || userText.includes("design") || userText.includes("develop")) {
-            updatedStatus = "Approved";
-          }
-
-          return {
-            ...c,
-            activeStep: nextStep,
-            prdSections: updatedSections,
-            prdVersion: updatedVersion,
-            prdStatus: updatedStatus,
-            messages: [...c.messages, aiMsg]
-          };
+        if (userText.includes("student") || userText.includes("bangalore"))
+          updatedSections.targetUsers.content = "Students in university campuses in Bangalore.";
+        if (userText.includes("metrics") || userText.includes("score"))
+          updatedSections.successMetrics.content = "Target Quality score >= 90/100, and packing times under 60 seconds.";
+        if (userText.includes("compliance") || userText.includes("rbi")) {
+          updatedSections.compliance.content = "RBI FinTech Guidelines, DPDP Act 2023 compliance audits, and PCI-DSS payment tokenization protocols.";
+          updatedVersion += 1;
         }
-        return c;
+        if (userText.includes("move") || userText.includes("design") || userText.includes("develop"))
+          updatedStatus = "Approved";
+
+        return {
+          ...c,
+          activeStep: nextStep,
+          prdSections: updatedSections,
+          prdVersion: updatedVersion,
+          prdStatus: updatedStatus,
+          messages: [...c.messages, aiMsg]
+        };
       }));
 
       setIsGenerating(false);
     }, 800);
-  };
+  }, [chatInput, activeConv, activeConvId]);
 
-  const handleAction = (action: { label: string; stage: string }) => {
-    if (!activeConv) return;
-    setConversations(prev => prev.map(c => {
-      if (c.id === activeConvId) {
-        const sysMsg: Message = {
-          sender: "ai",
-          text: `Lifecycle stage transitioned to: **${action.stage}**. Relevant workspace cards have been generated inline.`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        return { ...c, activeStep: action.stage, messages: [...c.messages, sysMsg] };
-      }
-      return c;
-    }));
-  };
-
-  const filteredConversations = conversations.filter(c =>
-    c.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Focus mode: both sidebars collapsed => deep work, ultra-wide canvas
-  const isFocusMode = convSidebarCollapsed && mainSidebarCollapsed;
-
+  // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-screen bg-[#fafafa] font-sans antialiased text-slate-800 overflow-hidden">
+    <div className="flex flex-col h-screen bg-white font-sans antialiased text-slate-800 overflow-hidden">
 
-      {/* ─── Top Header Bar ─── */}
-      <header className="shrink-0 sticky top-0 z-30 flex justify-between items-center bg-white/95 backdrop-blur-sm px-5 py-3 border-b border-slate-100 gap-4">
+      {/* ── History Drawer (overlays, does not push content) ── */}
+      <HistoryDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        conversations={conversations}
+        activeConvId={activeConvId}
+        onSelect={(id) => setActiveConvId(id)}
+        onNewChat={handleNewChat}
+        renamingId={renamingId}
+        renameValue={renameValue}
+        setRenamingId={setRenamingId}
+        setRenameValue={setRenameValue}
+        onRename={handleRenameChat}
+        onDelete={handleDeleteChat}
+      />
+
+      {/* ── Top Header ── */}
+      <header className="shrink-0 flex items-center justify-between px-6 py-3.5 border-b border-slate-100 bg-white/95 backdrop-blur-sm z-20">
         
-        {/* Left: Mycroft brand + lifecycle stepper */}
-        <div className="flex items-center gap-4 min-w-0 flex-1">
-          <div className="flex items-center gap-2.5 shrink-0">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-slate-900 text-white">
-              <Bot className="size-4" />
-            </div>
-            <div className="hidden sm:block">
-              <h1 className="text-sm font-semibold tracking-tight text-slate-900 leading-none">Mycroft AI</h1>
-              <p className="text-[10px] text-slate-400 font-medium mt-0.5">Conversational Product Workspace</p>
-            </div>
+        {/* Left: Brand */}
+        <div className="flex items-center gap-3">
+          <div className="flex size-8 items-center justify-center rounded-lg bg-slate-900 text-white shadow-sm">
+            <Bot className="size-4" />
           </div>
-
-          {/* Stepper Progress Tracker */}
-          {activeConv && (
-            <div className="hidden lg:flex items-center gap-0.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-150 text-[10px] font-semibold text-slate-400 select-none">
-              {STEPS.map((step, idx) => {
-                const isActive = activeConv.activeStep === step;
-                const isCompleted = STEPS.indexOf(activeConv.activeStep) > idx;
-                return (
-                  <React.Fragment key={step}>
-                    {idx > 0 && <ChevronRight className="size-3 text-slate-250 mx-0.5" />}
-                    <button
-                      onClick={() => handleAction({ label: `Goto ${step}`, stage: step })}
-                      className={cn(
-                        "px-1.5 py-0.5 rounded-md transition-all duration-200",
-                        isActive ? "bg-slate-950 text-white font-bold px-2" :
-                        isCompleted ? "text-slate-700 hover:text-slate-950" :
-                        "text-slate-400 hover:text-slate-600"
-                      )}
-                    >
-                      {step}
-                    </button>
-                  </React.Fragment>
-                );
-              })}
-            </div>
-          )}
+          <div>
+            <h1 className="text-sm font-semibold tracking-tight text-slate-900 leading-none">Mycroft AI</h1>
+            <p className="text-[10px] text-slate-400 font-medium mt-0.5 leading-none">Product Workspace</p>
+          </div>
         </div>
 
-        {/* Right: New Chat + Search + Conv sidebar toggle */}
-        <div className="flex items-center gap-2 shrink-0">
-          
-          {/* Search conversations (expandable inline) */}
-          <div className="flex items-center">
-            {searchOpen ? (
-              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-xs">
-                <Search className="size-3.5 text-slate-400 shrink-0" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search conversations..."
-                  className="w-44 text-[11px] bg-transparent focus:outline-none text-slate-700 placeholder:text-slate-400"
-                  autoFocus
-                  onBlur={() => { if (!searchQuery) setSearchOpen(false); }}
-                  onKeyDown={(e) => e.key === "Escape" && (setSearchOpen(false), setSearchQuery(""))}
-                />
-                {searchQuery && (
-                  <button onClick={() => { setSearchQuery(""); setSearchOpen(false); }} className="text-slate-400 hover:text-slate-600">
-                    <X className="size-3" />
+        {/* Center: Lifecycle stepper */}
+        {activeConv && (
+          <div className="hidden lg:flex items-center gap-0.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-150 select-none">
+            {STEPS.map((step, idx) => {
+              const isActive = activeConv.activeStep === step;
+              const isCompleted = STEPS.indexOf(activeConv.activeStep) > idx;
+              return (
+                <React.Fragment key={step}>
+                  {idx > 0 && <ChevronRight className="size-3 text-slate-250 mx-0.5" />}
+                  <button
+                    onClick={() => handleAction({ label: `Goto ${step}`, stage: step })}
+                    className={cn(
+                      "px-1.5 py-0.5 rounded-md text-[10px] font-semibold transition-all duration-200",
+                      isActive
+                        ? "bg-slate-950 text-white font-bold px-2"
+                        : isCompleted
+                          ? "text-slate-700 hover:text-slate-950"
+                          : "text-slate-400 hover:text-slate-600"
+                    )}
+                  >
+                    {step}
                   </button>
-                )}
-              </div>
-            ) : (
-              <button
-                onClick={() => setSearchOpen(true)}
-                title="Search conversations"
-                className="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-              >
-                <Search className="size-4" />
-              </button>
-            )}
+                </React.Fragment>
+              );
+            })}
           </div>
+        )}
 
-          {/* New Chat */}
+        {/* Right: History toggle */}
+        <div className="flex items-center gap-2">
           <button
-            onClick={handleNewChat}
-            title="New Chat"
-            className="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+            onClick={() => setDrawerOpen(true)}
+            title="History (⌘K)"
+            className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors text-[12px] font-medium"
           >
-            <Plus className="size-4" />
+            <Clock className="size-3.5" />
+            <span className="hidden sm:inline">History</span>
+            <kbd className="hidden md:inline ml-1 text-[9px] font-mono bg-slate-100 text-slate-400 px-1 py-0.5 rounded border border-slate-200">⌘K</kbd>
           </button>
-
-          {/* Conv sidebar toggle */}
-          <button
-            onClick={toggleConvSidebar}
-            title={convSidebarCollapsed ? "Show Conversations" : "Hide Conversations"}
-            className={cn(
-              "flex size-8 items-center justify-center rounded-lg transition-colors",
-              convSidebarCollapsed
-                ? "text-slate-400 hover:bg-slate-100 hover:text-slate-900"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-            )}
-          >
-            {convSidebarCollapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
-          </button>
-
-          {/* Focus mode indicator badge */}
-          {isFocusMode && (
-            <span className="hidden sm:inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full">
-              <Sparkles className="size-2.5" /> Deep Work
-            </span>
-          )}
         </div>
       </header>
 
-      {/* ─── Main Workspace: Conversation sidebar + Chat canvas ─── */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* ── Full-width Chat Canvas ── */}
+      <main className="flex-1 overflow-y-auto relative">
+        <div className="mx-auto max-w-3xl px-6 pt-8 pb-48">
 
-        {/* Conversation History Sidebar (independently collapsible) */}
-        <aside className={cn(
-          "shrink-0 bg-white border-r border-slate-100 flex flex-col overflow-hidden transition-all duration-300 ease-in-out hidden md:flex",
-          convSidebarCollapsed ? "w-[52px]" : "w-[240px]"
-        )}>
-          {convSidebarCollapsed ? (
-            /* Icon-only collapsed state */
-            <div className="flex flex-col items-center gap-2 py-4">
-              <button
-                onClick={toggleConvSidebar}
-                className="flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-                title="Expand conversations"
-              >
-                <MessageSquare className="size-4" />
-              </button>
-              <div className="w-6 border-t border-slate-100 mt-1 mb-1" />
-              {filteredConversations.slice(0, 8).map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setActiveConvId(c.id)}
-                  title={c.title}
-                  className={cn(
-                    "flex size-8 items-center justify-center rounded-lg transition-colors text-[10px] font-bold uppercase",
-                    c.id === activeConvId
-                      ? "bg-slate-900 text-white"
-                      : "bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-                  )}
-                >
-                  {c.title.charAt(0)}
-                </button>
-              ))}
-            </div>
-          ) : (
-            /* Expanded conversation list */
-            <div className="flex flex-col h-full p-3 gap-3">
-              
-              {/* Previous Conversations label */}
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider pl-1 pt-1">Conversations</span>
-
-              {/* Chat list */}
-              <div className="flex-1 overflow-y-auto space-y-0.5 -mx-0.5">
-                {filteredConversations.length === 0 && (
-                  <p className="text-[10px] text-slate-400 text-center py-8 italic">No conversations found</p>
-                )}
-                {filteredConversations.map((c) => {
-                  const isActive = c.id === activeConvId;
-                  const isRenaming = renamingId === c.id;
-
-                  return (
-                    <div
-                      key={c.id}
-                      onClick={() => { if (!isRenaming) setActiveConvId(c.id); }}
-                      className={cn(
-                        "group w-full text-left p-2 rounded-lg transition-all cursor-pointer flex items-center justify-between gap-1",
-                        isActive ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+          {activeConv ? (
+            <div className="space-y-6">
+              {activeConv.messages.map((msg, idx) => {
+                const isAi = msg.sender === "ai";
+                return (
+                  <div key={idx} className="space-y-2.5">
+                    <div className={`flex gap-3.5 ${!isAi && "justify-end"}`}>
+                      {isAi && (
+                        <div className="flex size-7 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white flex-shrink-0 mt-0.5">
+                          M
+                        </div>
                       )}
-                    >
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <MessageSquare className={cn("size-3.5 shrink-0", isActive ? "text-white/60" : "text-slate-350")} />
-                        {isRenaming ? (
-                          <input
-                            type="text"
-                            value={renameValue}
-                            onChange={(e) => setRenameValue(e.target.value)}
-                            className="w-full px-1 py-0.5 text-xs border rounded bg-white text-slate-900"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") handleRenameChat(c.id);
-                              if (e.key === "Escape") setRenamingId(null);
-                            }}
-                            autoFocus
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        ) : (
-                          <div className="min-w-0 flex-1">
-                            <span className="text-[11px] font-medium truncate block">{c.title}</span>
-                            <span className={cn("text-[9px] truncate block", isActive ? "text-white/50" : "text-slate-400")}>
-                              {new Date(c.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                            </span>
-                          </div>
+                      <div className="space-y-2 max-w-[82%]">
+                        {/* Message bubble */}
+                        <div
+                          className={cn(
+                            "px-4 py-3 rounded-2xl text-[13px] leading-relaxed",
+                            isAi
+                              ? "bg-slate-50 text-slate-800 rounded-tl-[4px] border border-slate-100"
+                              : "bg-slate-900 text-white rounded-tr-[4px]"
+                          )}
+                          style={{ whiteSpace: "pre-line" }}
+                        >
+                          {msg.text}
+                        </div>
+
+                        {/* Timestamp */}
+                        <p className={cn(
+                          "text-[10px] font-medium px-1",
+                          isAi ? "text-slate-400" : "text-right text-slate-400"
+                        )}>
+                          {msg.timestamp}
+                        </p>
+
+                        {/* Workspace card */}
+                        {isAi && msg.workspaceCard && (
+                          <Card className="p-3.5 border border-slate-100 bg-white shadow-xs rounded-xl flex items-center justify-between gap-4 max-w-sm">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="flex size-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 shrink-0">
+                                {msg.workspaceCard.type === "Discovery" ? (
+                                  <Compass className="size-4" />
+                                ) : msg.workspaceCard.type === "PRD" ? (
+                                  <ClipboardList className="size-4" />
+                                ) : (
+                                  <Activity className="size-4" />
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <h4 className="text-[11px] font-bold text-slate-900 truncate">{msg.workspaceCard.title}</h4>
+                                <p className="text-[10px] text-slate-500 mt-0.5 truncate">{msg.workspaceCard.description}</p>
+                              </div>
+                            </div>
+                            <Button
+                              onClick={() => window.location.assign(msg.workspaceCard!.targetUrl)}
+                              className="h-8 px-3 rounded-lg bg-slate-900 hover:bg-slate-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs shrink-0 transition-colors"
+                            >
+                              Open
+                              <ArrowUpRight className="size-3" />
+                            </Button>
+                          </Card>
+                        )}
+
+                        {/* Stage action button */}
+                        {isAi && msg.action && (
+                          <Button
+                            onClick={() => handleAction(msg.action!)}
+                            className="h-8 px-3.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold flex items-center gap-1.5 transition-colors"
+                          >
+                            {msg.action.label}
+                            <ArrowRight className="size-3.5" />
+                          </Button>
                         )}
                       </div>
-
-                      {!isRenaming && (
-                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setRenamingId(c.id); setRenameValue(c.title); }}
-                            className={cn("p-1 rounded hover:bg-white/20 transition-colors", isActive ? "text-white/70" : "text-slate-400")}
-                          >
-                            <Edit className="size-3" />
-                          </button>
-                          <button
-                            onClick={(e) => handleDeleteChat(c.id, e)}
-                            className={cn("p-1 rounded hover:bg-red-100 transition-colors", isActive ? "text-white/70 hover:text-red-500" : "text-slate-400 hover:text-red-500")}
-                          >
-                            <Trash2 className="size-3" />
-                          </button>
-                        </div>
-                      )}
-
-                      {isRenaming && (
-                        <div className="flex items-center gap-0.5 shrink-0">
-                          <button onClick={(e) => { e.stopPropagation(); handleRenameChat(c.id); }} className="p-1 rounded hover:bg-green-100 text-green-600">
-                            <Check className="size-3" />
-                          </button>
-                          <button onClick={(e) => { e.stopPropagation(); setRenamingId(null); }} className="p-1 rounded hover:bg-red-100 text-red-500">
-                            <X className="size-3" />
-                          </button>
-                        </div>
-                      )}
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })}
+
+              {/* Thinking indicator */}
+              {isGenerating && (
+                <div className="flex gap-3.5">
+                  <div className="flex size-7 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white flex-shrink-0 mt-0.5">M</div>
+                  <div className="bg-slate-50 border border-slate-100 text-slate-400 px-4 py-3 rounded-2xl rounded-tl-[4px] text-[13px]">
+                    <span className="inline-flex gap-1 items-center">
+                      <span className="animate-bounce [animation-delay:0ms]">·</span>
+                      <span className="animate-bounce [animation-delay:150ms]">·</span>
+                      <span className="animate-bounce [animation-delay:300ms]">·</span>
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div ref={chatEndRef} />
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-32 text-slate-400">
+              <Bot className="size-12 text-slate-150 mb-3" />
+              <p className="text-sm font-medium text-slate-500">Select or start a conversation</p>
+              <p className="text-xs text-slate-400 mt-1">Use History (⌘K) to browse past conversations</p>
             </div>
           )}
-        </aside>
+        </div>
+      </main>
 
-        {/* ─── Main Chat Canvas ─── */}
-        <main className="flex-1 flex flex-col bg-white relative overflow-hidden">
+      {/* ── Floating Composer (pinned above FAB) ── */}
+      <div className="absolute bottom-20 left-0 right-0 flex justify-center px-6 pointer-events-none z-10">
+        <div className="w-full max-w-3xl bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg p-3.5 pointer-events-auto flex flex-col gap-2.5 transition-all">
+          <div className="flex gap-2.5 items-center">
+            <input
+              type="text"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder={activeConv ? `Ask Mycroft about the ${activeConv.activeStep} stage…` : "Type a message…"}
+              className="flex-1 px-4 py-2.5 text-[13px] border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900/10 bg-slate-50/60 placeholder:text-slate-400 leading-relaxed transition-shadow"
+              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
+              disabled={isGenerating || !activeConv}
+            />
+            <Button
+              onClick={() => handleSendMessage()}
+              disabled={isGenerating || !chatInput.trim() || !activeConv}
+              className="h-[42px] px-4 rounded-xl bg-slate-950 text-white hover:bg-slate-800 text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0 disabled:opacity-40"
+            >
+              <Send className="size-3.5" />
+              <span className="hidden sm:inline">Send</span>
+            </Button>
+          </div>
 
-          {/* Scroll area */}
-          <div className="flex-1 overflow-y-auto">
-            <div className={cn(
-              "mx-auto px-6 pt-8 pb-40 transition-all duration-300",
-              isFocusMode ? "max-w-4xl" : "max-w-3xl"
-            )}>
-              {activeConv ? (
-                <div className="space-y-6">
-                  {activeConv.messages.map((msg, idx) => {
-                    const isAi = msg.sender === "ai";
-                    return (
-                      <div key={idx} className="space-y-3">
-                        <div className={`flex gap-3.5 ${!isAi && "justify-end"}`}>
-                          {isAi && (
-                            <div className="flex size-7 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white flex-shrink-0 mt-0.5">M</div>
-                          )}
-                          <div className="space-y-2 max-w-[85%]">
-                            <div
-                              className={cn(
-                                "px-4 py-3 rounded-2xl text-[13px] leading-relaxed",
-                                isAi
-                                  ? "bg-slate-50 text-slate-800 rounded-tl-xs border border-slate-100"
-                                  : "bg-slate-900 text-white rounded-tr-xs"
-                              )}
-                              style={{ whiteSpace: "pre-line" }}
-                            >
-                              {msg.text}
-                            </div>
-
-                            {/* Workspace update card */}
-                            {isAi && msg.workspaceCard && (
-                              <Card className="p-4 border border-slate-100 bg-slate-50/50 shadow-xs rounded-xl flex items-center justify-between gap-4 mt-2 max-w-md">
-                                <div className="flex items-center gap-3">
-                                  <div className="flex size-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                                    {msg.workspaceCard.type === "Discovery" ? (
-                                      <Compass className="size-4" />
-                                    ) : msg.workspaceCard.type === "PRD" ? (
-                                      <ClipboardList className="size-4" />
-                                    ) : (
-                                      <Activity className="size-4" />
-                                    )}
-                                  </div>
-                                  <div>
-                                    <h4 className="text-xs font-bold text-slate-900">{msg.workspaceCard.title}</h4>
-                                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">{msg.workspaceCard.description}</p>
-                                  </div>
-                                </div>
-                                <Button
-                                  onClick={() => window.location.assign(msg.workspaceCard!.targetUrl)}
-                                  className="h-8 px-3 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs shrink-0"
-                                >
-                                  Open Workspace
-                                  <ArrowUpRight className="size-3.5" />
-                                </Button>
-                              </Card>
-                            )}
-
-                            {/* Next step action */}
-                            {isAi && msg.action && (
-                              <Button
-                                onClick={() => handleAction(msg.action!)}
-                                className="h-8 px-3.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold flex items-center gap-1.5 mt-1"
-                              >
-                                {msg.action.label}
-                                <ArrowRight className="size-3.5" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {isGenerating && (
-                    <div className="flex gap-3.5">
-                      <div className="flex size-7 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white flex-shrink-0 mt-0.5">M</div>
-                      <div className="bg-slate-50 border border-slate-100 text-slate-400 px-4 py-3 rounded-2xl rounded-tl-xs text-[13px] animate-pulse">
-                        Mycroft is thinking...
-                      </div>
-                    </div>
-                  )}
-                  <div ref={chatEndRef} />
-                </div>
+          {/* Suggestion chips */}
+          {activeConv && (
+            <div className="flex flex-wrap items-center gap-1.5 pl-0.5">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mr-0.5">Try:</span>
+              {activeConv.activeStep === "Discovery" ? (
+                <>
+                  <button onClick={() => handleSendMessage("Analyze Zepto reviews")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Analyze Reviews</button>
+                  <button onClick={() => handleSendMessage("Set target users to students in university campuses")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Identify Users</button>
+                  <button onClick={() => handleSendMessage("Define success metrics as Quality score >= 90")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Define Metrics</button>
+                </>
               ) : (
-                <div className="flex flex-col items-center justify-center text-center py-24 text-slate-400">
-                  <Bot className="size-10 text-slate-200 mb-3" />
-                  <p className="text-xs italic">No active conversation. Use + New Chat to begin.</p>
-                </div>
+                <>
+                  <button onClick={() => handleSendMessage("Add India compliance laws")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Add Compliance</button>
+                  <button onClick={() => handleSendMessage("Perform PRD audit checks")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• PRD Audit</button>
+                  <button onClick={() => handleSendMessage("Transition to Design & Develop stage")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Build Roadmap</button>
+                </>
               )}
             </div>
-          </div>
-
-          {/* ─── Floating Composer ─── */}
-          <div className="absolute bottom-0 left-0 right-0 flex justify-center px-6 pb-6 pt-4 bg-gradient-to-t from-white via-white/95 to-transparent pointer-events-none z-20">
-            <div className={cn(
-              "w-full bg-white border border-slate-200 rounded-2xl shadow-lg p-3.5 pointer-events-auto flex flex-col gap-2.5 transition-all duration-300",
-              isFocusMode ? "max-w-4xl" : "max-w-3xl"
-            )}>
-              <div className="flex gap-2.5 items-center">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder={activeConv ? `Ask Mycroft about ${activeConv.activeStep} stage...` : "Type a message..."}
-                  className="flex-1 px-4 py-2.5 text-[13px] border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900/10 bg-slate-50/50 font-sans leading-relaxed"
-                  onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                  disabled={isGenerating || !activeConv}
-                />
-                <Button
-                  onClick={() => handleSendMessage()}
-                  disabled={isGenerating || !chatInput.trim() || !activeConv}
-                  className="px-4 py-2.5 rounded-xl bg-slate-950 text-white hover:bg-slate-800 text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0 disabled:opacity-50"
-                >
-                  Send
-                  <Send className="size-3" />
-                </Button>
-              </div>
-
-              {/* Suggestion chips */}
-              {activeConv && (
-                <div className="flex flex-wrap items-center gap-1.5 pl-0.5">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mr-0.5">Try:</span>
-                  {activeConv.activeStep === "Discovery" ? (
-                    <>
-                      <button onClick={() => handleSendMessage("Analyze Zepto reviews")} className="h-6 px-2.5 text-[10px] font-semibold rounded-full border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">• Analyze Reviews</button>
-                      <button onClick={() => handleSendMessage("Set target users to students in university campuses")} className="h-6 px-2.5 text-[10px] font-semibold rounded-full border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">• Identify Target Users</button>
-                      <button onClick={() => handleSendMessage("Define success metrics as Quality score >= 90")} className="h-6 px-2.5 text-[10px] font-semibold rounded-full border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">• Define Metrics</button>
-                    </>
-                  ) : (
-                    <>
-                      <button onClick={() => handleSendMessage("Add India compliance laws")} className="h-6 px-2.5 text-[10px] font-semibold rounded-full border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">• Add Compliance</button>
-                      <button onClick={() => handleSendMessage("Perform PRD audit checks")} className="h-6 px-2.5 text-[10px] font-semibold rounded-full border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">• PRD Audit</button>
-                      <button onClick={() => handleSendMessage("Transition to Design & Develop stage")} className="h-6 px-2.5 text-[10px] font-semibold rounded-full border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">• Build Roadmap</button>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-        </main>
+          )}
+        </div>
       </div>
+
+      {/* ── FAB: New Chat ── */}
+      <button
+        onClick={handleNewChat}
+        title="New Chat"
+        className="fixed bottom-6 right-6 z-30 flex items-center gap-2 h-12 px-5 rounded-2xl bg-slate-950 hover:bg-slate-800 text-white text-[13px] font-semibold shadow-xl hover:shadow-2xl transition-all duration-200 active:scale-95 group"
+      >
+        <Plus className="size-4 transition-transform duration-200 group-hover:rotate-90" />
+        <span>New Chat</span>
+        <Sparkles className="size-3.5 text-white/50" />
+      </button>
+
     </div>
   );
 }
