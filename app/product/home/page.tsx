@@ -20,7 +20,8 @@ import {
   Check,
   X,
   MessageSquare,
-  Activity
+  Activity,
+  ChevronRight
 } from "lucide-react";
 
 // Stepper steps representing PM Lifecycle
@@ -488,16 +489,16 @@ export default function AIHomePage() {
 
         {/* Stepper Progress Tracker */}
         {activeConv && (
-          <div className="hidden md:flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
+          <div className="hidden md:flex items-center gap-1 bg-slate-50/60 px-3 py-1 rounded-xl border border-slate-200/50 text-[10px] font-semibold text-slate-400 select-none">
             {STEPS.map((step, idx) => {
               const isActive = activeConv.activeStep === step;
               const isCompleted = STEPS.indexOf(activeConv.activeStep) > idx;
               return (
                 <React.Fragment key={step}>
-                  {idx > 0 && <span className="text-[10px] text-slate-300 font-bold">→</span>}
+                  {idx > 0 && <ChevronRight className="size-3 text-slate-300 mx-0.5" />}
                   <button
                     onClick={() => handleAction({ label: `Goto ${step}`, stage: step })}
-                    className={`px-2.5 py-0.5 text-[10px] font-bold rounded-lg transition-all ${isActive ? 'bg-slate-900 text-white shadow-xs' : isCompleted ? 'bg-slate-200 text-slate-600' : 'text-slate-400 hover:text-slate-600'}`}
+                    className={`px-1.5 py-0.5 rounded-md transition-all ${isActive ? 'bg-slate-950 text-white font-bold px-2' : isCompleted ? 'text-slate-800 hover:text-slate-950' : 'text-slate-400 hover:text-slate-600'}`}
                   >
                     {step}
                   </button>
@@ -511,8 +512,8 @@ export default function AIHomePage() {
       {/* Main Split-Screen Workspace (Left Area: Chats List Sidebar | Right Area: Clean Claude Chat Screen) */}
       <div className="flex-1 flex overflow-hidden">
         
-        {/* Left Area (Conversations Sidebar Panel - 260px) */}
-        <aside className="w-64 bg-slate-50 border-r border-slate-150 flex flex-col h-full p-4 flex-shrink-0 hidden md:flex">
+        {/* Left Area (Conversations Sidebar Panel - 240px) */}
+        <aside className="w-60 bg-slate-50 border-r border-slate-150 flex flex-col h-full p-4 flex-shrink-0 hidden md:flex">
           
           {/* New Chat Action */}
           <Button 
@@ -623,7 +624,7 @@ export default function AIHomePage() {
         <main className="flex-1 bg-white flex flex-col items-center justify-between p-6 relative overflow-y-auto">
           
           {/* Centered clean container */}
-          <div className="w-full max-w-2xl flex-1 flex flex-col justify-between pb-28">
+          <div className="w-full max-w-3xl flex-1 flex flex-col justify-between pb-28">
             
             {activeConv ? (
               <div className="space-y-6 pt-4">
@@ -707,21 +708,21 @@ export default function AIHomePage() {
 
           {/* Floating Composer Area at bottom of main area */}
           <div className="absolute bottom-6 left-0 right-0 flex justify-center px-6 pointer-events-none z-20">
-            <div className="w-full max-w-2xl bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-lg p-3 pointer-events-auto flex flex-col gap-2">
-              <div className="flex gap-2">
+            <div className="w-full max-w-3xl bg-white/95 backdrop-blur-md border border-slate-250/80 rounded-2xl shadow-lg p-3.5 pointer-events-auto flex flex-col gap-2.5">
+              <div className="flex gap-2.5 items-center">
                 <input
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   placeholder={activeConv ? `Ask Mycroft about ${activeConv.activeStep} stage...` : "Type a message..."}
-                  className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-900 bg-slate-50/30 font-sans"
+                  className="flex-1 px-4 py-2.5 text-xs border border-slate-200 rounded-2xl focus:outline-none focus:ring-1 focus:ring-slate-950 bg-slate-50/50 font-sans leading-relaxed shadow-3xs"
                   onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
                   disabled={isGenerating || !activeConv}
                 />
                 <Button 
                   onClick={() => handleSendMessage()}
                   disabled={isGenerating || !chatInput.trim() || !activeConv}
-                  className="px-4 py-1.5 rounded-xl bg-slate-950 text-white hover:bg-slate-800 text-xs font-semibold flex items-center gap-1 transition-colors"
+                  className="px-4 py-2.5 rounded-2xl bg-slate-950 text-white hover:bg-slate-800 text-xs font-semibold flex items-center gap-1 transition-colors"
                 >
                   Send
                   <Send className="size-3" />
@@ -731,18 +732,18 @@ export default function AIHomePage() {
               {/* Quick sample chips depending on step */}
               {activeConv && (
                 <div className="flex flex-wrap items-center gap-1.5 pl-0.5">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mr-1">Examples:</span>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mr-1">Suggestions:</span>
                   {activeConv.activeStep === "Discovery" ? (
                     <>
-                      <button onClick={() => handleSendMessage("Analyze Zepto reviews")} className="h-5 px-2 text-[9px] font-semibold rounded-md border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-950">Analyze reviews</button>
-                      <button onClick={() => handleSendMessage("Set target users to student corridors")} className="h-5 px-2 text-[9px] font-semibold rounded-md border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-950">Set target users</button>
-                      <button onClick={() => handleSendMessage("Lock Discovery details")} className="h-5 px-2 text-[9px] font-semibold rounded-md border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-950">Lock Discovery</button>
+                      <button onClick={() => handleSendMessage("Analyze Zepto reviews")} className="h-5 px-2 text-[9px] font-semibold rounded-full border border-slate-205 bg-slate-50/50 text-slate-600 hover:bg-slate-100 hover:text-slate-950 transition-colors flex items-center">• Analyze Reviews</button>
+                      <button onClick={() => handleSendMessage("Set target users to students in university campuses")} className="h-5 px-2 text-[9px] font-semibold rounded-full border border-slate-205 bg-slate-50/50 text-slate-600 hover:bg-slate-100 hover:text-slate-950 transition-colors flex items-center">• Identify Target Users</button>
+                      <button onClick={() => handleSendMessage("Define success metrics as Quality score >= 90")} className="h-5 px-2 text-[9px] font-semibold rounded-full border border-slate-205 bg-slate-50/50 text-slate-600 hover:bg-slate-100 hover:text-slate-950 transition-colors flex items-center">• Define Metrics</button>
                     </>
                   ) : (
                     <>
-                      <button onClick={() => handleSendMessage("Add India compliance laws")} className="h-5 px-2 text-[9px] font-semibold rounded-md border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-950">Add compliance rules</button>
-                      <button onClick={() => handleSendMessage("Perform PRD audit checks")} className="h-5 px-2 text-[9px] font-semibold rounded-md border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-950">Audit checks</button>
-                      <button onClick={() => handleSendMessage("Transition to Design stage")} className="h-5 px-2 text-[9px] font-semibold rounded-md border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-950">Transition to Design</button>
+                      <button onClick={() => handleSendMessage("Add India compliance laws")} className="h-5 px-2 text-[9px] font-semibold rounded-full border border-slate-205 bg-slate-50/50 text-slate-600 hover:bg-slate-100 hover:text-slate-950 transition-colors flex items-center">• Add Compliance Laws</button>
+                      <button onClick={() => handleSendMessage("Perform PRD audit checks")} className="h-5 px-2 text-[9px] font-semibold rounded-full border border-slate-205 bg-slate-50/50 text-slate-600 hover:bg-slate-100 hover:text-slate-950 transition-colors flex items-center">• Perform PRD Audit</button>
+                      <button onClick={() => handleSendMessage("Transition to Design & Develop stage")} className="h-5 px-2 text-[9px] font-semibold rounded-full border border-slate-205 bg-slate-50/50 text-slate-600 hover:bg-slate-100 hover:text-slate-950 transition-colors flex items-center">• Build Roadmap</button>
                     </>
                   )}
                 </div>

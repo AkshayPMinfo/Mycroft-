@@ -4,7 +4,7 @@ export function ProductWorkspaceLayout({ children }: Readonly<{ children: React.
   return (
     <div className="min-h-screen bg-[#f7f7fe]">
       <Sidebar />
-      <main className="min-h-screen pb-20 lg:pb-0 lg:pl-[280px]">{children}</main>
+      <main className="min-h-screen pb-20 lg:pb-0 lg:pl-[240px]">{children}</main>
     </div>
   );
 }

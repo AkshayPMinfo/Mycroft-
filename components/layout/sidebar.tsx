@@ -67,7 +67,7 @@ export function Sidebar() {
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[280px] flex-col border-r bg-[#f7f7fe] px-4 py-6 lg:flex overflow-y-auto">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[240px] flex-col border-r bg-[#f7f7fe] px-4 py-6 lg:flex overflow-y-auto">
         <Link href="/command-center" className="mb-8 flex items-center gap-3 px-2">
           <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-white shadow-[0_12px_24px_rgba(0,91,211,0.2)]">
             <TerminalSquare className="size-5" />
