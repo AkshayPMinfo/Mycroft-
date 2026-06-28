@@ -5,13 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Home,
-  Compass,
-  ClipboardList,
+  Search,
+  FileText,
   GitBranch,
   Users,
-  Target,
+  Swords,
   BarChart2,
-  FileText,
   Settings,
   Bot,
   FolderKanban,
@@ -27,13 +26,12 @@ import { cn } from "@/lib/utils";
 
 const productItems = [
   { label: "AI Home", href: "/product/home", icon: Home },
-  { label: "Product Discovery", href: "/product/discovery", icon: Compass },
-  { label: "PRD Workspace", href: "/product/prds", icon: ClipboardList },
+  { label: "Discovery", href: "/product/discovery", icon: Search },
+  { label: "PRDs", href: "/product/prds", icon: FileText },
   { label: "Roadmap", href: "#", icon: GitBranch },
   { label: "User Research", href: "#", icon: Users },
-  { label: "Competitors", href: "#", icon: Target },
-  { label: "Analytics", href: "#", icon: BarChart2 },
-  { label: "Documents", href: "#", icon: FileText },
+  { label: "Competitors", href: "#", icon: Swords },
+  { label: "Metrics", href: "#", icon: BarChart2 },
 ];
 
 const engineeringItems = [

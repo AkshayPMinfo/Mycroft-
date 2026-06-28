@@ -35,6 +35,14 @@ import {
 // ─── Constants ───────────────────────────────────────────────────────────────
 const STEPS = ["Discovery", "Define", "Design", "Develop", "Deliver", "Debrief"];
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function getProjectProgressText(conv: Conversation) {
+  if (conv.activeStep) {
+    return `Current Stage • ${conv.activeStep}`;
+  }
+  return "Current Stage • Discovery";
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Message {
   sender: "ai" | "user";
@@ -1003,72 +1011,30 @@ export default function AIHomePage() {
               </div>
 
               {/* Suggested Actions (Popular things to try) */}
-              <div className="space-y-3">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Popular things to try</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  
-                  {/* Card 1 */}
-                  <div
-                    onClick={() => handleSendMessage("Analyze Reviews for Zepto Checkout Improvement")}
-                    className="p-3 bg-white border border-slate-150/75 hover:border-slate-350 hover:shadow-2xs transition-all cursor-pointer flex items-center gap-3 rounded-xl"
-                  >
-                    <div className="size-9 bg-violet-50 rounded-lg flex items-center justify-center text-violet-600 shrink-0">
-                      <Search className="size-4.5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[12px] font-bold text-slate-900 leading-snug">Analyze Reviews</p>
-                      <p className="text-[10px] text-slate-400 truncate mt-0.5">Find user pain points</p>
-                    </div>
-                  </div>
-
-                  {/* Card 2 */}
-                  <div
-                    onClick={() => handleSendMessage("Generate PRD draft for UPI Expense Manager")}
-                    className="p-3 bg-white border border-slate-150/75 hover:border-slate-350 hover:shadow-2xs transition-all cursor-pointer flex items-center gap-3 rounded-xl"
-                  >
-                    <div className="size-9 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 shrink-0">
-                      <FileText className="size-4.5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[12px] font-bold text-slate-900 leading-snug">Generate PRD</p>
-                      <p className="text-[10px] text-slate-400 truncate mt-0.5">Create PRD draft</p>
-                    </div>
-                  </div>
-
-                  {/* Card 3 */}
-                  <div
-                    onClick={() => handleSendMessage("Build Roadmap and product milestones")}
-                    className="p-3 bg-white border border-slate-150/75 hover:border-slate-350 hover:shadow-2xs transition-all cursor-pointer flex items-center gap-3 rounded-xl"
-                  >
-                    <div className="size-9 bg-amber-50 rounded-lg flex items-center justify-center text-amber-600 shrink-0">
-                      <GitBranch className="size-4.5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[12px] font-bold text-slate-900 leading-snug">Build Roadmap</p>
-                      <p className="text-[10px] text-slate-400 truncate mt-0.5">Plan product journey</p>
-                    </div>
-                  </div>
-
-                  {/* Card 4 */}
-                  <div
-                    onClick={() => handleSendMessage("Identify target users and success metrics")}
-                    className="p-3 bg-white border border-slate-150/75 hover:border-slate-350 hover:shadow-2xs transition-all cursor-pointer flex items-center gap-3 rounded-xl"
-                  >
-                    <div className="size-9 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 shrink-0">
-                      <Users className="size-4.5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[12px] font-bold text-slate-900 leading-snug">Identify Users</p>
-                      <p className="text-[10px] text-slate-400 truncate mt-0.5">Define target users</p>
-                    </div>
-                  </div>
-
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Popular things to try</p>
+                <div className="flex flex-wrap gap-2 py-0.5 overflow-x-auto max-w-full no-scrollbar">
+                  {[
+                    { label: "• Analyze Reviews", query: "Analyze Reviews for Zepto Checkout Improvement" },
+                    { label: "• Generate PRD", query: "Generate PRD draft for UPI Expense Manager" },
+                    { label: "• Find User Pain Points", query: "Find user pain points and review complaints" },
+                    { label: "• Research Competitors", query: "Research competitors and map strategy gaps" },
+                    { label: "• Build Roadmap", query: "Build Roadmap and plan product milestones" }
+                  ].map(chip => (
+                    <button
+                      key={chip.label}
+                      onClick={() => handleSendMessage(chip.query)}
+                      className="h-7 px-3.5 text-[11px] font-semibold rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-350 hover:text-slate-900 transition-all shadow-3xs"
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
               {/* Continue Your Work (Active project tracker card) */}
-              <div className="space-y-3">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Continue your work</p>
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Continue your work</p>
                 <Card className="p-4 border border-slate-150/75 bg-white rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5">
                     <div className="size-10 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center shrink-0">
@@ -1079,38 +1045,11 @@ export default function AIHomePage() {
                         <h4 className="text-[13px] font-bold text-slate-900">UPI Expense Manager</h4>
                         <span className="text-[10px] font-semibold bg-violet-50 text-violet-600 px-2.5 py-0.5 rounded-full">Discovery</span>
                       </div>
-                      <p className="text-[11px] text-slate-400 mt-1 font-medium">Fintech • Last updated 2 hours ago</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="size-1.5 rounded-full bg-violet-600 shrink-0" />
+                        <p className="text-[11px] font-semibold text-slate-600">{activeConv ? getProjectProgressText(activeConv) : "Current Stage • Discovery"}</p>
+                      </div>
                     </div>
-                  </div>
-
-                  {/* 6D Stepper progress tracker bar */}
-                  <div className="flex items-center justify-center md:justify-start gap-1 py-2 overflow-x-auto max-w-full">
-                    {STEPS.map((step, index) => {
-                      const isCompleted = index === 0; // Discovery checked
-                      return (
-                        <div key={step} className="flex items-center shrink-0">
-                          {index > 0 && (
-                            <div className="w-6 sm:w-10 h-0.5 bg-slate-150" />
-                          )}
-                          <div className="flex flex-col items-center mx-1 relative group">
-                            <div className={cn(
-                              "size-5 rounded-full flex items-center justify-center text-[9px] font-bold border transition-colors",
-                              isCompleted
-                                ? "bg-violet-600 border-violet-600 text-white"
-                                : "bg-white border-slate-200 text-slate-400"
-                            )}>
-                              {isCompleted ? "✓" : index + 1}
-                            </div>
-                            <span className={cn(
-                              "text-[8.5px] mt-1.5 font-semibold transition-all",
-                              isCompleted ? "text-violet-600" : "text-slate-400"
-                            )}>
-                              {step}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
                   </div>
 
                   <Button
@@ -1121,7 +1060,7 @@ export default function AIHomePage() {
                     variant="secondary"
                     className="h-9 px-4 rounded-xl border-violet-200 text-violet-600 hover:bg-violet-50/50 text-[12px] font-semibold shrink-0 shadow-2xs"
                   >
-                    Continue
+                    Resume Project
                   </Button>
                 </Card>
               </div>
