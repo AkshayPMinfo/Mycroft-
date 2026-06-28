@@ -73,7 +73,7 @@ interface KpiData {
   created: { count: number; trend: string; positive: boolean };
   downloaded: { count: number; trend: string; positive: boolean };
   aiGenerations: { count: number; trend: string; positive: boolean };
-  activeProjects: { count: number; trend: string; positive: boolean };
+  discoveryGenerated: { count: number; trend: string; positive: boolean };
 }
 
 const mockKpiData: Record<"Today" | "This Week" | "This Month", KpiData> = {
@@ -81,19 +81,19 @@ const mockKpiData: Record<"Today" | "This Week" | "This Month", KpiData> = {
     created: { count: 3, trend: "+20%", positive: true },
     downloaded: { count: 5, trend: "+12%", positive: true },
     aiGenerations: { count: 14, trend: "+35%", positive: true },
-    activeProjects: { count: 2, trend: "0%", positive: true }
+    discoveryGenerated: { count: 2, trend: "+100%", positive: true }
   },
   "This Week": {
     created: { count: 12, trend: "+8%", positive: true },
     downloaded: { count: 28, trend: "+18%", positive: true },
     aiGenerations: { count: 58, trend: "+22%", positive: true },
-    activeProjects: { count: 3, trend: "+50%", positive: true }
+    discoveryGenerated: { count: 6, trend: "+20%", positive: true }
   },
   "This Month": {
     created: { count: 45, trend: "+15%", positive: true },
     downloaded: { count: 98, trend: "+22%", positive: true },
     aiGenerations: { count: 240, trend: "+18%", positive: true },
-    activeProjects: { count: 4, trend: "+33%", positive: true }
+    discoveryGenerated: { count: 18, trend: "+25%", positive: true }
   }
 };
 
@@ -213,7 +213,7 @@ export default function DashboardPage() {
                   { label: "PRDs Created", kpi: activeKpis.created },
                   { label: "PRDs Downloaded", kpi: activeKpis.downloaded },
                   { label: "AI Generations", kpi: activeKpis.aiGenerations },
-                  { label: "Active Projects", kpi: activeKpis.activeProjects }
+                  { label: "Discovery Reports Generated", kpi: activeKpis.discoveryGenerated }
                 ].map((item, idx) => (
                   <Card key={idx} className="p-3 bg-white border border-slate-100 shadow-2xs flex flex-col justify-between h-20 rounded-xl">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{item.label}</span>
