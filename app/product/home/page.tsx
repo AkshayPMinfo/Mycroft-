@@ -70,6 +70,8 @@ interface Conversation {
   prdStatus: "Draft" | "Review" | "Approved";
   prdSections: Record<string, PRDSection>;
   displayTime?: string; // Seeded string for exact match
+  pmPath?: "A" | "B";
+  pmStep?: number;
 }
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
@@ -133,10 +135,22 @@ const makeSeededConversations = (): Conversation[] => [
     prdStatus: "Draft",
     prdSections: defaultPRDSections(),
     displayTime: "2:30 PM",
+    pmPath: "A",
+    pmStep: 2,
     messages: [
       {
         sender: "ai",
-        text: "Welcome back, Akshay. I have gathered the initial telemetry analysis for UPI Expense Manager. The discovery card is ready. What feature set or transaction flow should we define next?",
+        text: "Hi Akshay! I'm Mycroft, your Senior AI Product Manager. Let's collaborate to discover, define, and launch your product.\n\nFirst decision: Does this product already exist, or is it a completely new concept?\n\n*You selected: **Existing Product** workflow.*",
+        timestamp: "2:25 PM"
+      },
+      {
+        sender: "user",
+        text: "It is an existing product called UPI Expense Manager. We want to reduce user friction when adding manual cash splits.",
+        timestamp: "2:28 PM"
+      },
+      {
+        sender: "ai",
+        text: "Got it. I have set our workspace to UPI Expense Manager.\n\n**Step 2: Secondary Research (User Feedback Analysis)**\nI have aggregated review clusters and complaints for this flow. Let's analyze the feedback:\n- *Complaint Cluster 1*: Manual bank SMS parsing is laggy or fails on campus networks.\n- *Complaint Cluster 2*: Lack of quick split triggers from WhatsApp.\n\nWhat other user request patterns or complaints have we observed? Or should we proceed to competitor profiling?",
         timestamp: "2:30 PM",
         workspaceCard: {
           type: "Discovery",
@@ -162,10 +176,12 @@ const makeSeededConversations = (): Conversation[] => [
     prdStatus: "Review",
     prdSections: defaultPRDSections(),
     displayTime: "11:15 AM",
+    pmPath: "A",
+    pmStep: 5,
     messages: [
       {
         sender: "ai",
-        text: "Welcome back, Akshay. We are currently in the **Define** stage for Zepto Checkout Improvement. The checkout friction logs have been loaded. What section of the PRD should we update next?",
+        text: "Welcome back, Akshay. We are currently in the **Define** stage for Zepto Checkout Improvement. We have completed competitor gap mapping and validated the '60-Second Add-On Buffer' opportunity.\n\nLet's review the RICE prioritization:\n- *Reach*: High (all campus orders)\n- *Impact*: 2.0 (reduces double shipping fees)\n- *Confidence*: 80% (proven complaint logs)\n- *Effort*: Medium\n\nClick the button below to transition to the Define stage and generate the spec.",
         timestamp: "11:15 AM",
         workspaceCard: {
           type: "PRD",
@@ -191,10 +207,12 @@ const makeSeededConversations = (): Conversation[] => [
     prdStatus: "Draft",
     prdSections: defaultPRDSections(),
     displayTime: "8:45 PM",
+    pmPath: "A",
+    pmStep: 3,
     messages: [
       {
         sender: "ai",
-        text: "Welcome back, Akshay. I have compiled the patient triage user research and competitor maps. What part of the design flow should we review first?",
+        text: "Welcome back, Akshay. We are on **Step 3: Competitor Research** for the HealthTech AI symptom checker. How do direct healthcare portals handle initial triage questions? Let's trace their gaps.",
         timestamp: "8:45 PM"
       }
     ]
@@ -214,10 +232,12 @@ const makeSeededConversations = (): Conversation[] => [
     prdStatus: "Draft",
     prdSections: defaultPRDSections(),
     displayTime: "5:20 PM",
+    pmPath: "B",
+    pmStep: 1,
     messages: [
       {
         sender: "ai",
-        text: "Welcome back, Akshay. We are analyzing student pocket money trends in urban colleges. How would you like to update the discovery profile?",
+        text: "Hi Akshay! I'm Mycroft, your Senior AI Product Manager. Let's collaborate to build your new startup concept.\n\n*Path selected: **New Product** (Path B).*\n\n**Step 1: Understand the Objective**\nWhat is the core business objective or vision for this Student Fintech product? What is the main problem we want to solve first?",
         timestamp: "5:20 PM"
       }
     ]
@@ -237,6 +257,8 @@ const makeSeededConversations = (): Conversation[] => [
     prdStatus: "Draft",
     prdSections: defaultPRDSections(),
     displayTime: "Jun 24",
+    pmPath: "B",
+    pmStep: 8,
     messages: [
       {
         sender: "ai",
@@ -260,6 +282,8 @@ const makeSeededConversations = (): Conversation[] => [
     prdStatus: "Draft",
     prdSections: defaultPRDSections(),
     displayTime: "Jun 22",
+    pmPath: "B",
+    pmStep: 9,
     messages: [
       {
         sender: "ai",
@@ -283,6 +307,8 @@ const makeSeededConversations = (): Conversation[] => [
     prdStatus: "Draft",
     prdSections: defaultPRDSections(),
     displayTime: "Jun 20",
+    pmPath: "B",
+    pmStep: 4,
     messages: [
       {
         sender: "ai",
@@ -432,6 +458,14 @@ export default function AIHomePage() {
   // Start new clean conversation
   const handleNewChat = useCallback(() => {
     const newConv = makeDefaultConv();
+    // Update welcome message to prompt the first decision
+    newConv.messages = [
+      {
+        sender: "ai",
+        text: "Hi Akshay! I am Mycroft, your Senior AI Product Manager. Let's collaborate to discover, define, and launch your product.\n\nFirst decision:\n**Does this product already exist (e.g. adding features to Zepto, Uber, WhatsApp) or is it a completely new concept (e.g. a brand new startup or SaaS idea)?**",
+        timestamp: "Just now"
+      }
+    ];
     setConversations(prev => [newConv, ...prev]);
     setActiveConvId(newConv.id);
     setShowChatView(false);
@@ -480,9 +514,11 @@ export default function AIHomePage() {
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     };
 
-    const updatedTitle = activeConv.title === "New Chat" || activeConv.title === "UPI Expense Manager" && activeConv.messages.length <= 1
-      ? (input.length > 28 ? `${input.substring(0, 28)}...` : input)
-      : activeConv.title;
+    // Determine updated title from first prompt
+    let updatedTitle = activeConv.title;
+    if (activeConv.title === "New Chat" || (activeConv.title === "UPI Expense Manager" && activeConv.messages.length <= 1)) {
+      updatedTitle = input.length > 28 ? `${input.substring(0, 28)}...` : input;
+    }
 
     setConversations(prev => prev.map(c =>
       c.id === activeConvId ? { ...c, title: updatedTitle, messages: [...c.messages, userMsg] } : c
@@ -493,40 +529,98 @@ export default function AIHomePage() {
 
     // AI Mock Response Logic
     setTimeout(() => {
-      const userText = input.toLowerCase();
+      const userText = input.trim();
+      const userTextLower = userText.toLowerCase();
+      
       let aiText = "";
       let targetStage = activeConv.activeStep;
       let nextAction: Message["action"] = undefined;
       let card: Message["workspaceCard"] = undefined;
 
-      if (activeConv.activeStep === "Discovery") {
-        if (userText.includes("grocery") || userText.includes("zepto") || userText.includes("delivery") || userText.includes("reviews")) {
-          aiText = "Excellent. I have analyzed review clusters for grocery delivery apps in India. Opportunity discovery details are ready in your Discovery Workspace. What is the primary customer profile and target region we want to capture first?";
-          card = { type: "Discovery", title: "Discovery Workspace Updated", description: "Review Intelligence clusters synced for Zepto.", targetUrl: "/product/discovery" };
-        } else if (userText.includes("student") || userText.includes("bangalore") || userText.includes("campuses") || userText.includes("users")) {
-          aiText = "Got it. I have logged 'Students in university campuses in Bangalore' under Target Users in our active workspace schema. Next: What are the core success metrics or KPI targets we need to achieve?";
-        } else if (userText.includes("metrics") || userText.includes("score") || userText.includes("seconds") || userText.includes("roadmap")) {
-          aiText = "Understood. The Discovery phase is complete. I have successfully gathered the requirements baseline. We can now transition to Define to generate the PRD Specification.";
-          nextAction = { label: "Move to Define (PRD)", stage: "Define" };
+      // Get path and step parameters
+      let path = activeConv.pmPath;
+      let step = activeConv.pmStep ?? 0;
+
+      // Decision Gate: Determine A or B
+      if (!path) {
+        if (userTextLower.includes("exist") || userTextLower.includes("yes") || userTextLower.includes("zepto") || userTextLower.includes("uber") || userTextLower.includes("whatsapp") || userTextLower.includes("airbnb")) {
+          path = "A";
+          step = 1;
+          aiText = "Understood. We are analyzing an **Existing Product** (Path A).\n\n**Step 1: Understand the Objective**\nWhat is the core business or product objective for this initiative?\nCommon options include:\n- Increase retention / reduce churn\n- Improve activation / onboarding\n- Increase revenue / conversion rates\n- Optimize checkout flow\n\nPlease describe your objective and why this is a priority now. Why do you believe this problem exists?";
+        } else if (userTextLower.includes("new") || userTextLower.includes("no") || userTextLower.includes("startup") || userTextLower.includes("saas") || userTextLower.includes("fintech")) {
+          path = "B";
+          step = 1;
+          aiText = "Exciting! We are embarking on a **New Product** journey (Path B).\n\n**Step 1: Understand the Objective**\nWhat is the core business objective or vision for this new product? What problem does it solve in the market?";
         } else {
-          aiText = "I have logged that research topic in the UPI Expense Manager scope. Let me know if you would like me to calculate the sentiment metrics or outline the compliance maps.";
+          // Guess Path A if they didn't specify
+          path = "A";
+          step = 1;
+          aiText = `Understood. Let's analyze this as an **Existing Product** context.\n\n**Step 1: Understand the Objective**\nWhat is the primary business or product objective for this initiative? (e.g. increase retention, improve onboarding, reduce churn, improve checkout). Why is this objective important right now?`;
         }
-      } else if (activeConv.activeStep === "Define") {
-        if (userText.includes("compliance") || userText.includes("rbi") || userText.includes("dpdp")) {
-          aiText = "Updated. I have added India DPDP Act 2023 regulations and RBI payment guidelines to Section 8 (Compliance). Let me know if you are ready to transition to the Design & Develop phase.";
-          card = { type: "PRD", title: "PRD Draft Updated (v2)", description: "Section 8 Compliance rules appended with India regulatory acts.", targetUrl: "/product/prds" };
-        } else if (userText.includes("audit") || userText.includes("review") || userText.includes("prd")) {
-          aiText = "Spec quality score is currently 95/100. All 8 requirements sections are populated cleanly. The spec is audit ready.";
-        } else if (userText.includes("move") || userText.includes("design") || userText.includes("develop")) {
-          aiText = "PRD is approved. I have populated the engineering milestone targets and Q3 core payments roadmap. Let's move to the Design & Develop stage.";
-          targetStage = "Design";
-          nextAction = { label: "Move to Develop", stage: "Develop" };
-          card = { type: "Dashboard", title: "Roadmap Milestones Loaded", description: "Payments roadmap generated on active Dashboard.", targetUrl: "/product/dashboard" };
+      } else if (path === "A") {
+        // Path A: Existing Product
+        if (step === 1) {
+          step = 2;
+          aiText = `Objective logged. Now let's challenge our assumptions. Why do we think this drop-off or problem exists? Is it due to packaging/delivery fees, out-of-stock items, or payment friction?\n\n**Step 2: Secondary Research (User Complaints & Reviews)**\nLet's analyze Play Store/App Store feedback. What user pain points or feature requests have you observed? Or would you like me to import and cluster the review intelligence for this product?`;
+        } else if (step === 2) {
+          step = 3;
+          aiText = `Secondary research compiled and clustered. I've logged the complaints (checkout out-of-stock drop-offs, pricing clarity) in our Discovery Workspace.\n\n**Step 3: Competitor Research**\nLet's look at direct and indirect competitors. What do competitors do well or poorly? Where are the gaps and where is our opportunity to win?`;
+        } else if (step === 3) {
+          step = 4;
+          aiText = `Competitor profiles mapped. We identified key gaps in inventory substitution and checkout recovery flows.\n\n**Step 4: Opportunity Discovery**\nHere are the top opportunities and solutions I have synthesized:\n- *Solution 1*: '60-Second Add-On Buffer'. Let users append forgotten items to an active packing order to reduce duplicate delivery fees.\n- *Solution 2*: Real-time inventory auto-substitution suggestions.\n\nLet's challenge this: A 60-second buffer increases packing warehouse operational latency. How severe is the packing constraint? Should we prioritize the Add-On buffer or inventory auto-substitute?`;
+        } else if (step === 4) {
+          step = 5;
+          aiText = `Opportunity validated. Let's prioritize the '60-Second Add-On Buffer' feature.\n\n**Step 5: Prioritization (RICE/Kano)**\nWe score this solution:\n- *Reach*: High (all users who forget items).\n- *Impact*: High (increases CSAT and reduces double delivery costs).\n- *Confidence*: High (supported by review analysis).\n- *Effort*: Medium.\n\nWe are ready to transition to the **Define** stage to draft the PRD and roadmap. Click the action button below to move to the Define stage.`;
+          nextAction = { label: "Move to Define (PRD)", stage: "Define" };
+        } else if (step === 5) {
+          step = 6;
+          targetStage = "Define";
+          aiText = `We have transitioned to **Define**. I have generated the following workspace artifacts:\n- **Product Discovery**: Updated with review clusters and competitive gap analysis.\n- **PRD Workspace**: Created a new draft spec (v1) with sections for Objective, Target Users, Success Metrics, and Proposed Solution.\n- **Dashboard**: Added the payment tokenization and checkout roadmap milestones.\n\nI've also generated a low-fidelity wireframe concept:\n*Wireframe concept*: A sticky 'Add item to order' banner on the checkout success screen showing a 60-second countdown timer.\n\nYou can open these workspaces directly using the cards below to review and edit.`;
+          card = { type: "PRD", title: "PRD Spec Draft (v2)", description: "Zepto checkout optimizations ready for review.", targetUrl: "/product/prds" };
         } else {
-          aiText = "PRD sections updated. You can review the Notion Spec canvas inside the PRD Workspace.";
+          aiText = "The discovery and definition cycles are complete. What part of the design or development milestone would you like to review next?";
         }
       } else {
-        aiText = "Engineering milestones are active. We are currently tracking sprint capacity and tokenization constraints. Let me know what to analyze next.";
+        // Path B: New Product
+        if (step === 1) {
+          step = 2;
+          aiText = `Objective baseline logged.\n\n**Step 2: Target Users**\nWho experiences this problem? What is their persona, and how do they solve it today? Why will they switch to our solution?`;
+        } else if (step === 2) {
+          step = 3;
+          aiText = `Target persona defined. Now let's analyze the market.\n\n**Step 3: Market Research**\nWhat is the market size, major trends, and regulatory barriers? What assumptions are we making about market adoption?`;
+        } else if (step === 3) {
+          step = 4;
+          aiText = `Market landscape mapped. Let's look at current alternatives.\n\n**Step 4: Competitor Research**\nWho are the direct and indirect competitors? What do they do well or poorly? What is missing in their offerings?`;
+        } else if (step === 4) {
+          step = 5;
+          aiText = `Competitor profiles mapped.\n\n**Step 5: Find USP & Positioning**\nHere are 3 positioning options:\n1. Low-cost leader\n2. Premium specialized service\n3. Integrated ecosystem\n\nI challenge the low-cost positioning as it has high risk of cash burn. I recommend the premium specialized service as it addresses the key user pain points. Which USP do you want to lock in?`;
+        } else if (step === 5) {
+          step = 6;
+          aiText = `USP selected and positioning locked. Let's define the feature set.\n\n**Step 6: Feature List Generation**\nI've generated a draft feature list. Let's categorize them:\n- *Must Have*: Core functional flow.\n- *Should Have*: User convenience features.\n- *Could Have*: Notifications and loyalty.\n- *Future*: AI-driven predictive search.\n\nLet's move to Step 7 to prioritize these using the Kano Model.`;
+        } else if (step === 6) {
+          step = 7;
+          aiText = `**Step 7: Prioritize (Kano Model)**\nI have prioritized the features using the Kano framework:\n- Core checkout flows belong to Must Have (basic expectation).\n- Offline tokenized cards belong to Performance (adds user value proportionally).\n- One-click split bills belong to Delighter.\n\nDo you agree with this categorization, or should we adjust any feature placement?`;
+        } else if (step === 7) {
+          step = 8;
+          aiText = `Feature priority aligned. Let's outline the layout.\n\n**Step 8: Generate Low Fidelity Wireframes**\n*Wireframe concept*: A simple 3-tab layout: Home, Payments, and Transactions. Focus on distraction-free flows to reduce user cognitive load.\n\nLet's move to Step 9 to write the PRD Specification.`;
+        } else if (step === 8) {
+          step = 9;
+          aiText = `**Step 9: Generate PRD**\nI have created a new draft PRD containing the Objective, Target Users, Feature prioritization, and compliance mappings in the PRD Workspace.\n\nLet's move to Step 10 to establish our Success Metrics.`;
+          card = { type: "PRD", title: "PRD Spec Draft (v1)", description: "PRD Draft ready for target app in PRD Workspace.", targetUrl: "/product/prds" };
+        } else if (step === 9) {
+          step = 10;
+          aiText = `**Step 10: Generate Success Metrics**\n- *North Star*: Weekly Active Transactions.\n- *Input Metrics*: User onboarding time, payment success rates.\n- *Output Metrics*: Month 1 retention rates.\n- *Guardrail Metrics*: Transaction latency (must be < 2 seconds).\n\nLet's define the release roadmap milestones in Step 11.`;
+        } else if (step === 10) {
+          step = 11;
+          aiText = `**Step 11: Generate Roadmap**\n- *Milestone 1 (Month 1)*: MVP Core Flow release.\n- *Milestone 2 (Month 2)*: Security auditing and compliance setup.\n- *Milestone 3 (Month 3)*: Analytics integration and dashboard reporting.\n\nLet's consolidate our PM decisions and notes in Step 12.`;
+          card = { type: "Dashboard", title: "Roadmap Milestones Loaded", description: "Payments roadmap generated on active Dashboard.", targetUrl: "/product/dashboard" };
+        } else if (step === 11) {
+          step = 12;
+          targetStage = "Define";
+          aiText = `**Step 12: Generate Product Notes**\nI have summarized our research, assumptions, risk mitigation strategies, and trade-offs into the Product Discovery and PRD workspaces. The discovery phase is officially complete!\n\nYou can continue exploring the product roadmap and workspace dashboards using the links.`;
+        } else {
+          aiText = "Our discovery and requirements planning is fully complete. What area should we deep-dive next?";
+        }
       }
 
       const aiMsg: Message = {
@@ -544,19 +638,21 @@ export default function AIHomePage() {
         let updatedVersion = c.prdVersion;
         let updatedStatus = c.prdStatus;
 
-        if (userText.includes("student") || userText.includes("bangalore"))
+        if (userTextLower.includes("student") || userTextLower.includes("bangalore"))
           updatedSections.targetUsers.content = "Students in university campuses in Bangalore.";
-        if (userText.includes("metrics") || userText.includes("score"))
+        if (userTextLower.includes("metrics") || userTextLower.includes("score"))
           updatedSections.successMetrics.content = "Target Quality score >= 90/100, and packing times under 60 seconds.";
-        if (userText.includes("compliance") || userText.includes("rbi")) {
+        if (userTextLower.includes("compliance") || userTextLower.includes("rbi")) {
           updatedSections.compliance.content = "RBI FinTech Guidelines, DPDP Act 2023 compliance audits, and PCI-DSS payment tokenization protocols.";
           updatedVersion += 1;
         }
-        if (userText.includes("move") || userText.includes("design") || userText.includes("develop"))
+        if (userTextLower.includes("move") || userTextLower.includes("design") || userTextLower.includes("develop"))
           updatedStatus = "Approved";
 
         return {
           ...c,
+          pmPath: path,
+          pmStep: step,
           activeStep: nextStep,
           prdSections: updatedSections,
           prdVersion: updatedVersion,
@@ -567,7 +663,7 @@ export default function AIHomePage() {
 
       setIsGenerating(false);
     }, 800);
-  }, [chatInput, activeConv, activeConvId]);
+  }, [chatInput, activeConv, activeConvId, conversations]);
 
   // Handle Attachment trigger
   const handleAttachmentClick = () => {
@@ -589,7 +685,6 @@ export default function AIHomePage() {
     conversations.forEach(c => {
       if (c.displayTime) {
         if (c.displayTime.includes("AM") || c.displayTime.includes("PM")) {
-          // Hardcoded seed groups
           if (c.id === "conv_upi_expense" || c.id === "conv_zepto_checkout") {
             today.push(c);
           } else {
@@ -786,7 +881,7 @@ export default function AIHomePage() {
 
             {/* Stepper Selector (only in active chat view) */}
             {showChatView && activeConv && (
-              <div className="hidden md:flex items-center gap-0.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-150 select-none">
+              <div className="hidden md:flex items-center gap-0.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-155 select-none">
                 {STEPS.map((step, idx) => {
                   const isActive = activeConv.activeStep === step;
                   const isCompleted = STEPS.indexOf(activeConv.activeStep) > idx;
@@ -800,7 +895,7 @@ export default function AIHomePage() {
                           isActive
                             ? "bg-slate-950 text-white font-bold px-2"
                             : isCompleted
-                              ? "text-slate-700 hover:text-slate-950"
+                              ? "text-slate-700 hover:text-slate-955"
                               : "text-slate-400 hover:text-slate-600"
                         )}
                       >
@@ -1255,17 +1350,17 @@ export default function AIHomePage() {
               {activeConv && (
                 <div className="flex flex-wrap items-center gap-1.5 pl-0.5">
                   <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mr-0.5">Try:</span>
-                  {activeConv.activeStep === "Discovery" ? (
+                  {activeConv.pmPath === "B" ? (
                     <>
-                      <button onClick={() => handleSendMessage("Analyze reviews for Zepto Checkout")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Analyze Reviews</button>
-                      <button onClick={() => handleSendMessage("Set target users to students in university campuses")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Identify Users</button>
-                      <button onClick={() => handleSendMessage("Define success metrics as Quality score >= 90")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Define Metrics</button>
+                      <button onClick={() => handleSendMessage("Our target users are urban college students")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Set Users</button>
+                      <button onClick={() => handleSendMessage("Recommend the strongest USP")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Recommend USP</button>
+                      <button onClick={() => handleSendMessage("Generate and prioritize feature list")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Prioritize Features</button>
                     </>
                   ) : (
                     <>
-                      <button onClick={() => handleSendMessage("Add India compliance laws to Section 8")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Add Compliance</button>
-                      <button onClick={() => handleSendMessage("Perform PRD audit checks")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• PRD Audit</button>
-                      <button onClick={() => handleSendMessage("Transition to Design & Develop stage")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Build Roadmap</button>
+                      <button onClick={() => handleSendMessage("Import and cluster reviews for this app")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Cluster Reviews</button>
+                      <button onClick={() => handleSendMessage("Outline competitor gaps")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Competitor Gaps</button>
+                      <button onClick={() => handleSendMessage("Validate 60-Second Add-On buffer")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Validate Solution</button>
                     </>
                   )}
                 </div>
