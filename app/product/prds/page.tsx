@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
@@ -13,7 +13,15 @@ import {
   Send,
   Plus,
   ArrowRight,
-  ClipboardList
+  ClipboardList,
+  ChevronRight,
+  Edit2,
+  CheckCircle,
+  FileText,
+  FileCheck,
+  Activity,
+  Layers,
+  ArrowUpRight
 } from "lucide-react";
 
 interface PRDSection {
@@ -44,14 +52,14 @@ const SECTION_KEYS = [
 ];
 
 const SECTION_LABELS: Record<string, string> = {
-  objective: "1. Objective",
-  businessValue: "2. Business Value",
-  userValue: "3. User Value",
-  targetUsers: "4. Target Users",
-  userProblems: "5. User Problems",
-  proposedSolution: "6. Proposed Solution",
-  successMetrics: "7. Success Metrics",
-  compliance: "8. Compliance"
+  objective: "Objective",
+  businessValue: "Business Value",
+  userValue: "User Value",
+  targetUsers: "Target Users",
+  userProblems: "User Problems",
+  proposedSolution: "Proposed Solution",
+  successMetrics: "Success Metrics",
+  compliance: "Compliance"
 };
 
 export default function PRDsPage() {
@@ -68,6 +76,15 @@ export default function PRDsPage() {
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(-1);
   const [answers, setAnswers] = useState<string[]>([]);
   const [currentAnswer, setCurrentAnswer] = useState("");
+
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto scroll chat conversation
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [currentQuestionIdx, answers]);
 
   // Load history from localStorage on mount
   useEffect(() => {
@@ -92,11 +109,11 @@ export default function PRDsPage() {
   };
 
   const calculateDetailScore = (text: string) => {
-    let score = 20;
-    if (text.length > 30) score += 15;
-    if (text.length > 100) score += 15;
+    let score = 25;
+    if (text.length > 40) score += 15;
+    if (text.length > 120) score += 20;
     
-    const keywords = ["user", "payment", "metrics", "database", "scale", "security", "rbi", "compliance", "singapore", "germany", "india", "mobile"];
+    const keywords = ["user", "payment", "metrics", "database", "scale", "security", "rbi", "compliance", "singapore", "germany", "india", "mobile", "architecture", "api"];
     keywords.forEach(kw => {
       if (text.toLowerCase().includes(kw)) {
         score += 5;
@@ -111,12 +128,12 @@ export default function PRDsPage() {
     setIsGenerating(true);
     const score = calculateDetailScore(prompt);
 
-    if (score < 50) {
+    if (score < 55) {
       // Vague prompt: trigger conversational clarifying questions
       const questions = [
-        "What is the target geographic region and industry sector?",
-        "Who are the primary target users and what platforms should be supported (mobile, web)?",
-        "What are the core success metrics or key performance indicators (KPIs)?"
+        "What target geographic region and regulatory rules should apply to this initiative?",
+        "Describe the primary target users and whether they will access it via mobile or web.",
+        "What are the core success metrics or KPI targets we need to achieve?"
       ];
       setClarifyingQuestions(questions);
       setCurrentQuestionIdx(0);
@@ -126,7 +143,7 @@ export default function PRDsPage() {
       // Detailed prompt: compile immediately
       const newPrd: PRD = {
         id: `prd-${Date.now()}`,
-        title: prompt.split(" ").slice(0, 4).join(" ") + " PRD",
+        title: prompt.split(" ").slice(0, 4).join(" ") + " Spec",
         prompt: prompt,
         score: score,
         currentVersion: 1,
@@ -153,10 +170,10 @@ export default function PRDsPage() {
       setCurrentQuestionIdx(currentQuestionIdx + 1);
     } else {
       // All questions answered: compile final PRD
-      const score = Math.min(calculateDetailScore(prompt) + 30, 100);
+      const score = Math.min(calculateDetailScore(prompt) + 35, 100);
       const newPrd: PRD = {
         id: `prd-${Date.now()}`,
-        title: prompt.split(" ").slice(0, 4).join(" ") + " PRD",
+        title: prompt.split(" ").slice(0, 4).join(" ") + " Spec",
         prompt: prompt,
         score: score,
         currentVersion: 1,
@@ -179,42 +196,42 @@ export default function PRDsPage() {
                  : "General";
 
     const complianceContent = region === "India" 
-      ? "RBI Fintech Guidelines, DPDP Act 2023, PCI-DSS compliance required."
+      ? "RBI FinTech Guidelines, DPDP Act 2023 compliance audits, PCI-DSS payment tokenization protocols."
       : region === "Singapore"
-      ? "MAS Guidelines, PDPA standards, and IMDA regulations required."
-      : "Standard GDPR and data protection regulations apply.";
+      ? "MAS Guidelines for payment processors, PDPA data residency mappings, and IMDA API standards."
+      : "Standard GDPR residency rules and data protection compliance apply.";
 
     return {
       objective: {
-        title: "1. Objective",
-        content: `Build out a comprehensive system to support the core objective: ${rawPrompt}. Highly targeted implementation focusing on scalability and reliability.`
+        title: "Objective",
+        content: `Implement a production-grade system matching your specifications: ${rawPrompt}. Designed to scale across active regions with minimal latency.`
       },
       businessValue: {
-        title: "2. Business Value",
-        content: `Increases market footprint by providing a streamlined workspace. Target efficiency improvements calculated at +15% velocity.`
+        title: "Business Value",
+        content: "Addresses primary market overheads by reducing manual configuration. Anticipates operational velocity improvements of +18%."
       },
       userValue: {
-        title: "3. User Value",
-        content: "Allows product managers to collaborate with AI and build out structured documentation in under 5 minutes."
+        title: "User Value",
+        content: "Product managers can collaborate dynamically with AI to build compliance-ready structures under tight release limits."
       },
       targetUsers: {
-        title: "4. Target Users",
-        content: qaAnswers[1] || "Product Managers, Tech Leads, and compliance operations officers."
+        title: "Target Users",
+        content: qaAnswers[1] || "Compliance operations officers, product directors, and staff-level security engineers."
       },
       userProblems: {
-        title: "5. User Problems",
-        content: "Drafting compliance documentation requires multiple manual cross-references, leading to slow release schedules."
+        title: "User Problems",
+        content: "Compliance mapping requires cross-disciplinary manual reviews. This results in standard release cycles lagging by 4-6 weeks."
       },
       proposedSolution: {
-        title: "6. Proposed Solution",
-        content: "Integrate a real-time regulatory compliance mapping engine inside the editor workspace."
+        title: "Proposed Solution",
+        content: "Build a dynamic context-aware policy mapping engine directly bound to the requirement document state lifecycle."
       },
       successMetrics: {
-        title: "7. Success Metrics",
-        content: qaAnswers[2] || "Target Quality score >= 85/100, and compilation errors reduced by 40%."
+        title: "Success Metrics",
+        content: qaAnswers[2] || "Establish compliance score baseline above 90/100, and ensure QA certification latency falls below 48 hours."
       },
       compliance: {
-        title: "8. Compliance",
+        title: "Compliance",
         content: complianceContent
       }
     };
@@ -246,237 +263,372 @@ export default function PRDsPage() {
     setEditingSection(null);
   };
 
+  // Find missing sections (empty or containing placeholder text)
+  const getMissingSections = () => {
+    if (!activePrd) return [];
+    return SECTION_KEYS.filter(key => {
+      const content = activePrd.sections[key]?.content || "";
+      return content.trim().length === 0 || content.toLowerCase().includes("tbd");
+    }).map(key => SECTION_LABELS[key]);
+  };
+
   return (
-    <div className="flex flex-col min-h-screen bg-[#f7f7fe] p-6 lg:p-8">
-      {/* Header */}
-      <header className="mb-6 flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <ClipboardList className="size-6 text-primary" />
-            PRD Workspace
-          </h1>
-          <p className="text-sm text-slate-500">Collaborate with Mycroft to build regulatory compliant product requirements.</p>
+    <div className="flex flex-col min-h-screen bg-[#fafafa] font-sans antialiased text-slate-800">
+      {/* Global Compact Header */}
+      <header className="sticky top-0 z-30 flex justify-between items-center bg-white/80 backdrop-blur-md px-6 py-4 border-b border-slate-100">
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 items-center justify-center rounded-lg bg-slate-900 text-white">
+            <ClipboardList className="size-5" />
+          </div>
+          <div>
+            <h1 className="text-base font-semibold tracking-tight text-slate-900">PRD Workspace</h1>
+            <p className="text-xs text-slate-500 font-medium">Collaborative specification manager</p>
+          </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => setIsHistoryOpen(true)} className="flex items-center gap-2">
-            <History className="size-4" />
+          <Button 
+            variant="secondary" 
+            onClick={() => setIsHistoryOpen(true)} 
+            className="h-9 px-3 text-xs bg-white hover:bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-1.5 font-medium text-slate-600 shadow-xs"
+          >
+            <History className="size-3.5" />
             History ({prdHistory.length})
           </Button>
         </div>
       </header>
 
-      {/* 3-Column Workspace Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start flex-1">
+      {/* Balanced 3-Column Layout (AI Composer: 25% | Notion Doc: 50% | Review Panel: 25%) */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden">
         
-        {/* Left Column: AI Composer (4 Cols) */}
-        <section className="lg:col-span-4 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <Sparkles className="size-5 text-primary" />
-            AI Composer
-          </h2>
+        {/* Left Column: AI Composer (Claude/ChatGPT feel - 3 cols / 25%) */}
+        <aside className="lg:col-span-3 bg-white border-r border-slate-100 p-6 flex flex-col h-full overflow-y-auto">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="flex size-6 items-center justify-center rounded-md bg-blue-50 text-primary">
+              <Sparkles className="size-3.5" />
+            </div>
+            <h2 className="text-sm font-bold text-slate-950 tracking-tight">AI Copilot Composer</h2>
+          </div>
           
           {currentQuestionIdx === -1 ? (
-            <div className="flex flex-col gap-3">
-              <p className="text-xs text-slate-500">
-                Describe your product idea to collaborate with Mycroft. We will analyze your specifications, clarify details, and compile a compliant PRD framework.
-              </p>
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe your product idea (e.g. Build a mobile wallet for students in India...)"
-                rows={5}
-                className="w-full p-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
-              />
-              <Button onClick={handleGenerate} disabled={isGenerating || !prompt.trim()} className="w-full rounded-xl">
-                Collaborate & Generate PRD
-              </Button>
-            </div>
-          ) : (
-            // Conversational Flow
-            <div className="flex flex-col gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Clarifying Question {currentQuestionIdx + 1} of 3</p>
-                <p className="text-sm font-medium text-slate-800 mt-1">{clarifyingQuestions[currentQuestionIdx]}</p>
+            <div className="flex flex-col flex-1 gap-4">
+              <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-100 text-xs text-slate-500 leading-relaxed">
+                Describe your product idea. Mycroft will analyze specifications, clarify details, and compile a compliant PRD structure.
+                <div className="mt-3 space-y-1.5">
+                  <span className="block font-semibold text-slate-600">Examples:</span>
+                  <button 
+                    onClick={() => setPrompt("Build a mobile wallet for students in India with peer-to-peer payments up to 500 rupees")} 
+                    className="block text-left text-primary hover:underline"
+                  >
+                    • Mobile wallet for students in India
+                  </button>
+                  <button 
+                    onClick={() => setPrompt("Design an API gateway integration service for fintech platforms in Singapore")} 
+                    className="block text-left text-primary hover:underline"
+                  >
+                    • API gateway integration in Singapore
+                  </button>
+                </div>
               </div>
-              <textarea
-                value={currentAnswer}
-                onChange={(e) => setCurrentAnswer(e.target.value)}
-                placeholder="Enter your answer..."
-                rows={3}
-                className="w-full p-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none bg-white"
-              />
-              <div className="flex gap-2 justify-end">
-                <Button variant="secondary" onClick={() => setClarifyingQuestions([])} className="text-xs px-3 h-9 rounded-lg">Cancel</Button>
-                <Button onClick={handleSendAnswer} disabled={!currentAnswer.trim()} className="text-xs px-3 h-9 rounded-lg flex items-center gap-1">
-                  Send Answer
-                  <Send className="size-3" />
+              
+              <div className="flex flex-col gap-2">
+                <textarea
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Describe your product idea in detail..."
+                  rows={6}
+                  className="w-full p-3.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-950 resize-none bg-slate-50/30 transition-all font-sans"
+                />
+                <Button 
+                  onClick={handleGenerate} 
+                  disabled={isGenerating || !prompt.trim()} 
+                  className="w-full h-10 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1"
+                >
+                  Collaborate & Generate
+                  <ArrowUpRight className="size-3.5" />
                 </Button>
               </div>
             </div>
-          )}
-
-          {activePrd && (
-            <div className="border-t pt-4 mt-2">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-xs font-semibold text-slate-500">Prompt Quality Scorer</span>
-                <StatusBadge tone={activePrd.score >= 80 ? "healthy" : "warning"}>
-                  {activePrd.score}/100
-                </StatusBadge>
-              </div>
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full transition-all duration-500 ${activePrd.score >= 80 ? 'bg-green-500' : activePrd.score >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
-                  style={{ width: `${activePrd.score}%` }}
-                />
-              </div>
-            </div>
-          )}
-        </section>
-
-        {/* Center Column: PRD Document Viewer/Editor (5 Cols) */}
-        <section className="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col min-h-[500px]">
-          {activePrd ? (
-            <div className="flex flex-col flex-1">
-              <div className="flex justify-between items-center border-b pb-4 mb-4">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900">{activePrd.title}</h2>
-                  <p className="text-xs text-slate-500">Version v{activePrd.currentVersion} • Status: {activePrd.status}</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="secondary" className="h-9 px-3 text-xs flex items-center gap-1" onClick={() => alert("PDF generated successfully!")}>
-                    <Download className="size-3.5" />
-                    PDF
-                  </Button>
-                  <Button variant="secondary" className="h-9 px-3 text-xs flex items-center gap-1" onClick={() => alert("DOCX generated successfully!")}>
-                    <Download className="size-3.5" />
-                    DOCX
-                  </Button>
-                </div>
-              </div>
-
-              {/* Editable Sections List */}
-              <div className="space-y-6 flex-1 overflow-y-auto pr-1">
-                {SECTION_KEYS.map((key) => {
-                  const section = activePrd.sections[key];
-                  const isEditing = editingSection === key;
-                  return (
-                    <div key={key} className="group border-b border-slate-50 pb-4 last:border-b-0">
-                      <div className="flex justify-between items-center mb-1">
-                        <h3 className="text-sm font-bold text-slate-800">{SECTION_LABELS[key]}</h3>
-                        {!isEditing && (
-                          <button
-                            onClick={() => handleEditSection(key, section?.content || "")}
-                            className="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity hover:underline"
-                          >
-                            Edit
-                          </button>
-                        )}
-                      </div>
-                      
-                      {isEditing ? (
-                        <div className="flex flex-col gap-2 mt-1">
-                          <textarea
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            rows={3}
-                            className="w-full p-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
-                          />
-                          <div className="flex gap-2 justify-end">
-                            <Button variant="secondary" className="h-8 px-2 text-xs" onClick={() => setEditingSection(null)}>Cancel</Button>
-                            <Button className="h-8 px-2 text-xs" onClick={() => handleSaveSection(key)}>Save</Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="text-sm text-slate-600 leading-relaxed bg-slate-50/50 p-2.5 rounded-lg border border-slate-100/50">
-                          {section?.content || <span className="text-slate-400 italic">No content generated. Edit to add context.</span>}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
           ) : (
-            <div className="flex-1 flex flex-col justify-center items-center text-center p-8">
-              <ClipboardList className="size-12 text-slate-300 mb-3" />
-              <h3 className="text-base font-bold text-slate-800 mb-1">No Active PRD</h3>
-              <p className="text-xs text-slate-500 max-w-xs">
-                Use the AI Composer on the left to collaborate and draft your first product requirement document framework.
-              </p>
+            // Claude-like Conversational Stream
+            <div className="flex flex-col flex-1 gap-4 min-h-[300px]">
+              <div className="flex-1 overflow-y-auto space-y-4 max-h-[350px] pr-1">
+                {/* Initial Prompt Bubble */}
+                <div className="flex flex-col items-end">
+                  <div className="bg-slate-900 text-white px-3 py-2 rounded-2xl rounded-tr-xs text-xs max-w-[85%] shadow-xs leading-relaxed">
+                    {prompt}
+                  </div>
+                </div>
+
+                {/* Completed QA bubbles */}
+                {answers.map((ans, idx) => (
+                  <div key={idx} className="space-y-4">
+                    <div className="flex items-start gap-2">
+                      <div className="flex size-6 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-700 flex-shrink-0">M</div>
+                      <div className="bg-slate-100/80 text-slate-800 px-3 py-2 rounded-2xl rounded-tl-xs text-xs max-w-[85%] leading-relaxed">
+                        {clarifyingQuestions[idx]}
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <div className="bg-slate-900 text-white px-3 py-2 rounded-2xl rounded-tr-xs text-xs max-w-[85%] shadow-xs leading-relaxed">
+                        {ans}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Current Bot Question */}
+                <div className="flex items-start gap-2">
+                  <div className="flex size-6 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-700 flex-shrink-0">M</div>
+                  <div className="bg-slate-100/80 text-slate-800 px-3 py-2 rounded-2xl rounded-tl-xs text-xs max-w-[85%] leading-relaxed">
+                    {clarifyingQuestions[currentQuestionIdx]}
+                  </div>
+                </div>
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Conversational Input Box */}
+              <div className="border-t border-slate-100 pt-3 flex flex-col gap-2">
+                <textarea
+                  value={currentAnswer}
+                  onChange={(e) => setCurrentAnswer(e.target.value)}
+                  placeholder="Type your answer to Mycroft..."
+                  rows={2}
+                  className="w-full p-2.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-950 resize-none bg-slate-50/50 font-sans"
+                />
+                <div className="flex gap-2 justify-between items-center">
+                  <button 
+                    onClick={() => setClarifyingQuestions([])} 
+                    className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    Reset
+                  </button>
+                  <Button 
+                    onClick={handleSendAnswer} 
+                    disabled={!currentAnswer.trim()} 
+                    className="h-8 px-3 rounded-lg bg-slate-900 text-white hover:bg-slate-800 text-xs font-medium flex items-center gap-1"
+                  >
+                    Send Answer
+                    <Send className="size-3" />
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
-        </section>
+        </aside>
 
-        {/* Right Column: Review Panel (3 Cols) */}
-        <section className="lg:col-span-3 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <Check className="size-5 text-green-500" />
-            Review & Compliance
-          </h2>
+        {/* Center Column: Notion-style PRD Canvas (6 cols / 50%) */}
+        <main className="lg:col-span-6 bg-white p-8 lg:p-12 overflow-y-auto h-full flex flex-col items-center">
+          <div className="w-full max-w-2xl flex flex-col flex-1">
+            
+            {activePrd ? (
+              <div className="flex flex-col flex-1">
+                {/* Sticky Layout Options Toolbar */}
+                <div className="sticky top-0 z-20 flex justify-between items-center bg-white/90 backdrop-blur-md pb-4 mb-8 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <StatusBadge tone="neutral">
+                      Version v{activePrd.currentVersion}
+                    </StatusBadge>
+                    <StatusBadge tone={activePrd.status === "Approved" ? "healthy" : "warning"}>
+                      {activePrd.status}
+                    </StatusBadge>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <Button 
+                      variant="secondary" 
+                      className="h-8 px-2.5 text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg flex items-center gap-1 font-medium text-slate-600 shadow-2xs" 
+                      onClick={() => alert("PDF downloaded successfully!")}
+                    >
+                      <Download className="size-3" />
+                      PDF
+                    </Button>
+                    <Button 
+                      variant="secondary" 
+                      className="h-8 px-2.5 text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg flex items-center gap-1 font-medium text-slate-600 shadow-2xs" 
+                      onClick={() => alert("DOCX downloaded successfully!")}
+                    >
+                      <Download className="size-3" />
+                      DOCX
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Notion Document Canvas */}
+                <article className="flex-1 space-y-8">
+                  <h2 className="text-3xl font-bold tracking-tight text-slate-900 mb-6 outline-none font-sans">
+                    {activePrd.title}
+                  </h2>
+
+                  <div className="space-y-8">
+                    {SECTION_KEYS.map((key) => {
+                      const section = activePrd.sections[key];
+                      const isEditing = editingSection === key;
+                      return (
+                        <section key={key} className="group flex flex-col gap-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              {SECTION_LABELS[key]}
+                            </span>
+                            {!isEditing && (
+                              <button
+                                onClick={() => handleEditSection(key, section?.content || "")}
+                                className="text-xs text-primary flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity hover:underline"
+                              >
+                                <Edit2 className="size-3" />
+                                Edit
+                              </button>
+                            )}
+                          </div>
+                          
+                          {isEditing ? (
+                            <div className="flex flex-col gap-2 mt-1 bg-slate-50/50 p-2 rounded-xl border border-slate-100">
+                              <textarea
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                rows={4}
+                                className="w-full p-3 text-sm border-0 bg-transparent focus:ring-0 focus:outline-none resize-none font-sans text-slate-700 leading-relaxed"
+                              />
+                              <div className="flex gap-1.5 justify-end p-1">
+                                <Button 
+                                  variant="secondary" 
+                                  className="h-8 px-3 text-xs border border-slate-200 bg-white" 
+                                  onClick={() => setEditingSection(null)}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button 
+                                  className="h-8 px-3 text-xs bg-slate-900 text-white hover:bg-slate-800" 
+                                  onClick={() => handleSaveSection(key)}
+                                >
+                                  Save Change
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-[15px] text-slate-600 leading-relaxed font-normal py-1 pr-4 whitespace-pre-line">
+                              {section?.content || <span className="text-slate-400 italic">No content generated. Click Edit to add context.</span>}
+                            </p>
+                          )}
+                        </section>
+                      );
+                    })}
+                  </div>
+                </article>
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col justify-center items-center text-center py-20">
+                <div className="flex size-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-300 mb-4 border border-slate-100">
+                  <ClipboardList className="size-7" />
+                </div>
+                <h3 className="text-base font-bold text-slate-800 mb-1">Create a new product spec</h3>
+                <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
+                  Start mapping your project details by writing a prompt to the AI Copilot on the left.
+                </p>
+              </div>
+            )}
+          </div>
+        </main>
+
+        {/* Right Column: Review & Meta Panel (Compact - 3 cols / 25%) */}
+        <aside className="lg:col-span-3 bg-white border-l border-slate-100 p-6 flex flex-col h-full overflow-y-auto">
+          <div className="flex items-center gap-2 mb-5">
+            <div className="flex size-6 items-center justify-center rounded-md bg-green-50 text-green-600">
+              <FileCheck className="size-3.5" />
+            </div>
+            <h2 className="text-sm font-bold text-slate-950 tracking-tight">Review & Audit</h2>
+          </div>
 
           {activePrd ? (
-            <div className="flex flex-col gap-4">
-              {/* Quality Audit Block */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Audit Verdict</h3>
-                {activePrd.score >= 80 ? (
-                  <div className="flex items-start gap-2 text-green-700">
-                    <Check className="size-4 mt-0.5 flex-shrink-0" />
-                    <p className="text-xs leading-relaxed">
-                      Requirements score meets production readiness. Document structure maps directly to all 8 MVP metrics cleanly.
-                    </p>
+            <div className="space-y-5">
+              
+              {/* Quality Score Indicator */}
+              <div className="flex items-center justify-between p-3.5 bg-slate-50/50 rounded-xl border border-slate-100">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Spec Quality Score</span>
+                  <span className="text-xs font-semibold text-slate-600 mt-1">Audit Score</span>
+                </div>
+                <div className="flex size-12 items-center justify-center rounded-full bg-slate-900 text-white font-bold text-sm shadow-xs">
+                  {activePrd.score}
+                </div>
+              </div>
+
+              {/* Warnings / Missing fields list */}
+              <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-100 space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Requirements Audit</span>
+                {getMissingSections().length > 0 ? (
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-1.5 text-xs text-amber-700">
+                      <AlertTriangle className="size-4 flex-shrink-0 mt-0.5" />
+                      <span className="font-medium">Missing sections detected:</span>
+                    </div>
+                    <ul className="text-xs text-slate-500 pl-5 list-disc space-y-1">
+                      {getMissingSections().map((sec, i) => (
+                        <li key={i}>{sec}</li>
+                      ))}
+                    </ul>
                   </div>
                 ) : (
-                  <div className="flex items-start gap-2 text-amber-700">
-                    <AlertTriangle className="size-4 mt-0.5 flex-shrink-0" />
-                    <p className="text-xs leading-relaxed">
-                      Low score warning: Some fields utilize short placeholder sentences. Consider elaborating on objectives and success criteria to bypass QA warnings.
-                    </p>
+                  <div className="flex items-start gap-2 text-green-700 text-xs leading-relaxed">
+                    <CheckCircle className="size-4 flex-shrink-0 mt-0.5 text-green-500" />
+                    <span>All 8 mandatory requirements sections are populated cleanly. Specification is audit ready.</span>
                   </div>
                 )}
               </div>
 
-              {/* Regulatory Mapping Indicator */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Regulatory Mappings</h3>
-                <div className="space-y-2">
+              {/* Regulatory Mappings List */}
+              <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-100 space-y-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Compliance Maps</span>
+                <div className="space-y-2.5">
                   <div className="flex justify-between items-center text-xs">
-                    <span className="font-medium text-slate-600">India (RBI Guidelines)</span>
+                    <span className="font-medium text-slate-600">India (RBI Rules)</span>
                     <StatusBadge tone="info">Active</StatusBadge>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="font-medium text-slate-600">Singapore (MAS Standards)</span>
+                    <span className="font-medium text-slate-600">Singapore (MAS Guidelines)</span>
                     <StatusBadge tone="info">Active</StatusBadge>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="font-medium text-slate-600">Germany (GDPR Rules)</span>
+                    <span className="font-medium text-slate-600">Germany (GDPR Laws)</span>
                     <StatusBadge tone="info">Active</StatusBadge>
                   </div>
                 </div>
               </div>
+
+              {/* Short Audit Notes */}
+              {activePrd.score < 80 && (
+                <div className="p-3 bg-amber-50/30 text-amber-800 rounded-xl border border-amber-100/50 text-xs leading-relaxed flex gap-2">
+                  <AlertTriangle className="size-4 flex-shrink-0 mt-0.5 text-amber-600" />
+                  <span>Prompt contains placeholder elements. Add detailed user stories or metrics to automatically increment your score.</span>
+                </div>
+              )}
+
             </div>
           ) : (
-            <div className="text-center p-4 text-xs text-slate-400 italic">
-              Generate a document to activate the Review & Audit tools.
+            <div className="text-center py-6 text-xs text-slate-400 italic">
+              Generate a document to run compliance audits.
             </div>
           )}
-        </section>
+        </aside>
 
       </div>
 
-      {/* History Drawer Overlay */}
+      {/* History Slide-over Drawer Overlay */}
       {isHistoryOpen && (
-        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/30 backdrop-blur-xs flex justify-end">
-          <div className="w-80 bg-white h-full shadow-2xl p-6 flex flex-col gap-4 transition-transform">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h2 className="text-lg font-bold text-slate-950 flex items-center gap-2">
-                <History className="size-5 text-primary" />
-                PRD History
-              </h2>
-              <Button variant="ghost" className="h-8 w-8 p-0" onClick={() => setIsHistoryOpen(false)}>×</Button>
+        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/10 backdrop-blur-xs flex justify-end">
+          <div className="w-80 bg-white h-full shadow-2xl p-6 flex flex-col gap-4 border-l border-slate-100 transition-transform">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <History className="size-4.5 text-slate-700" />
+                <h2 className="text-sm font-bold text-slate-950 tracking-tight">Requirement History</h2>
+              </div>
+              <button 
+                className="text-slate-400 hover:text-slate-900 text-lg font-bold p-1" 
+                onClick={() => setIsHistoryOpen(false)}
+              >
+                ×
+              </button>
             </div>
             
-            <div className="flex-1 overflow-y-auto space-y-3">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
               {prdHistory.length > 0 ? (
                 prdHistory.map((prd) => (
                   <div 
@@ -485,14 +637,14 @@ export default function PRDsPage() {
                       setActivePrd(prd);
                       setIsHistoryOpen(false);
                     }}
-                    className={`p-3 rounded-xl border cursor-pointer hover:border-primary/50 transition-all ${activePrd?.id === prd.id ? 'border-primary bg-blue-50/30' : 'border-slate-100 bg-slate-50/50'}`}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all hover:border-slate-300 ${activePrd?.id === prd.id ? 'border-slate-900 bg-slate-50' : 'border-slate-100 bg-white'}`}
                   >
-                    <p className="text-sm font-bold text-slate-800 truncate">{prd.title}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Version v{prd.currentVersion} • Score {prd.score}/100</p>
+                    <p className="text-xs font-bold text-slate-900 truncate">{prd.title}</p>
+                    <p className="text-[10px] font-semibold text-slate-500 mt-1">Version v{prd.currentVersion} • Score {prd.score}/100</p>
                   </div>
                 ))
               ) : (
-                <div className="text-center text-xs text-slate-400 py-8 italic">No saved documents found in local storage.</div>
+                <div className="text-center text-xs text-slate-400 py-12 italic">No history logged yet.</div>
               )}
             </div>
           </div>
