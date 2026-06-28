@@ -22,6 +22,7 @@ import {
   ChevronRight,
   Clock,
   Sparkles,
+  History as HistoryIcon,
   Paperclip,
   Bell,
   ChevronDown,
@@ -794,6 +795,17 @@ I recommend transitioning to design sprints next. You can continue exploring the
     }, 800);
   }, [chatInput, activeConv, activeConvId, conversations]);
 
+  // Esc key listener to close drawer
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !convSidebarCollapsed) {
+        setConvSidebarCollapsed(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [convSidebarCollapsed]);
+
   // Handle Attachment trigger
   const handleAttachmentClick = () => {
     fileInputRef.current?.click();
@@ -851,10 +863,18 @@ I recommend transitioning to design sprints next. You can continue exploring the
         className="hidden"
       />
 
-      {/* ── Column 1: Collapsible Conversation History Sidebar (250px) ── */}
+      {/* Backdrop overlay (clicking outside closes history drawer) */}
+      {!convSidebarCollapsed && (
+        <div 
+          onClick={() => setConvSidebarCollapsed(true)} 
+          className="fixed inset-0 z-30 bg-slate-900/10 backdrop-blur-xs transition-opacity duration-300"
+        />
+      )}
+
+      {/* ── Collapsible Conversation History Drawer (Slide-out Overlay) ── */}
       <div className={cn(
-        "border-r border-slate-100 bg-[#fafafa] flex flex-col h-full shrink-0 transition-all duration-300 ease-in-out relative z-10",
-        convSidebarCollapsed ? "w-0 opacity-0 overflow-hidden pointer-events-none" : "w-[250px]"
+        "fixed inset-y-0 left-0 z-40 w-[280px] bg-white border-r border-slate-100 flex flex-col h-full shadow-2xl transition-transform duration-300 ease-in-out",
+        convSidebarCollapsed ? "-translate-x-full" : "translate-x-0"
       )}>
         {/* Sidebar Header */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-slate-100 bg-white">
@@ -888,6 +908,7 @@ I recommend transitioning to design sprints next. You can continue exploring the
                     onClick={() => {
                       setActiveConvId(c.id);
                       setShowChatView(true);
+                      setConvSidebarCollapsed(true);
                     }}
                     className={cn(
                       "group flex flex-col px-3 py-2 rounded-xl cursor-pointer transition-all relative border border-transparent",
@@ -898,7 +919,7 @@ I recommend transitioning to design sprints next. You can continue exploring the
                   >
                     <div className="flex items-start justify-between gap-1.5 w-full">
                       <span className="text-xs font-semibold truncate flex-1 leading-snug">{c.title}</span>
-                      <span className="text-[9px] text-slate-400 whitespace-nowrap pt-0.5">{c.displayTime || "Today"}</span>
+                      <span className="text-[9px] text-slate-400 whitespace-nowrap pt-0.5">{c.displayTime || "10:30 AM"}</span>
                     </div>
                     <span className="text-[10px] text-slate-400 mt-0.5 font-medium">Stage: {c.activeStep}</span>
                     {isActive && (
@@ -922,6 +943,7 @@ I recommend transitioning to design sprints next. You can continue exploring the
                     onClick={() => {
                       setActiveConvId(c.id);
                       setShowChatView(true);
+                      setConvSidebarCollapsed(true);
                     }}
                     className={cn(
                       "group flex flex-col px-3 py-2 rounded-xl cursor-pointer transition-all relative border border-transparent",
@@ -956,6 +978,7 @@ I recommend transitioning to design sprints next. You can continue exploring the
                     onClick={() => {
                       setActiveConvId(c.id);
                       setShowChatView(true);
+                      setConvSidebarCollapsed(true);
                     }}
                     className={cn(
                       "group flex flex-col px-3 py-2 rounded-xl cursor-pointer transition-all relative border border-transparent",
@@ -995,51 +1018,27 @@ I recommend transitioning to design sprints next. You can continue exploring the
         {/* ── Top Navigation Bar ── */}
         <header className="shrink-0 flex items-center justify-between px-6 py-3.5 border-b border-slate-100 bg-white z-20">
           
-          {/* Left Controls: Conversations expand button if collapsed */}
+          {/* Left Controls: Conversations expand button with history icon and chevron down indicator */}
           <div className="flex items-center gap-3">
-            {convSidebarCollapsed && (
-              <button
-                onClick={toggleConvSidebar}
-                className="flex items-center gap-1.5 text-slate-500 hover:bg-slate-150 hover:text-slate-900 transition-colors p-1.5 rounded-lg border border-slate-200/60"
-                title="Expand Conversations History"
-              >
-                <ChevronRight className="size-4" />
-                <span className="text-[11px] font-semibold pr-1">Conversations</span>
-              </button>
-            )}
-
-            {/* Stepper Selector (only in active chat view) */}
-            {showChatView && activeConv && (
-              <div className="hidden md:flex items-center gap-0.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-155 select-none">
-                {STEPS.map((step, idx) => {
-                  const isActive = activeConv.activeStep === step;
-                  const isCompleted = STEPS.indexOf(activeConv.activeStep) > idx;
-                  return (
-                    <React.Fragment key={step}>
-                      {idx > 0 && <ChevronRight className="size-3 text-slate-250 mx-0.5" />}
-                      <button
-                        onClick={() => handleAction({ label: `Goto ${step}`, stage: step })}
-                        className={cn(
-                          "px-1.5 py-0.5 rounded-md text-[10px] font-semibold transition-all duration-200",
-                          isActive
-                            ? "bg-slate-950 text-white font-bold px-2"
-                            : isCompleted
-                              ? "text-slate-700 hover:text-slate-955"
-                              : "text-slate-400 hover:text-slate-600"
-                        )}
-                      >
-                        {step}
-                      </button>
-                    </React.Fragment>
-                  );
-                })}
-              </div>
-            )}
+            <button
+              onClick={toggleConvSidebar}
+              className="group flex items-center gap-1.5 text-slate-650 hover:bg-slate-50 hover:text-slate-900 transition-all p-2 rounded-xl border border-slate-200/60 hover:shadow-2xs active:scale-95 duration-150 relative"
+              title="View Previous Conversations"
+            >
+              <HistoryIcon className="size-4 text-slate-500 group-hover:rotate-[-10deg] transition-transform duration-200" />
+              <span className="text-xs font-bold pr-0.5 text-slate-700">Conversations</span>
+              <ChevronRight className={cn("size-3.5 text-slate-400 transition-transform duration-200", !convSidebarCollapsed && "rotate-90")} />
+              {/* Pulsing indicator badge */}
+              <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500"></span>
+              </span>
+            </button>
             
             {showChatView && (
               <button
                 onClick={() => setShowChatView(false)}
-                className="text-[11px] font-semibold text-slate-500 hover:text-slate-955 flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-slate-50 border border-slate-200/40"
+                className="text-[11px] font-semibold text-slate-500 hover:text-slate-955 flex items-center gap-1 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-slate-50 border border-slate-200/40"
               >
                 ← Back to Home
               </button>
