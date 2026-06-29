@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { PM_KNOWLEDGE_BASE, retrieveRelevantKnowledge } from "@/lib/pmKnowledge";
 import {
   Bot,
   Send,
@@ -239,6 +240,8 @@ interface Conversation {
   displayTime?: string; // Seeded string for exact match
   pmPath?: "A" | "B";
   pmStep?: number;
+  reasoningPhase?: "Understand" | "Research" | "Reason" | "Prioritize" | "Recommend" | "Document";
+  retrievedModels?: string[];
 }
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
@@ -283,7 +286,9 @@ const makeDefaultConv = (): Conversation => ({
   prdTitle: "10-Min Campuses Grocery Delivery Spec",
   prdVersion: 1,
   prdStatus: "Draft",
-  prdSections: defaultPRDSections()
+  prdSections: defaultPRDSections(),
+  reasoningPhase: "Understand",
+  retrievedModels: ["philosophy", "thinking"]
 });
 
 const makeSeededConversations = (): Conversation[] => [
@@ -701,8 +706,14 @@ export default function AIHomePage() {
       updatedTitle = generateCleanTitle(input);
     }
 
+    const retrieved = retrieveRelevantKnowledge(input);
     setConversations(prev => prev.map(c =>
-      c.id === activeConvId ? { ...c, title: updatedTitle, messages: [...c.messages, userMsg] } : c
+      c.id === activeConvId ? { 
+        ...c, 
+        title: updatedTitle, 
+        messages: [...c.messages, userMsg],
+        retrievedModels: retrieved
+      } : c
     ));
     if (!textToSend) setChatInput("");
     setAttachedFile(null);
@@ -838,214 +849,86 @@ export default function AIHomePage() {
           aiText = "**Wireframes** are low-fidelity visual guides that establish the skeletal framework and structural layout of a page or interface. They focus on element placement, information hierarchy, and user flow rather than visual styling and colors.\n\nWould you like me to map out a low-fidelity wireframe schematic for your checkout success screen?";
         } else if (isAbTesting) {
           aiText = "**A/B Testing (Split Testing)** compares two versions of a webpage or app flow (A and B) against each other to determine which one performs better on a target metric. It requires dividing traffic randomly and tracking statistical significance.\n\nLet's design a split test protocol to compare a 60-second add-on buffer banner against a standard post-order cancellation flow!";
-        } else if (isStrategy) {
-          aiText = "A **Product Strategy** defines your product's target market, unique value propositions, business model, and long-term milestones. It connects corporate vision with the day-to-day product backlog and roadmap execution.\n\nWould you like me to help draft a strategic pitch deck outlining market gaps and product differentiation?";
-        } else if (cleanInput.includes("dpdp")) {
-          aiText = "The Digital Personal Data Protection (DPDP) Act 2023 is India's comprehensive data privacy law. For product managers, it mandates consent-based processing, purpose limitation, data minimization, and robust security safeguards.\n\nLet me know if you would like me to audit our product specifications for DPDP compliance!";
         } else if (cleanInput.includes("rbi")) {
           aiText = "The Reserve Bank of India (RBI) fintech guidelines regulate digital lending, payment aggregators, and credit cards. Key considerations include payment tokenization, First Loss Default Guarantee (FLDG) limits, and explicit customer consent.\n\nLet me know if you want to verify our payment feature set against RBI guidelines!";
         } else {
-          aiText = "A Minimum Viable Product (MVP) is the simplest version of a product that allows you to collect the maximum amount of validated learning about customers with the least effort. It focuses on testing core hypotheses rather than building polished, complex features.\n\nWould you like me to help outline an MVP scope for your current product idea?";
-        }
-      } else {
-        // PM Task Workflow Integration
-        if (!path) {
-          if (userTextLower.includes("exist") || userTextLower.includes("yes") || userTextLower.includes("zepto") || userTextLower.includes("uber") || userTextLower.includes("whatsapp") || userTextLower.includes("airbnb")) {
-            path = "A";
-            step = 1;
-            aiText = "Understood. We are analyzing an **Existing Product** (Path A).\n\n**Step 1: Understand the Objective**\nWhat is the core business or product objective for this initiative?\nCommon options include:\n- Increase retention / reduce churn\n- Improve activation / onboarding\n- Increase revenue / conversion rates\n- Optimize checkout flow\n\nPlease describe your objective and why this is a priority now. Why do you believe this problem exists?";
-          } else if (userTextLower.includes("new") || userTextLower.includes("no") || userTextLower.includes("startup") || userTextLower.includes("saas") || userTextLower.includes("fintech")) {
-            path = "B";
-            step = 1;
-            aiText = "Exciting! We are embarking on a **New Product** journey (Path B).\n\n**Step 1: Understand the Objective**\nWhat is the core business objective or vision for this new product? What problem does it solve in the market?";
+          // PM Reasoning Engine dynamic controllers
+          const currentPhase = activeConv.reasoningPhase || "Understand";
+          let nextPhase: "Understand" | "Research" | "Reason" | "Prioritize" | "Recommend" | "Document" = currentPhase;
+
+          if (currentPhase === "Understand") {
+            nextPhase = "Research";
+            aiText = `Let's start our Product Discovery process. I've retrieved the **PM Philosophy** and **Product Thinking** knowledge modules to anchor our alignment:\n\n` +
+              `*   **Core Principle**: Fall in love with the problem, not your solution. Focus on outcomes over outputs.\n` +
+              `*   **Risk Guardrails**: We must proactively manage Value, Usability, Feasibility, and Business Viability risks.\n\n` +
+              `To construct our problem baseline, I need to challenge our initial assumptions. Please answer:\n` +
+              `1.  **Objective**: What core business metric (e.g. user activation, cart conversion, retention) are we optimizing?\n` +
+              `2.  **Target User**: Who experiences this problem most acutely and how often?\n` +
+              `3.  **Current Workaround**: How do users solve this problem today without our product?\n` +
+              `4.  **Evidence**: What qualitative or quantitative evidence do we have that this problem actually exists?`;
+            nextAction = { label: "Define Research Phase", stage: "Research" };
+          } else if (currentPhase === "Research") {
+            nextPhase = "Reason";
+            aiText = `Our problem objective is registered. Now, we proceed to **Research** to evaluate customer feedback and market gaps. I've retrieved **User Research** and **Product Discovery** modules:\n\n` +
+              `*   **The Mom Test Principle**: Never ask users if they like your idea. Ask about their past behaviors instead.\n` +
+              `*   **Competitor Landscape**: Direct competitors (like Blinkit or Instamart) focus on speed but force rigid fees; indirect competitors slow down checkout.\n\n` +
+              `### Customer Feedback Analysis\n` +
+              `Google Play & App Store complaints in this domain show:\n` +
+              `1.  *Out-of-Stock Items* (41%) — Items show as available but vanish during final checkout.\n` +
+              `2.  *High Delivery Charges* (27%) — Unexpected charges cause checkout-success friction.\n` +
+              `3.  *Coupon Failures* (18%) — Valid codes fail at checkout.\n\n` +
+              `If we run user interviews, we must ask open-ended questions like: *'How did you solve this the last time it happened?'* instead of leading ones like *'Would you use this feature?'*\n\n` +
+              `What other user feedback patterns have we observed, or should we move to mapping Jobs-to-be-Done?`;
+            nextAction = { label: "Map Jobs-to-be-Done (Reason)", stage: "Reason" };
+            card = { type: "Discovery", title: "Discovery Insights Active", description: "Customer review clusters and competitor gap mappings loaded.", targetUrl: "/product/discovery" };
+          } else if (currentPhase === "Reason") {
+            nextPhase = "Prioritize";
+            aiText = `We are in the **Reasoning** phase. Let's frame the user's underlying motivation and analyze solution trade-offs. I've retrieved the **Product Thinking** and **User Research (JTBD)** modules:\n\n` +
+              `### Target Jobs-to-be-Done (JTBD) Statement\n` +
+              `*\"When I am ordering on the app, I want to append forgotten items to my active order, so that I can avoid paying double delivery fees and waiting for two riders.\"*\n\n` +
+              `### Solution Trade-Offs\n` +
+              `1.  **Countdown Add-On Buffer**: High usability, simple implementation, but introduces a 60-second dispatch latency.\n` +
+              `2.  **ML Predictive Cart**: High tech complexity, no dispatch latency, but lower accuracy and high value risk.\n\n` +
+              `I recommend the **Countdown Add-On Buffer** because it directly targets the 'forgotten items' point of friction without requiring expensive AI predictions. Let's validate one constraint: does our packing workflow support a 60-second holding window?`;
+            nextAction = { label: "Prioritize Feature Scope", stage: "Prioritize" };
+          } else if (currentPhase === "Prioritize") {
+            nextPhase = "Recommend";
+            aiText = `Let's align on **Prioritization**. I have retrieved the **Prioritization Frameworks** module to rank our MVP backlog:\n\n` +
+              `*   **Kano Classification**: Must-Be features (secure payment, basic card verification) vs Performance features (processing speed) vs Attractive Delighters (the 60-Second Add-On buffer).\n` +
+              `*   **RICE Scoring Matrix**:\n` +
+              `    *   *Reach*: 34% of checkout users report placing duplicate orders within 5 minutes.\n` +
+              `    *   *Impact*: 2.0 (high user value/reduces extra shipping fee complaints).\n` +
+              `    *   *Confidence*: 80% (proven complaint logs).\n` +
+              `    *   *Effort*: Medium (2 person-months).\n\n` +
+              `$$\\text{RICE Score} = \\frac{\\text{Reach} \\times \\text{Impact} \\times \\text{Confidence}}{\\text{Effort}} = 54.4$$\n\n` +
+              `I recommend prioritizing the **60-Second Add-On Countdown** as our primary MVP candidate. Do you agree with this ranking, or should we adjust any effort estimates with tech leads?`;
+            nextAction = { label: "Define Success Metrics", stage: "Recommend" };
+          } else if (currentPhase === "Recommend") {
+            nextPhase = "Document";
+            aiText = `Here is my strategic **Recommendation** for our MVP scope and metrics. I have retrieved the **Product Analytics & Metrics** module:\n\n` +
+              `### Success Metric Strategy\n` +
+              `*   **North Star Metric**: Weekly Active Add-Ons (captures user utility & shipping cost reductions).\n` +
+              `*   **Input Metrics (AARRR)**: Checkout-success-to-add-on activation rate (Activation), Cohort retention rates (Retention).\n` +
+              `*   **Guardrail Metrics**: Packaging checkout completion latency (must stay under 70 seconds).\n\n` +
+              `### MVP Scope Mappings\n` +
+              `*   *Must-Have*: Success screen countdown widget, dispatch holding API, payment intent append.\n` +
+              `*   *Out of Scope*: Recommendation widgets, automated refunds.\n\n` +
+              `We are ready to compile these outcome-driven decisions into a formal Product Requirement Document (PRD).`;
+            nextAction = { label: "Generate & Document PRD", stage: "Document" };
+            card = { type: "Dashboard", title: "Metrics Dashboard Active", description: "North Star metrics and cohort charts generated.", targetUrl: "/product/dashboard" };
           } else {
-            // Guess Path A if they didn't specify
-            path = "A";
-            step = 1;
-            aiText = `Understood. Let's analyze this as an **Existing Product** context.\n\n**Step 1: Understand the Objective**\nWhat is the primary business or product objective for this initiative? (e.g. increase retention, improve onboarding, reduce churn, improve checkout). Why is this objective important right now?`;
+            nextPhase = "Document";
+            aiText = `I have successfully compiled our collaborative discovery decisions into a premium **Product Requirement Document (PRD)** inside our workspace editor. I've retrieved the **PM Philosophy (PRDs)** module:\n\n` +
+              `*   **Objective**: Reduce double delivery charges via a 60-second add-on buffer.\n` +
+              `*   **Success Metrics**: Weekly Active Add-Ons (North Star) & packaging latency guardrails.\n` +
+              `*   **Prioritized Scope**: Countdown widget, dispatch holding API, payment intent append.\n` +
+              `*   **Compliance & Risks**: RBI payment tokenization, DPDP data consent-based processing.\n\n` +
+              `Click the button below to view the finalized spec and begin technical planning!`;
+            card = { type: "PRD", title: "PRD Spec Draft (v2)", description: "Finalized Campus Delivery Add-On spec compiled.", targetUrl: "/product/prds" };
           }
-        } else if (path === "A") {
-          // Path A: Existing Product
-          if (step === 1) {
-            step = 2;
-            aiText = `Objective baseline logged. Now let's challenge our assumptions first. Why do we think this drop-off or problem exists? Is it due to packaging/delivery fees, out-of-stock items, or payment friction?
-
-**Step 2: Secondary Research (User Complaints & Reviews)**
-I have aggregated and analyzed the latest reviews from the Google Play Store and Apple App Store.
-* Google Play reviews analyzed: 100
-* Apple App Store reviews analyzed: 100
-
-### Top recurring complaints
-1. **Out-of-stock items during checkout** (41%) — Users report items showing as available during browsing but disappearing right at final checkout.
-2. **Unexpectedly high delivery charges** (27%) — High fees added at checkout cause immediate cart abandonment.
-3. **Coupon failures at final step** (18%) — Promo codes apply in cart but fail at payment.
-4. **Payment gateway failures** (9%) — UPI or card transaction timeouts.
-5. **App lag/performance issues** (5%) — Delayed checkout page loads.
-
-### Common feature requests
-* Save multiple carts for later checkout.
-* Better item substitutions (e.g., auto-replace out-of-stock items with closest match).
-* High-accuracy delivery ETA indicators.
-
-One concern I have is that coupon failures and out-of-stock drop-offs are creating a trust barrier. Let's think aloud: should we focus on fixing the inventory auto-substitution model first, or should we design a checkout-recovery mechanism?
-
-What other user request patterns or complaints have we observed? Or should we proceed to competitor profiling?`;
-          } else if (step === 2) {
-            step = 3;
-            aiText = `Let's perform a competitor landscape mapping. I've synthesized competitor behavior for major players in this category:
-
-### Direct Competitors
-* **Competitor X (e.g., Blinkit)**:
-  * *Strengths*: Highly optimized checkout flow (2 clicks to order); clear real-time item availability status.
-  * *Weaknesses*: No post-order item addition; rigid delivery fee structures.
-* **Competitor Y (e.g., Instamart)**:
-  * *Strengths*: Flexible order-modification window (1-minute after checkout).
-  * *Weaknesses*: Confusing coupon application flows; frequent payment gateway lag.
-
-### Indirect Competitors
-* **Large Grocery Apps**: Great inventory predictability, but checkout is slow and requires slot selection.
-
-### Market Gaps & Recommended Opportunities
-1. **Post-Checkout Order Modifications (RICE Rank 1)**: Users frequently forget 1 or 2 items. Letting them add items within a brief window eliminates double shipping fees.
-2. **Real-time Predictive Substitution Engine (RICE Rank 2)**: Recommending immediate alternatives for low-stock items before checkout completes.
-
-I recommend prioritizing the **Post-Checkout Order Modification** opportunity because it directly targets the high-friction "forgotten items" paint point without requiring heavy machine learning pipelines. 
-
-I'd like to validate one assumption first: does our warehouse packing workflow support a 60-second delay to allow item addition? If so, we can move forward. What are your thoughts on this operational constraint?`;
-          } else if (step === 3) {
-            step = 4;
-            aiText = `I recommend we focus on the **'60-Second Add-On Buffer'** solution. 
-
-I recommend this specific opportunity because our competitor research showed that none of our direct competitors currently support clean post-order merging without cancelling the active order. This gives us a strong market differentiator while directly resolving the 27% checkout drop-off caused by unexpected delivery charges (since users won't pay double shipping to get forgotten items).
-
-### Let's map out the proposed solution:
-* **The '60-Second Add-On Buffer'**: A sticky, low-friction banner appears on the checkout success screen with a 60-second countdown timer. It lets the user browse and append items to their active packing order in a single click.
-
-I don't think we should jump to a full PRD yet. First, how severe is our packing constraint? Can we afford to delay packing by 60 seconds? Or should we investigate real-time auto-substitution first?`;
-          } else if (step === 4) {
-            step = 5;
-            aiText = `I've mapped out the prioritization matrices. I recommend the '60-Second Add-On Buffer' as our primary candidate.
-
-### Prioritization Reasoning
-* **Reach**: High. Approximately 34% of checkout users report forgetting an item or placing a duplicate order within 5 minutes.
-* **Impact**: High. Reduces duplicate delivery fleet trips, saving shipping subsidy costs, and boosts customer retention.
-* **Confidence**: 80%. Validated by direct feedback complaining about secondary delivery charges.
-* **Effort**: Medium. Built entirely on top of our existing checkout state transition hooks.
-
-I recommend this because it has the highest RICE score compared to ML-based predictive carts.
-
-We are ready to transition to the **Define** stage to draft the PRD and roadmap. Click the action button below to move to the Define stage.`;
-            nextAction = { label: "Move to Define (PRD)", stage: "Define" };
-          } else if (step === 5) {
-            step = 6;
-            targetStage = "Define";
-            aiText = `We have transitioned to **Define**. I have generated the following workspace artifacts:
-- **Product Discovery**: Updated with competitor analysis.
-- **PRD Workspace**: Created a new draft spec (v1) for the '60-Second Add-On Buffer' solution.
-- **Dashboard**: Added the payment tokenization and checkout roadmap milestones.
-
-I've also generated a low-fidelity wireframe concept:
-*Wireframe concept*: A sticky 'Add item to order' banner on the checkout success screen showing a 60-second countdown timer.`;
-          }
-        } else {
-        // Path B: New Product
-        if (step === 1) {
-          step = 2;
-          aiText = `Objective baseline logged. I noticed something interesting: for a new product, we often fail by defining our target audience too broadly. Let's narrow it down. 
-
-I'd like to validate one assumption first: do our target users prioritize onboarding speed or transaction security? 
-
-I recommend we focus initially on a tight niche (e.g. urban college students) because they have high viral potential and low customer acquisition costs (CAC). Let's define the primary persona and why they will switch to our solution today.`;
-        } else if (step === 2) {
-          step = 3;
-          aiText = `Target persona defined. Let's analyze the market size and structural barriers. 
-
-Based on my analysis, the TAM (Total Addressable Market) is substantial, but I have one concern: regulatory compliance (such as DPDP Act 2023 and local FinTech licensing) represents a massive barrier. 
-
-I recommend a compliance-first launch strategy because launching without secure card tokenization and audit trails is high risk. Let's outline what market assumptions we are making.`;
-        } else if (step === 3) {
-          step = 4;
-          aiText = `Here is our competitor gap analysis for the new product domain:
-
-### Direct Competitors
-* **Competitor A**:
-  * *Strengths*: Large distribution network; rich loyalty integrations.
-  * *Weaknesses*: Complex multi-step transaction steps; poor offline support.
-* **Competitor B**:
-  * *Strengths*: Minimalist interface.
-  * *Weaknesses*: Slow settlement times; lack of transparent pricing.
-
-### Market Gaps & USP Recommendation
-We have identified a significant gap in instant, offline-capable microtransactions. 
-
-I recommend we position our product around a **'Minimalist, Offline-First Micro-Wallet'** because it directly addresses the high transaction failure rates on campus network zones, giving us a clear competitive edge. What are your thoughts on this positioning?`;
-        } else if (step === 4) {
-          step = 5;
-          aiText = `Competitor profiles mapped. I recommend the premium specialized micro-wallet service positioning option because it addresses the key user pain points in offline environments without triggering high cash burn risk. Which USP do you want to lock in?`;
-        } else if (step === 5) {
-          step = 6;
-          aiText = `USP selected and positioning locked. Let's define the feature set.
-
-I've generated a draft feature list. Let's categorize them:
-- *Must Have*: Core offline token authentication.
-- *Should Have*: Quick merchant payment widgets.
-- *Could Have*: Notifications and loyalty stamps.
-- *Future*: AI-driven predictive balance top-ups.
-
-I recommend we prioritize these using the Kano framework first rather than jumping directly to execution. Let's move to Step 7.`;
-        } else if (step === 6) {
-          step = 7;
-          aiText = `**Step 7: Prioritize (Kano Model)**
-I have prioritized the features using the Kano framework:
-- Core transaction flows belong to Must Have (basic expectation).
-- Offline tokenized cards belong to Performance (adds user value proportionally).
-- One-click split bills belong to Delighter.
-
-I recommend this breakdown because it balances absolute baseline stability with high-delight features. Do you agree with this categorization, or should we adjust any feature placement?`;
-        } else if (step === 7) {
-          step = 8;
-          aiText = `Feature priority aligned. Let's outline the layout.
-
-*Wireframe concept*: A simple 3-tab layout: Home, Payments, and Transactions. Focus on distraction-free flows to reduce user cognitive load.
-
-I don't think we should jump to coding yet. Let's write the PRD Specification first.`;
-        } else if (step === 8) {
-          step = 9;
-          aiText = `**Step 9: Generate PRD**
-I have created a new draft PRD containing the Objective, Target Users, Feature prioritization, and compliance mappings in the PRD Workspace.
-
-I recommend we review this PRD carefully before defining Success Metrics in Step 10.`;
-          card = { type: "PRD", title: "PRD Spec Draft (v1)", description: "PRD Draft ready for target app in PRD Workspace.", targetUrl: "/product/prds" };
-        } else if (step === 9) {
-          step = 10;
-          aiText = `**Step 10: Generate Success Metrics**
-- *North Star*: Weekly Active Transactions.
-- *Input Metrics*: User onboarding time, payment success rates.
-- *Output Metrics*: Month 1 retention rates.
-- *Guardrail Metrics*: Transaction latency (must be < 2 seconds).
-
-I recommend this set of metrics because they directly measure product value delivery (North Star) and operational health (latency). Let's define the release roadmap milestones in Step 11.`;
-        } else if (step === 10) {
-          step = 11;
-          aiText = `**Step 11: Generate Roadmap**
-- *Milestone 1 (Month 1)*: MVP Core Flow release.
-- *Milestone 2 (Month 2)*: Security auditing and compliance setup.
-- *Milestone 3 (Month 3)*: Analytics integration and dashboard reporting.
-
-I recommend this phased release schedule because it validates core product market fit before spending effort on secondary compliance auditing. Let's consolidate our PM decisions and notes in Step 12.`;
-          card = { type: "Dashboard", title: "Roadmap Milestones Loaded", description: "Payments roadmap generated on active Dashboard.", targetUrl: "/product/dashboard" };
-        } else if (step === 11) {
-          step = 12;
-          targetStage = "Define";
-          aiText = `**Step 12: Generate Product Notes**
-I have summarized our research, assumptions, risk mitigation strategies, and trade-offs into the Product Discovery and PRD workspaces. The discovery phase is officially complete!
-
-I recommend transitioning to design sprints next. You can continue exploring the product roadmap and workspace dashboards using the links.`;
-        } else {
-          aiText = "Our discovery and requirements planning is fully complete. What area should we deep-dive next?";
+          targetStage = nextPhase;
         }
       }
-    }
 
       const aiMsg: Message = {
         sender: "ai",
@@ -1078,6 +961,7 @@ I recommend transitioning to design sprints next. You can continue exploring the
           pmPath: path,
           pmStep: step,
           activeStep: nextStep,
+          reasoningPhase: targetStage as any,
           prdSections: updatedSections,
           prdVersion: updatedVersion,
           prdStatus: updatedStatus,
@@ -1370,6 +1254,17 @@ I recommend transitioning to design sprints next. You can continue exploring the
               </button>
             )}
           </div>
+          
+          {/* Middle: Reasoning Phase Indicator */}
+          {activeConv && showChatView && (
+            <div className="hidden md:flex items-center gap-2">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Current Phase:</span>
+              <span className="px-2.5 py-1 rounded-full bg-violet-600 text-white text-[10.5px] font-bold shadow-2xs flex items-center gap-1.5">
+                <Activity className="size-3.5" />
+                {activeConv.reasoningPhase || "Understand"}
+              </span>
+            </div>
+          )}
 
           {/* Right Controls */}
           <div className="flex items-center gap-4">
@@ -1475,6 +1370,21 @@ I recommend transitioning to design sprints next. You can continue exploring the
                             </div>
                           )}
                           <div className="space-y-2 max-w-[82%]">
+                            {/* Retrieved Models */}
+                            {isAi && idx === activeConv.messages.length - 1 && activeConv.retrievedModels && activeConv.retrievedModels.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mb-1.5 items-center">
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mr-1">Retrieved Models:</span>
+                                {activeConv.retrievedModels.map((m) => {
+                                  const name = PM_KNOWLEDGE_BASE[m]?.name || m;
+                                  return (
+                                    <span key={m} className="px-2 py-0.5 rounded-full bg-violet-50 text-violet-600 text-[9px] font-bold border border-violet-100/50 shadow-3xs flex items-center gap-1">
+                                      <Sparkles className="size-2.5 text-violet-500 animate-pulse" />
+                                      {name}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
                             {/* Message bubble */}
                             <div
                               className={cn(
@@ -1576,7 +1486,14 @@ I recommend transitioning to design sprints next. You can continue exploring the
                   rows={1}
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Ask Mycroft anything or describe your product idea…"
+                  placeholder={
+                    activeConv?.reasoningPhase === "Understand" ? "Understand Phase: Describe your objective & target users..." :
+                    activeConv?.reasoningPhase === "Research" ? "Research Phase: Analyze user feedback and competitor gaps..." :
+                    activeConv?.reasoningPhase === "Reason" ? "Reason Phase: Frame your Job-to-be-Done and trade-offs..." :
+                    activeConv?.reasoningPhase === "Prioritize" ? "Prioritization Phase: Map Kano categories & RICE scoring..." :
+                    activeConv?.reasoningPhase === "Recommend" ? "Recommend Phase: Define North Star metrics & MVP scope..." :
+                    "Document Phase: Review compiled PRD and next steps..."
+                  }
                   className="flex-1 px-4 py-2.5 text-[13px] border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900/10 bg-slate-50/60 placeholder:text-slate-400 leading-relaxed transition-shadow resize-none max-h-[160px] overflow-y-auto"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
