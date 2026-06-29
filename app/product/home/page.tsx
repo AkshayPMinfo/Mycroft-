@@ -345,6 +345,16 @@ export default function AIHomePage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const activeTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Auto-resize active composer textarea dynamically
+  useEffect(() => {
+    const textarea = activeTextareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    const nextHeight = Math.min(textarea.scrollHeight, 160);
+    textarea.style.height = `${nextHeight}px`;
+  }, [chatInput]);
 
   // Greeting based on time
   const [greeting, setGreeting] = useState("Good morning");
@@ -536,11 +546,77 @@ export default function AIHomePage() {
     setAttachedFile(null);
     setIsGenerating(true);
 
-    // AI Mock Response Logic
     setTimeout(() => {
       const userText = input.trim();
       const userTextLower = userText.toLowerCase();
+      const cleanInput = userTextLower;
+
+      // ─── Intent Detection Classification ───
       
+      // Safety Guardrails
+      const safetyKeywords = [
+        "porn", "sexual", "sex", "illegal", "drugs", "cocaine", "hack", "exploit", "kill", "bomb", "suicide", "harm", "violence", "rob", "steal", "nude", "naked", "xxx"
+      ];
+      const isSafetyViolation = safetyKeywords.some(kw => cleanInput.includes(kw));
+
+      // Identity Request
+      const identityKeywords = [
+        "who are you", "what is your name", "your name", "who you are", "identity", "what are you", "what is mycroft", "who is mycroft"
+      ];
+      const isIdentityRequest = identityKeywords.some(kw => cleanInput.includes(kw));
+
+      // Greetings
+      const greetingKeywords = [
+        "hi", "hello", "hey", "good morning", "good afternoon", "good evening", "yo", "sup", "greetings"
+      ];
+      const isGreeting = greetingKeywords.some(kw => cleanInput === kw || cleanInput.startsWith(kw + " ") || cleanInput.startsWith(kw + ",") || cleanInput.startsWith(kw + "!"));
+
+      // Help Requests
+      const helpKeywords = [
+        "help", "what can you do", "what do you do", "commands", "menu", "how to use", "capabilities"
+      ];
+      const isHelpRequest = helpKeywords.some(kw => cleanInput.includes(kw));
+
+      // PM Conceptual Questions
+      const isRiceQuestion = cleanInput.includes("what is rice") || cleanInput.includes("rice framework") || cleanInput.includes("rice prioritization");
+      const isDpdpQuestion = cleanInput.includes("dpdp") || cleanInput.includes("data protection");
+      const isRbiQuestion = cleanInput.includes("rbi") || cleanInput.includes("reserve bank");
+      const isMvpQuestion = cleanInput.includes("mvp") || cleanInput.includes("minimum viable");
+      const isPmInfoQuestion = isRiceQuestion || isDpdpQuestion || isRbiQuestion || isMvpQuestion;
+
+      // Out-of-Scope Questions
+      const outOfScopeKeywords = [
+        "weather", "capital of", "recipe", "cook", "python script", "write code", "sort a list", "tell me a joke", "sing a song", "movie", "actor", "sports", "football"
+      ];
+      const isOutOfScope = outOfScopeKeywords.some(kw => cleanInput.includes(kw)) || 
+                          (cleanInput.length > 5 && 
+                           !cleanInput.includes("product") && 
+                           !cleanInput.includes("app") && 
+                           !cleanInput.includes("user") && 
+                           !cleanInput.includes("business") && 
+                           !cleanInput.includes("market") && 
+                           !cleanInput.includes("feature") &&
+                           !cleanInput.includes("pm") &&
+                           !cleanInput.includes("discovery") &&
+                           !cleanInput.includes("competitor") &&
+                           !cleanInput.includes("design") &&
+                           !cleanInput.includes("develop") &&
+                           !cleanInput.includes("deliver") &&
+                           !cleanInput.includes("roadmap") &&
+                           !cleanInput.includes("metrics") &&
+                           !cleanInput.includes("strategy") &&
+                           !cleanInput.includes("launch") &&
+                           !cleanInput.includes("checkout") &&
+                           !cleanInput.includes("rbi") &&
+                           !cleanInput.includes("dpdp") &&
+                           !cleanInput.includes("upi") &&
+                           !cleanInput.includes("payment") &&
+                           !cleanInput.includes("substitut") &&
+                           !cleanInput.includes("order") &&
+                           !cleanInput.includes("zepto") &&
+                           !cleanInput.includes("existing") &&
+                           !cleanInput.includes("new"));
+
       let aiText = "";
       let targetStage = activeConv.activeStep;
       let nextAction: Message["action"] = undefined;
@@ -550,27 +626,50 @@ export default function AIHomePage() {
       let path = activeConv.pmPath;
       let step = activeConv.pmStep ?? 0;
 
-      // Decision Gate: Determine A or B
-      if (!path) {
-        if (userTextLower.includes("exist") || userTextLower.includes("yes") || userTextLower.includes("zepto") || userTextLower.includes("uber") || userTextLower.includes("whatsapp") || userTextLower.includes("airbnb")) {
-          path = "A";
-          step = 1;
-          aiText = "Understood. We are analyzing an **Existing Product** (Path A).\n\n**Step 1: Understand the Objective**\nWhat is the core business or product objective for this initiative?\nCommon options include:\n- Increase retention / reduce churn\n- Improve activation / onboarding\n- Increase revenue / conversion rates\n- Optimize checkout flow\n\nPlease describe your objective and why this is a priority now. Why do you believe this problem exists?";
-        } else if (userTextLower.includes("new") || userTextLower.includes("no") || userTextLower.includes("startup") || userTextLower.includes("saas") || userTextLower.includes("fintech")) {
-          path = "B";
-          step = 1;
-          aiText = "Exciting! We are embarking on a **New Product** journey (Path B).\n\n**Step 1: Understand the Objective**\nWhat is the core business objective or vision for this new product? What problem does it solve in the market?";
+      // ─── Intent Routing ───
+
+      if (isSafetyViolation) {
+        aiText = "I cannot fulfill this request. I am programmed to follow safety guardrails and maintain a professional tone.\n\nLet's redirect our focus back to Product Management. How can I assist you with your product discovery, roadmap, or feature specs today?";
+      } else if (isIdentityRequest) {
+        aiText = "I'm Mycroft, your AI Product Manager. I help Product Managers discover opportunities, research users, analyze competitors, prioritize features, create PRDs, roadmaps, and make better product decisions.";
+      } else if (isGreeting) {
+        aiText = "Hello! I'm Mycroft, your AI Product Manager. How can I help you with your product work today? We can start a new product discovery or continue with your current workflow.";
+      } else if (isHelpRequest) {
+        aiText = "I can help you with a wide range of Product Management tasks, including:\n- Conducting secondary research and analyzing user reviews\n- Competitor landscape mapping and gap analysis\n- Brainstorming and prioritizing features (RICE framework)\n- Drafting PRDs and detailing success metrics\n- Creating product roadmaps\n\nLet me know what product or feature you are working on, and we can get started!";
+      } else if (isOutOfScope) {
+        aiText = "That topic is outside Mycroft's current scope.\n\nRight now I'm focused on helping with Product Management activities such as discovery, research, PRDs, roadmaps, prioritization, metrics, and product strategy.\n\nLet's continue with your product work.";
+      } else if (isPmInfoQuestion) {
+        if (isRiceQuestion) {
+          aiText = "The RICE framework is a prioritization model used by Product Managers to rank features or ideas. It stands for:\n1. **Reach**: How many users will this impact?\n2. **Impact**: How much will this contribute to our objective?\n3. **Confidence**: How sure are we of our estimates?\n4. **Effort**: How much time and resources will this take?\n\nFormula: `(Reach * Impact * Confidence) / Effort`\n\nLet me know if you would like to apply this to our current project prioritization!";
+        } else if (isDpdpQuestion) {
+          aiText = "The Digital Personal Data Protection (DPDP) Act 2023 is India's comprehensive data privacy law. For product managers, it mandates:\n1. **Consent-based Processing**: Explicit, clear consent for collecting user data.\n2. **Purpose Limitation**: Data must only be used for the specified purpose.\n3. **Data Minimization**: Collect only what is strictly necessary.\n4. **Security Safeguards**: Robust protection against data breaches.\n\nLet me know if you would like me to audit our product specifications for DPDP compliance!";
+        } else if (isRbiQuestion) {
+          aiText = "The Reserve Bank of India (RBI) fintech guidelines regulate digital lending, payment aggregators, and credit cards. Key product considerations include:\n1. **Payment Tokenization**: Cards must be tokenized; raw card details cannot be stored.\n2. **FLDG (First Loss Default Guarantee)**: Regulated limits on credit risk sharing.\n3. **Customer Consent**: Explicit opt-ins for all credit and card products.\n\nLet me know if you want to verify our payment feature set against RBI guidelines!";
         } else {
-          // Guess Path A if they didn't specify
-          path = "A";
-          step = 1;
-          aiText = `Understood. Let's analyze this as an **Existing Product** context.\n\n**Step 1: Understand the Objective**\nWhat is the primary business or product objective for this initiative? (e.g. increase retention, improve onboarding, reduce churn, improve checkout). Why is this objective important right now?`;
+          aiText = "A Minimum Viable Product (MVP) is the simplest version of a product that allows you to collect the maximum amount of validated learning about customers with the least effort. It focuses on testing core hypotheses rather than building polished, complex features.\n\nWould you like me to help outline an MVP scope for your current product idea?";
         }
-      } else if (path === "A") {
-        // Path A: Existing Product
-        if (step === 1) {
-          step = 2;
-          aiText = `Objective baseline logged. Now let's challenge our assumptions first. Why do we think this drop-off or problem exists? Is it due to packaging/delivery fees, out-of-stock items, or payment friction?
+      } else {
+        // PM Task Workflow Integration
+        if (!path) {
+          if (userTextLower.includes("exist") || userTextLower.includes("yes") || userTextLower.includes("zepto") || userTextLower.includes("uber") || userTextLower.includes("whatsapp") || userTextLower.includes("airbnb")) {
+            path = "A";
+            step = 1;
+            aiText = "Understood. We are analyzing an **Existing Product** (Path A).\n\n**Step 1: Understand the Objective**\nWhat is the core business or product objective for this initiative?\nCommon options include:\n- Increase retention / reduce churn\n- Improve activation / onboarding\n- Increase revenue / conversion rates\n- Optimize checkout flow\n\nPlease describe your objective and why this is a priority now. Why do you believe this problem exists?";
+          } else if (userTextLower.includes("new") || userTextLower.includes("no") || userTextLower.includes("startup") || userTextLower.includes("saas") || userTextLower.includes("fintech")) {
+            path = "B";
+            step = 1;
+            aiText = "Exciting! We are embarking on a **New Product** journey (Path B).\n\n**Step 1: Understand the Objective**\nWhat is the core business objective or vision for this new product? What problem does it solve in the market?";
+          } else {
+            // Guess Path A if they didn't specify
+            path = "A";
+            step = 1;
+            aiText = `Understood. Let's analyze this as an **Existing Product** context.\n\n**Step 1: Understand the Objective**\nWhat is the primary business or product objective for this initiative? (e.g. increase retention, improve onboarding, reduce churn, improve checkout). Why is this objective important right now?`;
+          }
+        } else if (path === "A") {
+          // Path A: Existing Product
+          if (step === 1) {
+            step = 2;
+            aiText = `Objective baseline logged. Now let's challenge our assumptions first. Why do we think this drop-off or problem exists? Is it due to packaging/delivery fees, out-of-stock items, or payment friction?
 
 **Step 2: Secondary Research (User Complaints & Reviews)**
 I have aggregated and analyzed the latest reviews from the Google Play Store and Apple App Store.
@@ -592,9 +691,9 @@ I have aggregated and analyzed the latest reviews from the Google Play Store and
 One concern I have is that coupon failures and out-of-stock drop-offs are creating a trust barrier. Let's think aloud: should we focus on fixing the inventory auto-substitution model first, or should we design a checkout-recovery mechanism?
 
 What other user request patterns or complaints have we observed? Or should we proceed to competitor profiling?`;
-        } else if (step === 2) {
-          step = 3;
-          aiText = `Let's perform a competitor landscape mapping. I've synthesized competitor behavior for major players in this category:
+          } else if (step === 2) {
+            step = 3;
+            aiText = `Let's perform a competitor landscape mapping. I've synthesized competitor behavior for major players in this category:
 
 ### Direct Competitors
 * **Competitor X (e.g., Blinkit)**:
@@ -605,18 +704,18 @@ What other user request patterns or complaints have we observed? Or should we pr
   * *Weaknesses*: Confusing coupon application flows; frequent payment gateway lag.
 
 ### Indirect Competitors
-* **Large Grocery Apps**: Great inventory predictability, but checkout is slow and requires multi-step slot selection.
+* **Large Grocery Apps**: Great inventory predictability, but checkout is slow and requires slot selection.
 
 ### Market Gaps & Recommended Opportunities
-1. **Post-Checkout Order Modifications (RICE Rank 1)**: Users frequently forget 1 or 2 items. Letting them add items within a brief window eliminates double shipping fees and increases Average Order Value (AOV).
+1. **Post-Checkout Order Modifications (RICE Rank 1)**: Users frequently forget 1 or 2 items. Letting them add items within a brief window eliminates double shipping fees.
 2. **Real-time Predictive Substitution Engine (RICE Rank 2)**: Recommending immediate alternatives for low-stock items before checkout completes.
 
 I recommend prioritizing the **Post-Checkout Order Modification** opportunity because it directly targets the high-friction "forgotten items" paint point without requiring heavy machine learning pipelines. 
 
 I'd like to validate one assumption first: does our warehouse packing workflow support a 60-second delay to allow item addition? If so, we can move forward. What are your thoughts on this operational constraint?`;
-        } else if (step === 3) {
-          step = 4;
-          aiText = `I recommend we focus on the **'60-Second Add-On Buffer'** solution. 
+          } else if (step === 3) {
+            step = 4;
+            aiText = `I recommend we focus on the **'60-Second Add-On Buffer'** solution. 
 
 I recommend this specific opportunity because our competitor research showed that none of our direct competitors currently support clean post-order merging without cancelling the active order. This gives us a strong market differentiator while directly resolving the 27% checkout drop-off caused by unexpected delivery charges (since users won't pay double shipping to get forgotten items).
 
@@ -624,9 +723,9 @@ I recommend this specific opportunity because our competitor research showed tha
 * **The '60-Second Add-On Buffer'**: A sticky, low-friction banner appears on the checkout success screen with a 60-second countdown timer. It lets the user browse and append items to their active packing order in a single click.
 
 I don't think we should jump to a full PRD yet. First, how severe is our packing constraint? Can we afford to delay packing by 60 seconds? Or should we investigate real-time auto-substitution first?`;
-        } else if (step === 4) {
-          step = 5;
-          aiText = `I've mapped out the prioritization matrices. I recommend the '60-Second Add-On Buffer' as our primary candidate.
+          } else if (step === 4) {
+            step = 5;
+            aiText = `I've mapped out the prioritization matrices. I recommend the '60-Second Add-On Buffer' as our primary candidate.
 
 ### Prioritization Reasoning
 * **Reach**: High. Approximately 34% of checkout users report forgetting an item or placing a duplicate order within 5 minutes.
@@ -634,27 +733,22 @@ I don't think we should jump to a full PRD yet. First, how severe is our packing
 * **Confidence**: 80%. Validated by direct feedback complaining about secondary delivery charges.
 * **Effort**: Medium. Built entirely on top of our existing checkout state transition hooks.
 
-I recommend this because it has the highest RICE score compared to alternative models like machine-learning based predictive carts, which would require extensive training data and time.
+I recommend this because it has the highest RICE score compared to ML-based predictive carts.
 
 We are ready to transition to the **Define** stage to draft the PRD and roadmap. Click the action button below to move to the Define stage.`;
-          nextAction = { label: "Move to Define (PRD)", stage: "Define" };
-        } else if (step === 5) {
-          step = 6;
-          targetStage = "Define";
-          aiText = `We have transitioned to **Define**. I have generated the following workspace artifacts:
-- **Product Discovery**: Updated with review clusters and competitive gap analysis.
-- **PRD Workspace**: Created a new draft spec (v1) with sections for Objective, Target Users, Success Metrics, and Proposed Solution.
+            nextAction = { label: "Move to Define (PRD)", stage: "Define" };
+          } else if (step === 5) {
+            step = 6;
+            targetStage = "Define";
+            aiText = `We have transitioned to **Define**. I have generated the following workspace artifacts:
+- **Product Discovery**: Updated with competitor analysis.
+- **PRD Workspace**: Created a new draft spec (v1) for the '60-Second Add-On Buffer' solution.
 - **Dashboard**: Added the payment tokenization and checkout roadmap milestones.
 
 I've also generated a low-fidelity wireframe concept:
-*Wireframe concept*: A sticky 'Add item to order' banner on the checkout success screen showing a 60-second countdown timer.
-
-You can open these workspaces directly using the cards below to review and edit.`;
-          card = { type: "PRD", title: "PRD Spec Draft (v2)", description: "Zepto checkout optimizations ready for review.", targetUrl: "/product/prds" };
+*Wireframe concept*: A sticky 'Add item to order' banner on the checkout success screen showing a 60-second countdown timer.`;
+          }
         } else {
-          aiText = "The discovery and definition cycles are complete. What part of the design or development milestone would you like to review next?";
-        }
-      } else {
         // Path B: New Product
         if (step === 1) {
           step = 2;
@@ -752,6 +846,7 @@ I recommend transitioning to design sprints next. You can continue exploring the
           aiText = "Our discovery and requirements planning is fully complete. What area should we deep-dive next?";
         }
       }
+    }
 
       const aiMsg: Message = {
         sender: "ai",
@@ -1246,13 +1341,19 @@ I recommend transitioning to design sprints next. You can continue exploring the
           <div className="absolute bottom-6 left-0 right-0 flex justify-center px-6 pointer-events-none z-10">
             <div className="w-full max-w-3xl bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg p-3.5 pointer-events-auto flex flex-col gap-2.5 transition-all">
               <div className="flex gap-2.5 items-center">
-                <input
-                  type="text"
+                <textarea
+                  ref={activeTextareaRef}
+                  rows={1}
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   placeholder={activeConv ? `Ask Mycroft about the ${activeConv.activeStep} stage…` : "Type a message…"}
-                  className="flex-1 px-4 py-2.5 text-[13px] border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900/10 bg-slate-50/60 placeholder:text-slate-400 leading-relaxed transition-shadow"
-                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
+                  className="flex-1 px-4 py-2.5 text-[13px] border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900/10 bg-slate-50/60 placeholder:text-slate-400 leading-relaxed transition-shadow resize-none max-h-[160px] overflow-y-auto"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
                   disabled={isGenerating || !activeConv}
                 />
                 
