@@ -148,6 +148,41 @@ function renderMarkdown(text: string): React.ReactNode {
   );
 }
 
+function generateCleanTitle(input: string): string {
+  const clean = input.toLowerCase().trim();
+
+  // Handle identity, greeting and help queries
+  if (
+    clean.includes("who are you") ||
+    clean.includes("who is mycroft") ||
+    clean.includes("your name") ||
+    clean.includes("what is your name") ||
+    clean === "hi" ||
+    clean === "hello" ||
+    clean === "hey" ||
+    clean.includes("help")
+  ) {
+    return "About Mycroft";
+  }
+
+  // Clean trailing punctuation and spaces
+  let title = input.replace(/[?\s!.,]+$/g, "").trim();
+
+  // Sentence case: Capitalize first letter only
+  if (title.length > 0) {
+    title = title.charAt(0).toUpperCase() + title.slice(1);
+  } else {
+    title = "New Chat";
+  }
+
+  // Cap length
+  if (title.length > 30) {
+    title = title.substring(0, 30) + "...";
+  }
+
+  return title;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Message {
   sender: "ai" | "user";
@@ -201,7 +236,7 @@ const defaultPRDSections = (): Record<string, PRDSection> => ({
 
 const defaultWelcomeMessage = (): Message => ({
   sender: "ai",
-  text: "Welcome back, Akshay. I am Mycroft. Describe your product idea below, and I will guide you through the Product Management lifecycle. We will start with Product Discovery.",
+  text: "Welcome back, Akshay. I'm Mycroft, your AI Product Manager. I'm here to help you research, analyze, challenge ideas, and build exceptional products together. Describe your product idea below, and we can get started!",
   timestamp: "Just now"
 });
 
@@ -253,7 +288,7 @@ const makeSeededConversations = (): Conversation[] => [
     messages: [
       {
         sender: "ai",
-        text: "Hi Akshay! I'm Mycroft, your Senior AI Product Manager. Let's collaborate to discover, define, and launch your product.\n\nFirst decision: Does this product already exist, or is it a completely new concept?\n\n*You selected: **Existing Product** workflow.*",
+        text: "Hi Akshay! I'm Mycroft, your AI Product Manager. I'm here to help you research, analyze, challenge ideas, and build exceptional products together.\n\nFirst decision: Is this an existing product or a completely new startup concept?",
         timestamp: "2:25 PM"
       },
       {
@@ -350,7 +385,7 @@ const makeSeededConversations = (): Conversation[] => [
     messages: [
       {
         sender: "ai",
-        text: "Hi Akshay! I'm Mycroft, your Senior AI Product Manager. Let's collaborate to build your new startup concept.\n\n*Path selected: **New Product** (Path B).*\n\n**Step 1: Understand the Objective**\nWhat is the core business objective or vision for this Student Fintech product? What is the main problem we want to solve first?",
+        text: "Hi Akshay! I'm Mycroft, your AI Product Manager. I'm here to help you research, analyze, challenge ideas, and build exceptional products together.\n\n**Step 1: Understand the Objective**\nWhat is the core business objective or vision for this Student Fintech product? What is the main problem we want to solve first?",
         timestamp: "5:20 PM"
       }
     ]
@@ -578,7 +613,7 @@ export default function AIHomePage() {
     newConv.messages = [
       {
         sender: "ai",
-        text: "Hi Akshay! I am Mycroft, your Senior AI Product Manager. Let's collaborate to discover, define, and launch your product.\n\nFirst decision:\n**Does this product already exist (e.g. adding features to Zepto, Uber, WhatsApp) or is it a completely new concept (e.g. a brand new startup or SaaS idea)?**",
+        text: "Hi Akshay! I'm Mycroft, your AI Product Manager. I'm here to help you research, analyze, challenge ideas, and build exceptional products together.\n\nFirst decision:\n**Is this an existing product (e.g. adding features to Zepto, Uber, WhatsApp) or a completely new concept?**",
         timestamp: "Just now"
       }
     ];
@@ -608,7 +643,7 @@ export default function AIHomePage() {
           activeStep: action.stage,
           messages: [...c.messages, {
             sender: "ai" as const,
-            text: `Lifecycle stage transitioned to: **${action.stage}**. Relevant workspace cards have been generated inline.`,
+            text: `Activity transitioned to: **${action.stage}**. Relevant workspace cards have been generated inline.`,
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
           }]
         };
@@ -633,7 +668,7 @@ export default function AIHomePage() {
     // Determine updated title from first prompt
     let updatedTitle = activeConv.title;
     if (activeConv.title === "New Chat" || (activeConv.title === "UPI Expense Manager" && activeConv.messages.length <= 1)) {
-      updatedTitle = input.length > 28 ? `${input.substring(0, 28)}...` : input;
+      updatedTitle = generateCleanTitle(input);
     }
 
     setConversations(prev => prev.map(c =>
@@ -675,11 +710,22 @@ export default function AIHomePage() {
       const isHelpRequest = helpKeywords.some(kw => cleanInput.includes(kw));
 
       // PM Conceptual Questions
-      const isRiceQuestion = cleanInput.includes("what is rice") || cleanInput.includes("rice framework") || cleanInput.includes("rice prioritization");
-      const isDpdpQuestion = cleanInput.includes("dpdp") || cleanInput.includes("data protection");
-      const isRbiQuestion = cleanInput.includes("rbi") || cleanInput.includes("reserve bank");
-      const isMvpQuestion = cleanInput.includes("mvp") || cleanInput.includes("minimum viable");
-      const isPmInfoQuestion = isRiceQuestion || isDpdpQuestion || isRbiQuestion || isMvpQuestion;
+      const isRice = cleanInput.includes("rice");
+      const isIce = cleanInput.includes("ice") && !cleanInput.includes("juice") && !cleanInput.includes("police") && !cleanInput.includes("price") && !cleanInput.includes("device") && !cleanInput.includes("service") && !cleanInput.includes("nice");
+      const isKano = cleanInput.includes("kano");
+      const isMoscow = cleanInput.includes("moscow");
+      const isJtbd = cleanInput.includes("jtbd") || cleanInput.includes("jobs to be done") || cleanInput.includes("jobs-to-be-done");
+      const isMvp = cleanInput.includes("mvp") || cleanInput.includes("minimum viable");
+      const isPrd = cleanInput.includes("prd") || cleanInput.includes("product requirement");
+      const isOkrs = cleanInput.includes("okr");
+      const isNorthStar = cleanInput.includes("north star") || cleanInput.includes("northstar");
+      const isDiscovery = cleanInput.includes("discovery") || cleanInput.includes("product discovery");
+      const isPersonas = cleanInput.includes("persona") || cleanInput.includes("user persona");
+      const isWireframes = cleanInput.includes("wireframe");
+      const isAbTesting = cleanInput.includes("a/b testing") || cleanInput.includes("ab testing") || cleanInput.includes("split testing");
+      const isStrategy = cleanInput.includes("strategy") || cleanInput.includes("product strategy");
+
+      const isPmInfoQuestion = isRice || isIce || isKano || isMoscow || isJtbd || isMvp || isPrd || isOkrs || isNorthStar || isDiscovery || isPersonas || isWireframes || isAbTesting || isStrategy || cleanInput.includes("dpdp") || cleanInput.includes("rbi");
 
       // Out-of-Scope Questions
       const outOfScopeKeywords = [
@@ -736,12 +782,38 @@ export default function AIHomePage() {
       } else if (isOutOfScope) {
         aiText = "That topic is outside Mycroft's current scope.\n\nRight now I'm focused on helping with Product Management activities such as discovery, research, PRDs, roadmaps, prioritization, metrics, and product strategy.\n\nLet's continue with your product work.";
       } else if (isPmInfoQuestion) {
-        if (isRiceQuestion) {
-          aiText = "The RICE framework is a prioritization model used by Product Managers to rank features or ideas. It stands for:\n1. **Reach**: How many users will this impact?\n2. **Impact**: How much will this contribute to our objective?\n3. **Confidence**: How sure are we of our estimates?\n4. **Effort**: How much time and resources will this take?\n\nFormula: `(Reach * Impact * Confidence) / Effort`\n\nLet me know if you would like to apply this to our current project prioritization!";
-        } else if (isDpdpQuestion) {
-          aiText = "The Digital Personal Data Protection (DPDP) Act 2023 is India's comprehensive data privacy law. For product managers, it mandates:\n1. **Consent-based Processing**: Explicit, clear consent for collecting user data.\n2. **Purpose Limitation**: Data must only be used for the specified purpose.\n3. **Data Minimization**: Collect only what is strictly necessary.\n4. **Security Safeguards**: Robust protection against data breaches.\n\nLet me know if you would like me to audit our product specifications for DPDP compliance!";
-        } else if (isRbiQuestion) {
-          aiText = "The Reserve Bank of India (RBI) fintech guidelines regulate digital lending, payment aggregators, and credit cards. Key product considerations include:\n1. **Payment Tokenization**: Cards must be tokenized; raw card details cannot be stored.\n2. **FLDG (First Loss Default Guarantee)**: Regulated limits on credit risk sharing.\n3. **Customer Consent**: Explicit opt-ins for all credit and card products.\n\nLet me know if you want to verify our payment feature set against RBI guidelines!";
+        if (isRice) {
+          aiText = "The **RICE Prioritization Framework** ranks features by calculating: \n\n$$\\text{RICE Score} = \\frac{\\text{Reach} \\times \\text{Impact} \\times \\text{Confidence}}{\\text{Effort}}$$\n\n*   **Reach**: Number of users affected (e.g., per quarter).\n*   **Impact**: How much it helps a user (3 = massive, 2 = high, 1 = medium, 0.5 = low).\n*   **Confidence**: Certainty score (100% = high confidence, 80% = medium, 50% = low).\n*   **Effort**: Person-months required to build.\n\nLet me know if you would like me to calculate RICE scores for your proposed features!";
+        } else if (isIce) {
+          aiText = "The **ICE Prioritization Framework** is a simple, agile scoring model: \n\n$$\\text{ICE Score} = \\text{Impact} \\times \\text{Confidence} \\times \\text{Ease}$$\n\n*   **Impact**: Positive effect on target metrics (1-10 scale).\n*   **Confidence**: How certain we are of our impact and ease estimates (1-10 scale).\n*   **Ease**: Opposite of effort; how quick and cheap it is to build (1-10 scale).\n\nLet me know if you want to rank your feature backlog using the ICE model!";
+        } else if (isKano) {
+          aiText = "The **Kano Model** classifies features into five categories based on user preference and satisfaction:\n1. **Must-Be (Basics)**: Baseline requirements (e.g., login, secure payments). Users are unhappy if they are missing.\n2. **One-Dimensional (Performers)**: Increases satisfaction proportionally (e.g., page load speeds, battery savings).\n3. **Attractive (Delighters)**: Unexpected features that wow users (e.g., 60-second order add-on buffer).\n4. **Indifferent**: Features users do not care about.\n5. **Reverse**: Features that actually cause dissatisfaction.\n\nLet's map your product's requirements into these Kano categories to define your MVP!";
+        } else if (isMoscow) {
+          aiText = "The **MoSCoW Prioritization Method** groups project requirements into four distinct buckets:\n*   **Must Have**: Non-negotiable launch requirements critical for baseline operation.\n*   **Should Have**: High-priority requirements that add major value but aren't P0 blockers.\n*   **Could Have**: Nice-to-have features that can be postponed if time is limited.\n*   **Won't Have**: Declared out-of-scope for the current release cycle.\n\nLet me know if you would like me to partition our features into a MoSCoW matrix!";
+        } else if (isJtbd) {
+          aiText = "The **Jobs-to-be-Done (JTBD)** theory focuses on understanding the functional, emotional, and social 'job' a customer is hiring a product to do. Instead of tracking user attributes, it focuses on the underlying situation and motivation:\n\n*\"When I am [situation], I want to [motivation], so that I can [desired outcome].\"*\n\nLet's draft some JTBD statements for your product's target persona!";
+        } else if (isMvp) {
+          aiText = "A **Minimum Viable Product (MVP)** is the most basic iteration of your product designed to validate core value propositions and gather user learning with minimal engineering effort. It focuses on testing critical hypotheses rather than building polished, secondary features.\n\nWould you like me to outline a lean MVP scope for your startup idea?";
+        } else if (isPrd) {
+          aiText = "A **Product Requirement Document (PRD)** translates product strategy into technical requirements. A premium spec contains:\n1. **Objective**: Business goals and problems being solved.\n2. **Target Users**: Core personas and user journeys.\n3. **Scope**: Feature specifications, use cases, and out-of-scope declarations.\n4. **Success Metrics**: North Star and performance guardrails.\n5. **Compliance & Risks**: Legal and operational constraints.\n\nLet me know if you would like me to generate a clean PRD draft in our editor!";
+        } else if (isOkrs) {
+          aiText = "**OKRs (Objectives and Key Results)** align company and team goals around measurable outcomes:\n*   **Objectives**: Qualitative, inspirational statements of what we want to achieve (e.g., 'Deliver the fastest checkout experience in India').\n*   **Key Results**: Quantitative, measurable targets showing if we met our objective (e.g., 'Reduce cart checkout drop-off rate from 27% to 15%').\n\nWould you like me to help draft a set of OKRs for your team?";
+        } else if (isNorthStar) {
+          aiText = "A **North Star Metric** is the single key metric that best captures the core value your product delivers to its customers. It should measure user value, product engagement, and business health (e.g., Spotify's North Star is 'Time spent listening').\n\nLet's brainstorm the ideal North Star Metric and input guardrails for your product!";
+        } else if (isDiscovery) {
+          aiText = "**Product Discovery** is the process of researching and validating user problems, competitor landscapes, and operational constraints before committing engineering effort. It ensures we build the *right* thing, rather than rushing to build the wrong thing.\n\nWould you like me to perform competitive research or review synthesis for your product concept?";
+        } else if (isPersonas) {
+          aiText = "**User Personas** are semi-fictional representations of your target customers based on real data and qualitative research. They summarize goals, pain points, motivations, and behaviors (e.g., 'Akshay, the time-constrained college student').\n\nLet's construct a target user persona profile to align our feature design!";
+        } else if (isWireframes) {
+          aiText = "**Wireframes** are low-fidelity visual guides that establish the skeletal framework and structural layout of a page or interface. They focus on element placement, information hierarchy, and user flow rather than visual styling and colors.\n\nWould you like me to map out a low-fidelity wireframe schematic for your checkout success screen?";
+        } else if (isAbTesting) {
+          aiText = "**A/B Testing (Split Testing)** compares two versions of a webpage or app flow (A and B) against each other to determine which one performs better on a target metric. It requires dividing traffic randomly and tracking statistical significance.\n\nLet's design a split test protocol to compare a 60-second add-on buffer banner against a standard post-order cancellation flow!";
+        } else if (isStrategy) {
+          aiText = "A **Product Strategy** defines your product's target market, unique value propositions, business model, and long-term milestones. It connects corporate vision with the day-to-day product backlog and roadmap execution.\n\nWould you like me to help draft a strategic pitch deck outlining market gaps and product differentiation?";
+        } else if (cleanInput.includes("dpdp")) {
+          aiText = "The Digital Personal Data Protection (DPDP) Act 2023 is India's comprehensive data privacy law. For product managers, it mandates consent-based processing, purpose limitation, data minimization, and robust security safeguards.\n\nLet me know if you would like me to audit our product specifications for DPDP compliance!";
+        } else if (cleanInput.includes("rbi")) {
+          aiText = "The Reserve Bank of India (RBI) fintech guidelines regulate digital lending, payment aggregators, and credit cards. Key considerations include payment tokenization, First Loss Default Guarantee (FLDG) limits, and explicit customer consent.\n\nLet me know if you want to verify our payment feature set against RBI guidelines!";
         } else {
           aiText = "A Minimum Viable Product (MVP) is the simplest version of a product that allows you to collect the maximum amount of validated learning about customers with the least effort. It focuses on testing core hypotheses rather than building polished, complex features.\n\nWould you like me to help outline an MVP scope for your current product idea?";
         }
@@ -1109,11 +1181,11 @@ I recommend transitioning to design sprints next. You can continue exploring the
                         : "hover:bg-slate-50 text-slate-600 hover:text-slate-950"
                     )}
                   >
-                    <div className="flex items-start justify-between gap-1.5 w-full">
-                      <span className="text-xs font-semibold truncate flex-1 leading-snug">{c.title}</span>
-                      <span className="text-[9px] text-slate-400 whitespace-nowrap pt-0.5">{c.displayTime || "10:30 AM"}</span>
+                    <div className="flex flex-col gap-0.5 w-full">
+                      <span className="text-xs font-semibold truncate text-slate-800 leading-snug">{c.title}</span>
+                      <span className="text-[10px] text-slate-500">Last Activity: {c.activeStep || "General Chat"}</span>
+                      <span className="text-[9px] text-slate-400">Updated: {c.displayTime || "Just now"}</span>
                     </div>
-                    <span className="text-[10px] text-slate-400 mt-0.5 font-medium">Stage: {c.activeStep}</span>
                     {isActive && (
                       <span className="absolute right-3.5 bottom-3.5 size-1.5 rounded-full bg-violet-600 animate-pulse" />
                     )}
@@ -1144,11 +1216,11 @@ I recommend transitioning to design sprints next. You can continue exploring the
                         : "hover:bg-slate-50 text-slate-600 hover:text-slate-950"
                     )}
                   >
-                    <div className="flex items-start justify-between gap-1.5 w-full">
-                      <span className="text-xs font-semibold truncate flex-1 leading-snug">{c.title}</span>
-                      <span className="text-[9px] text-slate-400 whitespace-nowrap pt-0.5">{c.displayTime || "Yesterday"}</span>
+                    <div className="flex flex-col gap-0.5 w-full">
+                      <span className="text-xs font-semibold truncate text-slate-800 leading-snug">{c.title}</span>
+                      <span className="text-[10px] text-slate-500">Last Activity: {c.activeStep || "General Chat"}</span>
+                      <span className="text-[9px] text-slate-400">Updated: {c.displayTime || "Yesterday"}</span>
                     </div>
-                    <span className="text-[10px] text-slate-400 mt-0.5 font-medium">Stage: {c.activeStep}</span>
                     {isActive && (
                       <span className="absolute right-3.5 bottom-3.5 size-1.5 rounded-full bg-violet-600 animate-pulse" />
                     )}
@@ -1179,11 +1251,11 @@ I recommend transitioning to design sprints next. You can continue exploring the
                         : "hover:bg-slate-50 text-slate-600 hover:text-slate-950"
                     )}
                   >
-                    <div className="flex items-start justify-between gap-1.5 w-full">
-                      <span className="text-xs font-semibold truncate flex-1 leading-snug">{c.title}</span>
-                      <span className="text-[9px] text-slate-400 whitespace-nowrap pt-0.5">{c.displayTime || "Earlier"}</span>
+                    <div className="flex flex-col gap-0.5 w-full">
+                      <span className="text-xs font-semibold truncate text-slate-800 leading-snug">{c.title}</span>
+                      <span className="text-[10px] text-slate-500">Last Activity: {c.activeStep || "General Chat"}</span>
+                      <span className="text-[9px] text-slate-400">Updated: {c.displayTime || "Earlier"}</span>
                     </div>
-                    <span className="text-[10px] text-slate-400 mt-0.5 font-medium">Stage: {c.activeStep}</span>
                     {isActive && (
                       <span className="absolute right-3.5 bottom-3.5 size-1.5 rounded-full bg-violet-600 animate-pulse" />
                     )}
@@ -1275,13 +1347,13 @@ I recommend transitioning to design sprints next. You can continue exploring the
 
           {/* ==================== VIEW 1: WIREFRAME LANDING SCREEN ==================== */}
           {!showChatView ? (
-            <div className="flex-1 flex flex-col justify-center items-center max-w-2xl mx-auto w-full px-6 py-12 space-y-8 pb-32">
+            <div className="flex-1 flex flex-col justify-center items-center max-w-3xl mx-auto w-full px-6 py-12 space-y-8 pb-20">
               
               {/* Header Titles */}
               <div className="space-y-2 text-center w-full">
                 <p className="text-[13px] font-semibold text-slate-500">{greeting}, Akshay! 👋</p>
                 <h2 className="text-[36px] font-bold text-slate-900 tracking-tight leading-tight">What are we building today?</h2>
-                <p className="text-[13.5px] text-slate-500 font-medium">I&apos;ll help you discover, define and build products users love.</p>
+                <p className="text-[13.5px] text-slate-500 font-medium">I&apos;m here to help you research, analyze, challenge ideas, and build exceptional products together.</p>
               </div>
 
               {/* Large Prompt Input Box */}
@@ -1327,7 +1399,7 @@ I recommend transitioning to design sprints next. You can continue exploring the
             </div>
           ) : (
             /* ==================== VIEW 2: ACTIVE CONVERSATION / CHAT INTERFACE ==================== */
-            <div className="flex-1 w-full max-w-3xl mx-auto px-6 pt-6 pb-48">
+            <div className="flex-1 w-full max-w-4xl mx-auto px-6 pt-6 pb-36">
               {activeConv ? (
                 <div className="space-y-6">
                   {activeConv.messages.map((msg, idx) => {
@@ -1435,14 +1507,14 @@ I recommend transitioning to design sprints next. You can continue exploring the
         {/* ── Active Chat Composer (displayed only when chatting) ── */}
         {showChatView && (
           <div className="absolute bottom-6 left-0 right-0 flex justify-center px-6 pointer-events-none z-10">
-            <div className="w-full max-w-3xl bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg p-3.5 pointer-events-auto flex flex-col gap-2.5 transition-all">
+            <div className="w-full max-w-4xl bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg p-3.5 pointer-events-auto transition-all">
               <div className="flex gap-2.5 items-center">
                 <textarea
                   ref={activeTextareaRef}
                   rows={1}
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder={activeConv ? `Ask Mycroft about the ${activeConv.activeStep} stage…` : "Type a message…"}
+                  placeholder="Ask Mycroft anything or describe your product idea…"
                   className="flex-1 px-4 py-2.5 text-[13px] border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900/10 bg-slate-50/60 placeholder:text-slate-400 leading-relaxed transition-shadow resize-none max-h-[160px] overflow-y-auto"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
@@ -1478,26 +1550,6 @@ I recommend transitioning to design sprints next. You can continue exploring the
                   <span className="hidden sm:inline">Send</span>
                 </Button>
               </div>
-
-              {/* Suggestion Chips */}
-              {activeConv && (
-                <div className="flex flex-wrap items-center gap-1.5 pl-0.5">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mr-0.5">Try:</span>
-                  {activeConv.pmPath === "B" ? (
-                    <>
-                      <button onClick={() => handleSendMessage("Our target users are urban college students")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Set Users</button>
-                      <button onClick={() => handleSendMessage("Recommend the strongest USP")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Recommend USP</button>
-                      <button onClick={() => handleSendMessage("Generate and prioritize feature list")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Prioritize Features</button>
-                    </>
-                  ) : (
-                    <>
-                      <button onClick={() => handleSendMessage("Import and cluster reviews for this app")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Cluster Reviews</button>
-                      <button onClick={() => handleSendMessage("Outline competitor gaps")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Competitor Gaps</button>
-                      <button onClick={() => handleSendMessage("Validate 60-Second Add-On buffer")} className="h-6 px-2.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">• Validate Solution</button>
-                    </>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         )}
