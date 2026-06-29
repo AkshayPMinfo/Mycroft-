@@ -28,10 +28,10 @@ const productItems = [
   { label: "AI Home", href: "/product/home", icon: Home },
   { label: "Discovery", href: "/product/discovery", icon: Search },
   { label: "PRDs", href: "/product/prds", icon: FileText },
-  { label: "Roadmap", href: "#", icon: GitBranch },
-  { label: "User Research", href: "#", icon: Users },
-  { label: "Competitors", href: "#", icon: Swords },
-  { label: "Metrics", href: "#", icon: BarChart2 },
+  { label: "Roadmap", href: "#", icon: GitBranch, comingSoon: true },
+  { label: "User Research", href: "#", icon: Users, comingSoon: true },
+  { label: "Competitors", href: "#", icon: Swords, comingSoon: true },
+  { label: "Metrics", href: "#", icon: BarChart2, comingSoon: true },
 ];
 
 const engineeringItems = [
@@ -99,6 +99,28 @@ export function Sidebar() {
           {productItems.map((item) => {
             const active = pathname === item.href;
             const Icon = item.icon;
+            
+            if (item.comingSoon) {
+              return (
+                <div
+                  key={item.label}
+                  title={isSidebarCollapsed ? `${item.label} (Coming Soon)` : undefined}
+                  className={cn(
+                    "flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium text-slate-400 cursor-not-allowed select-none bg-transparent opacity-65",
+                    isSidebarCollapsed && "justify-center px-0"
+                  )}
+                >
+                  <Icon className="size-4 shrink-0 text-slate-350" />
+                  {!isSidebarCollapsed && (
+                    <div className="flex items-center justify-between w-full min-w-0 gap-1">
+                      <span className="truncate">{item.label}</span>
+                      <span className="text-[8px] font-bold uppercase tracking-wider bg-slate-100 text-slate-450 px-1.5 py-0.5 rounded shrink-0">Soon</span>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             return (
               <Link
                 key={item.label}
@@ -205,6 +227,19 @@ export function Sidebar() {
         {productItems.slice(0, 5).map((item) => {
           const active = pathname === item.href;
           const Icon = item.icon;
+          
+          if (item.comingSoon) {
+            return (
+              <div
+                key={item.label}
+                className="flex flex-1 h-10 items-center justify-center rounded-xl text-slate-300 cursor-not-allowed select-none opacity-50"
+                title={`${item.label} (Coming Soon)`}
+              >
+                <Icon className="size-4" />
+              </div>
+            );
+          }
+
           return (
             <Link
               key={item.label}

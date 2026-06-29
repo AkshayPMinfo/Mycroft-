@@ -148,6 +148,18 @@ function renderMarkdown(text: string): React.ReactNode {
   );
 }
 
+function getCleanActivity(step: string): string {
+  if (!step) return "General Chat";
+  const lower = step.toLowerCase();
+  if (lower === "discovery" || lower === "research") return "Product Research";
+  if (lower === "define" || lower === "prd") return "Spec Drafting";
+  if (lower === "design") return "User Flows";
+  if (lower === "develop") return "Code Setup";
+  if (lower === "deliver") return "Release Prep";
+  if (lower === "debrief") return "Post-Launch Audit";
+  return "General Chat";
+}
+
 function generateCleanTitle(input: string): string {
   const clean = input.toLowerCase().trim();
 
@@ -167,13 +179,20 @@ function generateCleanTitle(input: string): string {
 
   // Clean trailing punctuation and spaces
   let title = input.replace(/[?\s!.,]+$/g, "").trim();
+  if (!title) return "New Chat";
 
-  // Sentence case: Capitalize first letter only
-  if (title.length > 0) {
-    title = title.charAt(0).toUpperCase() + title.slice(1);
-  } else {
-    title = "New Chat";
-  }
+  const ABBREVIATIONS = ["ai", "upi", "prd", "rice", "ice", "moscow", "jtbd", "okr", "okrs", "mvp"];
+  const words = title.split(/\s+/);
+  title = words.map(word => {
+    const cleanWord = word.replace(/[^a-zA-Z]/g, "").toLowerCase();
+    if (ABBREVIATIONS.includes(cleanWord)) {
+      return word.toUpperCase();
+    }
+    if (word.length > 0) {
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    }
+    return word;
+  }).join(" ");
 
   // Cap length
   if (title.length > 30) {
@@ -501,25 +520,36 @@ export default function AIHomePage() {
   // Bootstrap state
   useEffect(() => {
     const savedConvs = localStorage.getItem("mycroft_home_conversations");
-    const savedActiveId = localStorage.getItem("mycroft_home_active_conv_id");
 
     let loadedConvs: Conversation[] = [];
     if (savedConvs) {
       try {
-        loadedConvs = JSON.parse(savedConvs);
+        const parsed = JSON.parse(savedConvs);
+        if (Array.isArray(parsed)) {
+          loadedConvs = parsed.filter((c: Conversation) => c.messages.length > 1 || c.title !== "New Chat");
+        }
       } catch (e) {
         console.error(e);
       }
     }
 
     if (loadedConvs.length === 0) {
-      const seeded = makeSeededConversations();
-      setConversations(seeded);
-      setActiveConvId("conv_upi_expense");
-    } else {
-      setConversations(loadedConvs);
-      setActiveConvId(savedActiveId || loadedConvs[0].id);
+      loadedConvs = makeSeededConversations();
     }
+
+    // Always start with a brand-new clean conversation on reload/fresh session
+    const newConv = makeDefaultConv();
+    newConv.messages = [
+      {
+        sender: "ai",
+        text: "Hi Akshay! I'm Mycroft, your AI Product Manager. I'm here to help you research, analyze, challenge ideas, and build exceptional products together.\n\nFirst decision:\n**Is this an existing product (e.g. adding features to Zepto, Uber, WhatsApp) or a completely new concept?**",
+        timestamp: "Just now"
+      }
+    ];
+
+    setConversations([newConv, ...loadedConvs]);
+    setActiveConvId(newConv.id);
+    setShowChatView(false);
 
     const hours = new Date().getHours();
     if (hours >= 17) {
@@ -1181,10 +1211,19 @@ I recommend transitioning to design sprints next. You can continue exploring the
                         : "hover:bg-slate-50 text-slate-600 hover:text-slate-950"
                     )}
                   >
-                    <div className="flex flex-col gap-0.5 w-full">
-                      <span className="text-xs font-semibold truncate text-slate-800 leading-snug">{c.title}</span>
-                      <span className="text-[10px] text-slate-500">Last Activity: {c.activeStep || "General Chat"}</span>
-                      <span className="text-[9px] text-slate-400">Updated: {c.displayTime || "Just now"}</span>
+                    <div className="flex flex-col gap-1 w-full py-0.5">
+                      <span className="text-[13px] font-bold text-slate-800 tracking-tight truncate leading-snug group-hover:text-violet-700 transition-colors">
+                        {c.title}
+                      </span>
+                      <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium">
+                        <p className="flex items-center gap-1">
+                          <span className="text-slate-400">Last Active •</span>
+                          <span className="text-slate-700 font-semibold">{getCleanActivity(c.activeStep)}</span>
+                        </p>
+                        <p className="text-[9px] text-slate-400 font-normal">
+                          Updated {c.displayTime || "Just now"}
+                        </p>
+                      </div>
                     </div>
                     {isActive && (
                       <span className="absolute right-3.5 bottom-3.5 size-1.5 rounded-full bg-violet-600 animate-pulse" />
@@ -1216,10 +1255,19 @@ I recommend transitioning to design sprints next. You can continue exploring the
                         : "hover:bg-slate-50 text-slate-600 hover:text-slate-950"
                     )}
                   >
-                    <div className="flex flex-col gap-0.5 w-full">
-                      <span className="text-xs font-semibold truncate text-slate-800 leading-snug">{c.title}</span>
-                      <span className="text-[10px] text-slate-500">Last Activity: {c.activeStep || "General Chat"}</span>
-                      <span className="text-[9px] text-slate-400">Updated: {c.displayTime || "Yesterday"}</span>
+                    <div className="flex flex-col gap-1 w-full py-0.5">
+                      <span className="text-[13px] font-bold text-slate-800 tracking-tight truncate leading-snug group-hover:text-violet-700 transition-colors">
+                        {c.title}
+                      </span>
+                      <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium">
+                        <p className="flex items-center gap-1">
+                          <span className="text-slate-400">Last Active •</span>
+                          <span className="text-slate-700 font-semibold">{getCleanActivity(c.activeStep)}</span>
+                        </p>
+                        <p className="text-[9px] text-slate-400 font-normal">
+                          Updated {c.displayTime || "Yesterday"}
+                        </p>
+                      </div>
                     </div>
                     {isActive && (
                       <span className="absolute right-3.5 bottom-3.5 size-1.5 rounded-full bg-violet-600 animate-pulse" />
@@ -1251,10 +1299,19 @@ I recommend transitioning to design sprints next. You can continue exploring the
                         : "hover:bg-slate-50 text-slate-600 hover:text-slate-950"
                     )}
                   >
-                    <div className="flex flex-col gap-0.5 w-full">
-                      <span className="text-xs font-semibold truncate text-slate-800 leading-snug">{c.title}</span>
-                      <span className="text-[10px] text-slate-500">Last Activity: {c.activeStep || "General Chat"}</span>
-                      <span className="text-[9px] text-slate-400">Updated: {c.displayTime || "Earlier"}</span>
+                    <div className="flex flex-col gap-1 w-full py-0.5">
+                      <span className="text-[13px] font-bold text-slate-800 tracking-tight truncate leading-snug group-hover:text-violet-700 transition-colors">
+                        {c.title}
+                      </span>
+                      <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium">
+                        <p className="flex items-center gap-1">
+                          <span className="text-slate-400">Last Active •</span>
+                          <span className="text-slate-700 font-semibold">{getCleanActivity(c.activeStep)}</span>
+                        </p>
+                        <p className="text-[9px] text-slate-400 font-normal">
+                          Updated {c.displayTime || "Earlier"}
+                        </p>
+                      </div>
                     </div>
                     {isActive && (
                       <span className="absolute right-3.5 bottom-3.5 size-1.5 rounded-full bg-violet-600 animate-pulse" />
@@ -1268,10 +1325,15 @@ I recommend transitioning to design sprints next. You can continue exploring the
         </div>
 
         {/* Sidebar Footer */}
-        <div className="p-3 border-t border-slate-100 bg-white flex justify-center">
-          <button className="text-[11px] font-semibold text-slate-500 hover:text-slate-900 flex items-center gap-1 transition-colors">
-            View all conversations
-            <ArrowRight className="size-3" />
+        <div className="p-3 bg-slate-50/50 border-t border-slate-100/80 flex flex-col gap-2">
+          <button className="w-full py-2 px-3.5 rounded-xl text-[11px] font-semibold text-slate-650 hover:text-slate-900 hover:bg-slate-100/60 flex items-center justify-between transition-all duration-200 border border-slate-200/40 bg-white shadow-2xs group">
+            <span className="flex items-center gap-1.5">
+              <span>View all conversations</span>
+              <span className="text-[9px] font-bold bg-slate-100 text-slate-500 py-0.5 px-1.5 rounded-full group-hover:bg-violet-50 group-hover:text-violet-600 transition-colors">
+                {conversations.length}
+              </span>
+            </span>
+            <ArrowRight className="size-3.5 text-slate-400 group-hover:text-slate-700 group-hover:translate-x-0.5 transition-all" />
           </button>
         </div>
       </div>
@@ -1379,7 +1441,7 @@ I recommend transitioning to design sprints next. You can continue exploring the
                 <div className="flex items-center justify-between pt-2 border-t border-slate-100 mt-2">
                   <button
                     onClick={handleAttachmentClick}
-                    className="p-2 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-655 transition-colors"
+                    className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-800 hover:scale-105 active:scale-95 transition-all duration-150"
                     title="Attach file"
                   >
                     <Paperclip className="size-4.5" />
@@ -1535,7 +1597,7 @@ I recommend transitioning to design sprints next. You can continue exploring the
 
                 <button
                   onClick={handleAttachmentClick}
-                  className="p-2 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors shrink-0"
+                  className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-800 hover:scale-105 active:scale-95 transition-all duration-150 shrink-0"
                   title="Attach file"
                 >
                   <Paperclip className="size-4" />
