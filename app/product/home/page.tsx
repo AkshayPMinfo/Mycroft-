@@ -363,11 +363,6 @@ export default function AIHomePage() {
   useEffect(() => {
     const savedConvs = localStorage.getItem("mycroft_home_conversations");
     const savedActiveId = localStorage.getItem("mycroft_home_active_conv_id");
-    const savedConvCollapse = localStorage.getItem("mycroft_conv_sidebar_collapsed_home");
-
-    if (savedConvCollapse !== null) {
-      setConvSidebarCollapsed(savedConvCollapse === "true");
-    }
 
     let loadedConvs: Conversation[] = [];
     if (savedConvs) {
@@ -469,9 +464,7 @@ export default function AIHomePage() {
 
   // Toggle conversations sidebar collapse
   const toggleConvSidebar = () => {
-    const nextVal = !convSidebarCollapsed;
-    setConvSidebarCollapsed(nextVal);
-    localStorage.setItem("mycroft_conv_sidebar_collapsed_home", String(nextVal));
+    setConvSidebarCollapsed(!convSidebarCollapsed);
   };
 
   // Start new clean conversation
