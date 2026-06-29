@@ -44,6 +44,110 @@ function getProjectProgressText(conv: Conversation) {
   return "Current Stage • Discovery";
 }
 
+function renderInlineMarkdown(text: string): React.ReactNode[] {
+  const regex = /(\*\*.*?\*\*|`.*?`|\*.*?\*)/g;
+  const parts = text.split(regex);
+
+  return parts.map((part, idx) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={idx} className="font-bold text-slate-900 bg-slate-100/40 px-0.5 rounded-sm">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (part.startsWith("`") && part.endsWith("`")) {
+      return (
+        <code key={idx} className="font-mono text-[11.5px] bg-slate-105 text-violet-700 px-1 py-0.5 rounded border border-slate-200/50">
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    if (part.startsWith("*") && part.endsWith("*")) {
+      return (
+        <em key={idx} className="italic text-slate-700">
+          {part.slice(1, -1)}
+        </em>
+      );
+    }
+    return part;
+  });
+}
+
+function renderMarkdown(text: string): React.ReactNode {
+  if (!text) return null;
+  const lines = text.split("\n");
+
+  return (
+    <div className="space-y-1.5">
+      {lines.map((line, idx) => {
+        let cleanLine = line.trim();
+
+        // 1. Headings (### or ## or #)
+        if (cleanLine.startsWith("### ")) {
+          return (
+            <h4 key={idx} className="text-[13.5px] font-bold text-slate-900 mt-2.5 mb-1 tracking-tight">
+              {renderInlineMarkdown(cleanLine.substring(4))}
+            </h4>
+          );
+        }
+        if (cleanLine.startsWith("## ")) {
+          return (
+            <h3 key={idx} className="text-[14.5px] font-bold text-slate-900 mt-3 mb-1.5 tracking-tight">
+              {renderInlineMarkdown(cleanLine.substring(3))}
+            </h3>
+          );
+        }
+        if (cleanLine.startsWith("# ")) {
+          return (
+            <h2 key={idx} className="text-base font-bold text-slate-950 mt-4 mb-2 tracking-tight">
+              {renderInlineMarkdown(cleanLine.substring(2))}
+            </h2>
+          );
+        }
+
+        // 2. Unordered lists (- or *)
+        if (line.trim().startsWith("- ") || line.trim().startsWith("* ")) {
+          const listContent = line.trim().substring(2);
+          const indentClass = line.startsWith("  ") ? "pl-6" : "pl-3";
+          return (
+            <div key={idx} className={cn("flex items-start gap-1.5 text-[13px]", indentClass)}>
+              <span className="text-slate-400 mt-1 select-none font-semibold">•</span>
+              <span className="flex-1">{renderInlineMarkdown(listContent)}</span>
+            </div>
+          );
+        }
+
+        // 3. Ordered lists (e.g. 1. or 2.)
+        const numMatch = line.trim().match(/^(\d+)\.\s+(.*)$/);
+        if (numMatch) {
+          const num = numMatch[1];
+          const content = numMatch[2];
+          const indentClass = line.startsWith("  ") ? "pl-6" : "pl-3";
+          return (
+            <div key={idx} className={cn("flex items-start gap-1.5 text-[13px]", indentClass)}>
+              <span className="text-slate-500 font-bold mt-0.5 min-w-[14px] select-none text-[11px]">{num}.</span>
+              <span className="flex-1">{renderInlineMarkdown(content)}</span>
+            </div>
+          );
+        }
+
+        // 4. Empty line (represented as spacer)
+        if (cleanLine === "") {
+          return <div key={idx} className="h-1" />;
+        }
+
+        // 5. Default Paragraph
+        return (
+          <p key={idx} className="text-[13px] leading-relaxed">
+            {renderInlineMarkdown(line)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Message {
   sender: "ai" | "user";
@@ -1245,9 +1349,8 @@ I recommend transitioning to design sprints next. You can continue exploring the
                                   ? "bg-slate-50 text-slate-800 rounded-tl-[4px] border border-slate-100"
                                   : "bg-violet-600 text-white rounded-tr-[4px]"
                               )}
-                              style={{ whiteSpace: "pre-line" }}
                             >
-                              {msg.text}
+                              {renderMarkdown(msg.text)}
                             </div>
 
                             {/* Timestamp */}
