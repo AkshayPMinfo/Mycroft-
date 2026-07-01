@@ -14,13 +14,14 @@ export const PM_KNOWLEDGE_BASE: Record<string, KnowledgeModule> = {
     name: "PM Philosophy",
     principles: [
       "Focus on business outcomes and customer value, not just shipping outputs/features.",
-      "Manage the 4 Core Risks: Value (will they buy?), Usability (can they use it?), Feasibility (can we build it?), and Viability (does it fit our business?)."
+      "Manage the 4 Core Risks: Value (will they buy?), Usability (can they use it?), Feasibility (can we build it?), and Viability (does it fit our business?).",
+      "The Value Equation: Value = Solving a user's problem OR satisfying a user's desire. Deliver value to capture direct/indirect revenue."
     ],
     decisionRules: [
       "Never commit engineering resources to a feature that lacks problem validation.",
       "If a proposed feature doesn't align with a current key result or objective, defer it."
     ],
-    frameworks: ["Marty Cagan's Four Risks", "Outcome-Based Roadmaps"],
+    frameworks: ["Marty Cagan's Four Risks", "Outcome-Based Roadmaps", "The PM Value Equation"],
     bestPractices: [
       "Write PRDs and specs as sets of testable hypotheses rather than rigid mandates.",
       "Involve engineers and designers in the problem definition space, not just execution."
@@ -54,16 +55,18 @@ export const PM_KNOWLEDGE_BASE: Record<string, KnowledgeModule> = {
     name: "Product Discovery",
     principles: [
       "Dual-Track Agile: Run a discovery track (validation) in parallel with a delivery track (execution).",
-      "Validate high-risk assumptions quickly and at the lowest possible cost."
+      "Validate high-risk assumptions quickly and at the lowest possible cost.",
+      "The 6D Product Management Cycle: Discover, Define, Design, Develop, Deliver, and Debrief."
     ],
     decisionRules: [
       "If a hypothesis is high-risk and unproven, use low-fidelity smoke tests or prototypes first.",
       "Define clean quantitative success thresholds before launching a discovery experiment."
     ],
-    frameworks: ["Dual-Track Agile", "Assumption Mapping", "Smoke Testing"],
+    frameworks: ["Dual-Track Agile", "Assumption Mapping", "Smoke Testing", "6D Product Management Cycle"],
     bestPractices: [
       "Conduct continuous weekly discovery interviews with actual users.",
-      "Test feasibility early by reviewing architectural complexity with tech leads."
+      "Test feasibility early by reviewing architectural complexity with tech leads.",
+      "In B2B contexts where direct analytics are missing, leverage competitive review mapping, product demos, and logical simulations."
     ],
     commonMistakes: [
       "Treating discovery as a one-off phase at the start of a project rather than a continuous cycle.",
@@ -99,9 +102,10 @@ export const PM_KNOWLEDGE_BASE: Record<string, KnowledgeModule> = {
     decisionRules: [
       "Use RICE when you have clean, quantifiable data for Reach and Impact.",
       "Use ICE when speed is critical and you need to build immediate consensus.",
-      "Use the Kano model to distinguish table-stakes features from delighters."
+      "Use the Kano model to distinguish table-stakes features from delighters.",
+      "Use Simple Prioritization Score when basic impact-to-effort estimations are needed."
     ],
-    frameworks: ["RICE (Reach, Impact, Confidence, Effort)", "ICE (Impact, Confidence, Ease)", "Kano Model", "MoSCoW Prioritization"],
+    frameworks: ["RICE (Reach, Impact, Confidence, Effort)", "ICE (Impact, Confidence, Ease)", "Kano Model", "MoSCoW Prioritization", "Simple Priority Score (Impact / Effort)"],
     bestPractices: [
       "Be honest about Confidence scores: default to 50% or lower if you lack direct user evidence.",
       "Group features into Kano categories: Must-Be, One-Dimensional, and Attractive (Delighters)."
@@ -121,10 +125,11 @@ export const PM_KNOWLEDGE_BASE: Record<string, KnowledgeModule> = {
       "Specify core success metrics, input guardrails, and tracking events before coding a feature.",
       "If retention is low, prioritize fixing activation funnel drop-offs before driving acquisition."
     ],
-    frameworks: ["AARRR (Pirate Metrics)", "Google HEART Framework", "Funnel & Cohort Analysis"],
+    frameworks: ["AARRR (Pirate Metrics)", "Google HEART Framework", "Funnel & Cohort Analysis", "Premortem Analysis", "Postmortem Reviews"],
     bestPractices: [
       "Use cohort analysis to monitor how changes in onboarding affect long-term retention.",
-      "Set up A/B split testing to quantitatively isolate feature variant impact."
+      "Set up A/B split testing to quantitatively isolate feature variant impact.",
+      "Perform a Premortem before launching to anticipate and mitigate potential failure points."
     ],
     commonMistakes: [
       "Optimizing for vanity metrics like sign-ups or page views instead of repeat engagement or retention.",

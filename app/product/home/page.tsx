@@ -726,18 +726,6 @@ export default function AIHomePage() {
 
       // ─── Intent Detection Classification ───
       
-      // Safety Guardrails
-      const safetyKeywords = [
-        "porn", "sexual", "sex", "illegal", "drugs", "cocaine", "hack", "exploit", "kill", "bomb", "suicide", "harm", "violence", "rob", "steal", "nude", "naked", "xxx"
-      ];
-      const isSafetyViolation = safetyKeywords.some(kw => cleanInput.includes(kw));
-
-      // Identity Request
-      const identityKeywords = [
-        "who are you", "what is your name", "your name", "who you are", "identity", "what are you", "what is mycroft", "who is mycroft"
-      ];
-      const isIdentityRequest = identityKeywords.some(kw => cleanInput.includes(kw));
-
       // Greetings
       const greetingKeywords = [
         "hi", "hello", "hey", "good morning", "good afternoon", "good evening", "yo", "sup", "greetings"
@@ -749,6 +737,28 @@ export default function AIHomePage() {
         "help", "what can you do", "what do you do", "commands", "menu", "how to use", "capabilities"
       ];
       const isHelpRequest = helpKeywords.some(kw => cleanInput.includes(kw));
+
+      // Identity Request
+      const identityKeywords = [
+        "who are you", "what is your name", "your name", "who you are", "identity", "what are you", "what is mycroft", "who is mycroft"
+      ];
+      const isIdentityRequest = identityKeywords.some(kw => cleanInput.includes(kw));
+
+      // 1. Prioritize Product Management Relevance Classification
+      const pmKeywords = [
+        "product", "discovery", "user research", "analytics", "strategy", "prioritization", "roadmap", "prd", "jtbd", "rice", "ice", "kano", "heart", "aarrr", "north star", "competitor", "mvp", "user story", "user stories", "wireframe", "product thinking", "features", "app", "checkout", "metrics", "launch", "positioning", "market", "workaround", "conversion", "retention", "activation", "churn", "business objective", "customer", "spec", "okr", "ab test", "a/b test", "rbi", "dpdp", "payment", "checkout flow", "shipping fee", "delivery", "zepto", "blinkit", "instamart", "build", "create", "startup", "saas", "fintech", "idea", "propose"
+      ];
+      const isPmRelatedQuery = pmKeywords.some(kw => cleanInput.includes(kw)) ||
+                               cleanInput.includes("existing") ||
+                               cleanInput.includes("new") ||
+                               cleanInput.includes("yes") ||
+                               cleanInput.includes("no");
+
+      // Safety Guardrails (Only apply if NOT PM-related)
+      const safetyKeywords = [
+        "porn", "sexual", "sex", "illegal", "drugs", "cocaine", "hack", "exploit", "kill", "bomb", "suicide", "harm", "violence", "rob", "steal", "nude", "naked", "xxx"
+      ];
+      const isSafetyViolation = !isPmRelatedQuery && safetyKeywords.some(kw => cleanInput.includes(kw));
 
       // PM Conceptual Questions
       const isRice = cleanInput.includes("rice");
@@ -768,38 +778,33 @@ export default function AIHomePage() {
 
       const isPmInfoQuestion = isRice || isIce || isKano || isMoscow || isJtbd || isMvp || isPrd || isOkrs || isNorthStar || isDiscovery || isPersonas || isWireframes || isAbTesting || isStrategy || cleanInput.includes("dpdp") || cleanInput.includes("rbi");
 
-      // Out-of-Scope Questions
+      // Out-of-Scope Questions (Only trigger if NOT PM-related)
       const outOfScopeKeywords = [
-        "weather", "capital of", "recipe", "cook", "python script", "write code", "sort a list", "tell me a joke", "sing a song", "movie", "actor", "sports", "football"
+        "weather", "capital of", "recipe", "cook", "python script", "write code", "sort a list", "tell me a joke", "sing a song", "movie", "actor", "sports", "football", "cricket", "gossip", "celebrity"
       ];
-      const isOutOfScope = outOfScopeKeywords.some(kw => cleanInput.includes(kw)) || 
-                          (cleanInput.length > 5 && 
-                           !cleanInput.includes("product") && 
-                           !cleanInput.includes("app") && 
-                           !cleanInput.includes("user") && 
-                           !cleanInput.includes("business") && 
-                           !cleanInput.includes("market") && 
-                           !cleanInput.includes("feature") &&
-                           !cleanInput.includes("pm") &&
-                           !cleanInput.includes("discovery") &&
-                           !cleanInput.includes("competitor") &&
-                           !cleanInput.includes("design") &&
-                           !cleanInput.includes("develop") &&
-                           !cleanInput.includes("deliver") &&
-                           !cleanInput.includes("roadmap") &&
-                           !cleanInput.includes("metrics") &&
-                           !cleanInput.includes("strategy") &&
-                           !cleanInput.includes("launch") &&
-                           !cleanInput.includes("checkout") &&
-                           !cleanInput.includes("rbi") &&
-                           !cleanInput.includes("dpdp") &&
-                           !cleanInput.includes("upi") &&
-                           !cleanInput.includes("payment") &&
-                           !cleanInput.includes("substitut") &&
-                           !cleanInput.includes("order") &&
-                           !cleanInput.includes("zepto") &&
-                           !cleanInput.includes("existing") &&
-                           !cleanInput.includes("new"));
+      const isOutOfScope = !isPmRelatedQuery && (
+        outOfScopeKeywords.some(kw => cleanInput.includes(kw)) ||
+        (cleanInput.length > 5 && 
+         !greetingKeywords.some(kw => cleanInput.includes(kw)) &&
+         !helpKeywords.some(kw => cleanInput.includes(kw)) &&
+         !identityKeywords.some(kw => cleanInput.includes(kw)))
+      );
+
+      // Reasoning Context Prepender Helper
+      const buildReasoningHeader = (keys: string[]) => {
+        let text = "";
+        keys.forEach(k => {
+          const mod = PM_KNOWLEDGE_BASE[k];
+          if (mod) {
+            text += `> **[Retrieved Brain Layer: ${mod.name}]**\n` +
+              `> *   **Principle**: ${mod.principles[0] || ""}\n` +
+              `> *   **Decision Rule**: ${mod.decisionRules[0] || ""}\n` +
+              `> *   **Key Heuristic**: ${mod.bestPractices[0] || ""}\n` +
+              `> *   **Mistake to Avoid**: ${mod.commonMistakes[0] || ""}\n\n`;
+          }
+        });
+        return text;
+      };
 
       let aiText = "";
       let targetStage = activeConv.activeStep;
@@ -824,41 +829,134 @@ export default function AIHomePage() {
         aiText = "That topic is outside Mycroft's current scope.\n\nRight now I'm focused on helping with Product Management activities such as discovery, research, PRDs, roadmaps, prioritization, metrics, and product strategy.\n\nLet's continue with your product work.";
       } else if (isPmInfoQuestion) {
         if (isRice) {
-          aiText = "The **RICE Prioritization Framework** ranks features by calculating: \n\n$$\\text{RICE Score} = \\frac{\\text{Reach} \\times \\text{Impact} \\times \\text{Confidence}}{\\text{Effort}}$$\n\n*   **Reach**: Number of users affected (e.g., per quarter).\n*   **Impact**: How much it helps a user (3 = massive, 2 = high, 1 = medium, 0.5 = low).\n*   **Confidence**: Certainty score (100% = high confidence, 80% = medium, 50% = low).\n*   **Effort**: Person-months required to build.\n\nLet me know if you would like me to calculate RICE scores for your proposed features!";
+          aiText = buildReasoningHeader(retrieved) +
+            "The **RICE Prioritization Framework** ranks features by calculating:\n\n" +
+            "$$\\text{RICE Score} = \\frac{\\text{Reach} \\times \\text{Impact} \\times \\text{Confidence}}{\\text{Effort}}$$\n\n" +
+            "**Senior PM Analysis**: I recommend using RICE when you have clean, quantitative estimates for Reach and Impact. Reach tracks the count of users affected per quarter. Impact represents user value (e.g. 3 = massive, 2 = high). Effort calculates person-months. A common mistake is manipulating Confidence scores to favor a pet project. I recommend keeping confidence at 50% or below unless backed by customer evidence. Let's score your proposed features!";
         } else if (isIce) {
-          aiText = "The **ICE Prioritization Framework** is a simple, agile scoring model: \n\n$$\\text{ICE Score} = \\text{Impact} \\times \\text{Confidence} \\times \\text{Ease}$$\n\n*   **Impact**: Positive effect on target metrics (1-10 scale).\n*   **Confidence**: How certain we are of our impact and ease estimates (1-10 scale).\n*   **Ease**: Opposite of effort; how quick and cheap it is to build (1-10 scale).\n\nLet me know if you want to rank your feature backlog using the ICE model!";
+          aiText = buildReasoningHeader(retrieved) +
+            "The **ICE Prioritization Framework** is a simple scoring model:\n\n" +
+            "$$\\text{ICE Score} = \\text{Impact} \\times \\text{Confidence} \\times \\text{Ease}$$\n\n" +
+            "**Senior PM Analysis**: I recommend using ICE when speed is critical and you need to build immediate consensus across stakeholders. Unlike RICE, it replaces quantitative reach with qualitative ease. For best practices, involve engineering leads to secure accurate Ease estimates early. What features do you want to rank with ICE?";
         } else if (isKano) {
-          aiText = "The **Kano Model** classifies features into five categories based on user preference and satisfaction:\n1. **Must-Be (Basics)**: Baseline requirements (e.g., login, secure payments). Users are unhappy if they are missing.\n2. **One-Dimensional (Performers)**: Increases satisfaction proportionally (e.g., page load speeds, battery savings).\n3. **Attractive (Delighters)**: Unexpected features that wow users (e.g., 60-second order add-on buffer).\n4. **Indifferent**: Features users do not care about.\n5. **Reverse**: Features that actually cause dissatisfaction.\n\nLet's map your product's requirements into these Kano categories to define your MVP!";
+          aiText = buildReasoningHeader(retrieved) +
+            "The **Kano Model** classifies features based on user preference and satisfaction:\n" +
+            "1. **Must-Be (Basics)**: Baseline requirements (e.g. secure transaction processing). Users are unhappy if they are missing.\n" +
+            "2. **One-Dimensional (Performers)**: Increases satisfaction proportionally.\n" +
+            "3. **Attractive (Delighters)**: Unexpected features that wow users.\n\n" +
+            "**Senior PM Analysis**: I recommend Kano over RICE when you need qualitative consensus on the minimum launch criteria. A common mistake is prioritizing attractive delighters before verifying the Must-Be baselines. What features are you currently mapping to the Must-Be category?";
         } else if (isMoscow) {
-          aiText = "The **MoSCoW Prioritization Method** groups project requirements into four distinct buckets:\n*   **Must Have**: Non-negotiable launch requirements critical for baseline operation.\n*   **Should Have**: High-priority requirements that add major value but aren't P0 blockers.\n*   **Could Have**: Nice-to-have features that can be postponed if time is limited.\n*   **Won't Have**: Declared out-of-scope for the current release cycle.\n\nLet me know if you would like me to partition our features into a MoSCoW matrix!";
+          aiText = buildReasoningHeader(retrieved) +
+            "The **MoSCoW Prioritization Method** groups project requirements into distinct buckets:\n" +
+            "*   **Must Have**: Non-negotiable launch requirements.\n" +
+            "*   **Should Have**: High-priority requirements adding major value.\n" +
+            "*   **Could Have**: Nice-to-have features.\n" +
+            "*   **Won't Have**: Declared out-of-scope for the current cycle.\n\n" +
+            "**Senior PM Analysis**: I recommend MoSCoW when managing tight, fixed-deadline release cycles. To avoid scope creep, establish clear boundaries: 'Must Have' requirements must be verified by engineering leads as strictly achievable within the target sprint.";
         } else if (isJtbd) {
-          aiText = "The **Jobs-to-be-Done (JTBD)** theory focuses on understanding the functional, emotional, and social 'job' a customer is hiring a product to do. Instead of tracking user attributes, it focuses on the underlying situation and motivation:\n\n*\"When I am [situation], I want to [motivation], so that I can [desired outcome].\"*\n\nLet's draft some JTBD statements for your product's target persona!";
+          aiText = buildReasoningHeader(retrieved) +
+            "The **Jobs-to-be-Done (JTBD)** theory focuses on understanding the functional, emotional, and social 'job' a customer is hiring a product to do:\n\n" +
+            "*\"When I am [situation], I want to [motivation], so that I can [desired outcome].\"*\n\n" +
+            "**Senior PM Analysis**: I recommend JTBD over traditional user personas because it focuses on underlying motivations and context rather than demographic attributes. This shifts our design from feature lists to core customer progress. Let's draft some JTBD statements for your product's target persona!";
         } else if (isMvp) {
-          aiText = "A **Minimum Viable Product (MVP)** is the most basic iteration of your product designed to validate core value propositions and gather user learning with minimal engineering effort. It focuses on testing critical hypotheses rather than building polished, secondary features.\n\nWould you like me to outline a lean MVP scope for your startup idea?";
+          aiText = buildReasoningHeader(retrieved) +
+            "A **Minimum Viable Product (MVP)** is the most basic iteration of your product designed to validate core hypotheses and gather maximum validated learning with minimal engineering effort.\n\n" +
+            "**Senior PM Analysis**: I recommend designing an MVP around a single core value proposition. Focus on testing critical hypotheses through smoke tests or manual workarounds first, rather than building secondary features. Would you like me to outline a lean MVP scope for your startup idea?";
         } else if (isPrd) {
-          aiText = "A **Product Requirement Document (PRD)** translates product strategy into technical requirements. A premium spec contains:\n1. **Objective**: Business goals and problems being solved.\n2. **Target Users**: Core personas and user journeys.\n3. **Scope**: Feature specifications, use cases, and out-of-scope declarations.\n4. **Success Metrics**: North Star and performance guardrails.\n5. **Compliance & Risks**: Legal and operational constraints.\n\nLet me know if you would like me to generate a clean PRD draft in our editor!";
+          aiText = buildReasoningHeader(retrieved) +
+            "A **Product Requirement Document (PRD)** translates product strategy into technical requirements. A premium spec contains Objective, Target Users, Scope, Success Metrics, and Compliance.\n\n" +
+            "**Senior PM Analysis**: I recommend treating a PRD as a living document of hypotheses rather than a static list of execution orders. Involve tech leads and designers early during discovery to check feasibility before sealing the spec.";
         } else if (isOkrs) {
-          aiText = "**OKRs (Objectives and Key Results)** align company and team goals around measurable outcomes:\n*   **Objectives**: Qualitative, inspirational statements of what we want to achieve (e.g., 'Deliver the fastest checkout experience in India').\n*   **Key Results**: Quantitative, measurable targets showing if we met our objective (e.g., 'Reduce cart checkout drop-off rate from 27% to 15%').\n\nWould you like me to help draft a set of OKRs for your team?";
+          aiText = buildReasoningHeader(retrieved) +
+            "**OKRs (Objectives and Key Results)** align company and team goals around measurable outcomes:\n" +
+            "*   **Objectives**: Qualitative, inspirational statements of what we want to achieve.\n" +
+            "*   **Key Results**: Quantitative targets showing if we met our objective.\n\n" +
+            "**Senior PM Analysis**: I recommend setting OKRs quarterly to focus teams on business outcomes instead of listing features shipped. Keep objectives outcome-based (e.g. 'Deliver a frictionless checkout') rather than feature-based ('Launch checkout redesign').";
         } else if (isNorthStar) {
-          aiText = "A **North Star Metric** is the single key metric that best captures the core value your product delivers to its customers. It should measure user value, product engagement, and business health (e.g., Spotify's North Star is 'Time spent listening').\n\nLet's brainstorm the ideal North Star Metric and input guardrails for your product!";
+          aiText = buildReasoningHeader(retrieved) +
+            "A **North Star Metric** is the single key metric that best captures the core value your product delivers to its customers, aligned with business health.\n\n" +
+            "**Senior PM Analysis**: Spotify uses 'Time spent listening', whereas Airbnb uses 'Nights booked'. I recommend avoiding vanity metrics like total sign-ups, and choosing a metric that tracks repeat engagement. Let's brainstorm your product's North Star Metric!";
         } else if (isDiscovery) {
-          aiText = "**Product Discovery** is the process of researching and validating user problems, competitor landscapes, and operational constraints before committing engineering effort. It ensures we build the *right* thing, rather than rushing to build the wrong thing.\n\nWould you like me to perform competitive research or review synthesis for your product concept?";
+          aiText = buildReasoningHeader(retrieved) +
+            "**Product Discovery** is the process of researching and validating user problems, competitor landscapes, and operational constraints before committing engineering effort.\n\n" +
+            "**Senior PM Analysis**: Run continuous discovery in parallel with delivery (Dual-Track Agile). I recommend continuous weekly user interviews to test our core value assumptions before committing to writing production code.";
         } else if (isPersonas) {
-          aiText = "**User Personas** are semi-fictional representations of your target customers based on real data and qualitative research. They summarize goals, pain points, motivations, and behaviors (e.g., 'Akshay, the time-constrained college student').\n\nLet's construct a target user persona profile to align our feature design!";
+          aiText = buildReasoningHeader(retrieved) +
+            "**User Personas** are semi-fictional representations of your target customers based on qualitative research, summarizing goals and pain points.\n\n" +
+            "**Senior PM Analysis**: I recommend mapping personas directly to active Jobs-to-be-Done to ensure they represent active behaviors rather than passive demographics. Let's construct a target persona profile to align our feature design!";
         } else if (isWireframes) {
-          aiText = "**Wireframes** are low-fidelity visual guides that establish the skeletal framework and structural layout of a page or interface. They focus on element placement, information hierarchy, and user flow rather than visual styling and colors.\n\nWould you like me to map out a low-fidelity wireframe schematic for your checkout success screen?";
+          aiText = buildReasoningHeader(retrieved) +
+            "**Wireframes** are low-fidelity visual guides establishing structural layout and flow, focusing on placement rather than colors.\n\n" +
+            "**Senior PM Analysis**: I recommend using wireframes early in discovery to check usability constraints with customers at minimal engineering cost. Would you like me to map out a wireframe schematic for your checkout success screen?";
         } else if (isAbTesting) {
-          aiText = "**A/B Testing (Split Testing)** compares two versions of a webpage or app flow (A and B) against each other to determine which one performs better on a target metric. It requires dividing traffic randomly and tracking statistical significance.\n\nLet's design a split test protocol to compare a 60-second add-on buffer banner against a standard post-order cancellation flow!";
+          aiText = buildReasoningHeader(retrieved) +
+            "**A/B Testing** compares two versions of a webpage or app flow against each other to determine which performs better on a target metric using random traffic routing.\n\n" +
+            "**Senior PM Analysis**: I recommend running split tests only when you have sufficient traffic to achieve statistical significance within a reasonable timeframe. Always check baseline guardrail metrics (like load time) to ensure the new variant doesn't cause performance degradation.";
         } else if (cleanInput.includes("rbi")) {
-          aiText = "The Reserve Bank of India (RBI) fintech guidelines regulate digital lending, payment aggregators, and credit cards. Key considerations include payment tokenization, First Loss Default Guarantee (FLDG) limits, and explicit customer consent.\n\nLet me know if you want to verify our payment feature set against RBI guidelines!";
+          aiText = buildReasoningHeader(retrieved) +
+            "The **Reserve Bank of India (RBI)** fintech guidelines regulate digital lending, payment aggregation, and tokenization.\n\n" +
+            "**Senior PM Analysis**: I recommend incorporating security and card tokenization audits directly into our PRD's compliance block. Launching payments without secure card vaults and audit trails is high risk. Let's audit our specifications for RBI compliance!";
+        } else if (cleanInput.includes("dpdp")) {
+          aiText = buildReasoningHeader(retrieved) +
+            "The **Digital Personal Data Protection (DPDP) Act 2023** is India's comprehensive data privacy law, mandating consent-based processing.\n\n" +
+            "**Senior PM Analysis**: For product managers, DPDP requires explicit consent prompts and transparent data minimization. I recommend auditing our signup workflows to ensure data collection is limited strictly to what is required for core app operation.";
         } else {
-          // PM Reasoning Engine dynamic controllers
-          const currentPhase = activeConv.reasoningPhase || "Understand";
-          let nextPhase: "Understand" | "Research" | "Reason" | "Prioritize" | "Recommend" | "Document" = currentPhase;
+          aiText = buildReasoningHeader(retrieved) +
+            "A **Product Strategy** connects your product vision with delivery milestones, targeting specific market gaps.\n\n" +
+            "**Senior PM Analysis**: I recommend starting with competitor gap profiling to identify a unique value proposition before finalizing your strategy. What product or startup concept are you working on today?";
+        }
+      } else {
+        // PM Reasoning Engine dynamic controllers
+        const currentPhase = activeConv.reasoningPhase || "Understand";
+        let nextPhase: "Understand" | "Research" | "Reason" | "Prioritize" | "Recommend" | "Document" = currentPhase;
 
+        const isProductPitch = cleanInput.includes("build") ||
+                              cleanInput.includes("create") ||
+                              cleanInput.includes("app") ||
+                              cleanInput.includes("startup") ||
+                              cleanInput.includes("idea") ||
+                              cleanInput.includes("product") ||
+                              cleanInput.includes("platform") ||
+                              cleanInput.includes("checkout") ||
+                              cleanInput.includes("loyalty") ||
+                              cleanInput.includes("manager") ||
+                              cleanInput.includes("assistant") ||
+                              cleanInput.includes("improvement");
+
+        if (isProductPitch && (currentPhase === "Understand" || currentPhase === "Research")) {
+          // Senior PM Product Pitch Challenge
+          const assumptions = [
+            "Target users are willing to abandon their current manual/existing workarounds for our product.",
+            "The customer problem is frequent and severe enough to motivate active adoption.",
+            "Our operational structure and system infrastructure can handle real-time validation checks."
+          ];
+          const risks = [
+            "**Value Risk**: Will customers find the proposed features valuable enough to register and pay?",
+            "**Viability Risk**: Can we acquire these users at a sustainable cost to achieve business viability?"
+          ];
+
+          aiText = buildReasoningHeader(retrieved) +
+            `I've analyzed your product idea as a Senior Product Manager. Before we jump to writing requirements or designing solutions, we must validate our core problem context:\n\n` +
+            `### 1. Key Assumptions Identified\n` +
+            assumptions.map(a => `*   ${a}`).join("\n") + "\n\n" +
+            `### 2. Core Product Risks (Marty Cagan's 4 Risks)\n` +
+            risks.map(r => `*   ${r}`).join("\n") + "\n\n" +
+            `### 3. Recommended Validation Method (The Mom Test)\n` +
+            `*   **Action**: Conduct 5-10 user interviews focusing on past behaviors.\n` +
+            `*   **Sample Question**: *"How did you handle this problem the last time it happened?"* (Never ask: *"Would you buy an app that solves this?"*).\n` +
+            `*   **Smoke Test**: Set up a landing page with a waitlist button to measure initial user interest (Conversion rate threshold > 15%).\n\n` +
+            `### 4. Clarifying Questions\n` +
+            `1.  Who is the specific target persona experiencing this pain point most acutely?\n` +
+            `2.  What is their current workaround today? How are they managing this without our solution?\n` +
+            `3.  What core business metric (e.g. retention, conversion, onboarding completion) are we trying to optimize?`;
+          nextAction = { label: "Define Research Phase", stage: "Research" };
+          nextPhase = "Research";
+        } else {
+          // Standard Dynamic PM Workflow Stages
           if (currentPhase === "Understand") {
             nextPhase = "Research";
-            aiText = `Let's start our Product Discovery process. I've retrieved the **PM Philosophy** and **Product Thinking** knowledge modules to anchor our alignment:\n\n` +
+            aiText = buildReasoningHeader(retrieved) +
+              `Let's start our Product Discovery process. I've retrieved the **PM Philosophy** and **Product Thinking** knowledge modules to anchor our alignment:\n\n` +
               `*   **Core Principle**: Fall in love with the problem, not your solution. Focus on outcomes over outputs.\n` +
               `*   **Risk Guardrails**: We must proactively manage Value, Usability, Feasibility, and Business Viability risks.\n\n` +
               `To construct our problem baseline, I need to challenge our initial assumptions. Please answer:\n` +
@@ -869,7 +967,8 @@ export default function AIHomePage() {
             nextAction = { label: "Define Research Phase", stage: "Research" };
           } else if (currentPhase === "Research") {
             nextPhase = "Reason";
-            aiText = `Our problem objective is registered. Now, we proceed to **Research** to evaluate customer feedback and market gaps. I've retrieved **User Research** and **Product Discovery** modules:\n\n` +
+            aiText = buildReasoningHeader(retrieved) +
+              `Our problem objective is registered. Now, we proceed to **Research** to evaluate customer feedback and market gaps. I've retrieved **User Research** and **Product Discovery** modules:\n\n` +
               `*   **The Mom Test Principle**: Never ask users if they like your idea. Ask about their past behaviors instead.\n` +
               `*   **Competitor Landscape**: Direct competitors (like Blinkit or Instamart) focus on speed but force rigid fees; indirect competitors slow down checkout.\n\n` +
               `### Customer Feedback Analysis\n` +
@@ -883,7 +982,8 @@ export default function AIHomePage() {
             card = { type: "Discovery", title: "Discovery Insights Active", description: "Customer review clusters and competitor gap mappings loaded.", targetUrl: "/product/discovery" };
           } else if (currentPhase === "Reason") {
             nextPhase = "Prioritize";
-            aiText = `We are in the **Reasoning** phase. Let's frame the user's underlying motivation and analyze solution trade-offs. I've retrieved the **Product Thinking** and **User Research (JTBD)** modules:\n\n` +
+            aiText = buildReasoningHeader(retrieved) +
+              `We are in the **Reasoning** phase. Let's frame the user's underlying motivation and analyze solution trade-offs. I've retrieved the **Product Thinking** and **User Research (JTBD)** modules:\n\n` +
               `### Target Jobs-to-be-Done (JTBD) Statement\n` +
               `*\"When I am ordering on the app, I want to append forgotten items to my active order, so that I can avoid paying double delivery fees and waiting for two riders.\"*\n\n` +
               `### Solution Trade-Offs\n` +
@@ -893,7 +993,8 @@ export default function AIHomePage() {
             nextAction = { label: "Prioritize Feature Scope", stage: "Prioritize" };
           } else if (currentPhase === "Prioritize") {
             nextPhase = "Recommend";
-            aiText = `Let's align on **Prioritization**. I have retrieved the **Prioritization Frameworks** module to rank our MVP backlog:\n\n` +
+            aiText = buildReasoningHeader(retrieved) +
+              `Let's align on **Prioritization**. I have retrieved the **Prioritization Frameworks** module to rank our MVP backlog:\n\n` +
               `*   **Kano Classification**: Must-Be features (secure payment, basic card verification) vs Performance features (processing speed) vs Attractive Delighters (the 60-Second Add-On buffer).\n` +
               `*   **RICE Scoring Matrix**:\n` +
               `    *   *Reach*: 34% of checkout users report placing duplicate orders within 5 minutes.\n` +
@@ -905,7 +1006,8 @@ export default function AIHomePage() {
             nextAction = { label: "Define Success Metrics", stage: "Recommend" };
           } else if (currentPhase === "Recommend") {
             nextPhase = "Document";
-            aiText = `Here is my strategic **Recommendation** for our MVP scope and metrics. I have retrieved the **Product Analytics & Metrics** module:\n\n` +
+            aiText = buildReasoningHeader(retrieved) +
+              `Here is my strategic **Recommendation** for our MVP scope and metrics. I have retrieved the **Product Analytics & Metrics** module:\n\n` +
               `### Success Metric Strategy\n` +
               `*   **North Star Metric**: Weekly Active Add-Ons (captures user utility & shipping cost reductions).\n` +
               `*   **Input Metrics (AARRR)**: Checkout-success-to-add-on activation rate (Activation), Cohort retention rates (Retention).\n` +
@@ -918,7 +1020,8 @@ export default function AIHomePage() {
             card = { type: "Dashboard", title: "Metrics Dashboard Active", description: "North Star metrics and cohort charts generated.", targetUrl: "/product/dashboard" };
           } else {
             nextPhase = "Document";
-            aiText = `I have successfully compiled our collaborative discovery decisions into a premium **Product Requirement Document (PRD)** inside our workspace editor. I've retrieved the **PM Philosophy (PRDs)** module:\n\n` +
+            aiText = buildReasoningHeader(retrieved) +
+              `I have successfully compiled our collaborative discovery decisions into a premium **Product Requirement Document (PRD)** inside our workspace editor. I've retrieved the **PM Philosophy (PRDs)** module:\n\n` +
               `*   **Objective**: Reduce double delivery charges via a 60-second add-on buffer.\n` +
               `*   **Success Metrics**: Weekly Active Add-Ons (North Star) & packaging latency guardrails.\n` +
               `*   **Prioritized Scope**: Countdown widget, dispatch holding API, payment intent append.\n` +

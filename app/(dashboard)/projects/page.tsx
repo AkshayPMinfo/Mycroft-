@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { ActionStatus } from "@/components/ui/action-status";
 import { AnimatedPage } from "@/components/ui/animated-page";
@@ -11,10 +11,24 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { Topbar } from "@/components/layout/topbar";
 import { ProjectCard } from "@/features/projects/project-card";
 import { mycroftApi, type ActionResult } from "@/lib/mock-api";
+import { supabaseApi } from "@/lib/supabase-api";
+import { Project } from "@/types/domain";
 
 export default function ProjectsPage() {
-  const data = useMemo(() => mycroftApi.projects(), []);
+  const [data, setData] = useState<{ projects: Project[], deployments: any[] } | null>(null);
   const [actionResult, setActionResult] = useState<ActionResult | null>(null);
+
+  useEffect(() => {
+    supabaseApi.projects.get().then(setData);
+  }, []);
+
+  if (!data) {
+    return (
+      <div className="flex min-h-[calc(100vh-64px)] items-center justify-center">
+        <p className="text-slate-500">Loading projects...</p>
+      </div>
+    );
+  }
 
   return (
     <>

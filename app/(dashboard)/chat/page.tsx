@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Send } from "lucide-react";
 import { ActionStatus } from "@/components/ui/action-status";
 import { AnimatedPage } from "@/components/ui/animated-page";
@@ -8,25 +8,50 @@ import { CommandComposer } from "@/components/ui/command-composer";
 import { Topbar } from "@/components/layout/topbar";
 import { ChatBubble } from "@/features/chat/chat-bubble";
 import { mycroftApi, type ActionResult } from "@/lib/mock-api";
+import { supabaseApi } from "@/lib/supabase-api";
+import { ChatMessage } from "@/types/domain";
 
 export default function ChatPage() {
-  const data = useMemo(() => mycroftApi.chat(), []);
-  const [messages, setMessages] = useState(data.messages);
+  const [data, setData] = useState<{ messages: ChatMessage[], quickActions: string[] } | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [composerValue, setComposerValue] = useState("");
   const [actionResult, setActionResult] = useState<ActionResult | null>(null);
 
-  function sendMessage(value: string) {
+  useEffect(() => {
+    supabaseApi.chat.get().then(res => {
+      setData(res);
+      setMessages(res.messages);
+    });
+  }, []);
+
+  async function sendMessage(value: string) {
     if (!value) return;
+    
+    // Generate local messages instantly for optimistic UI
     const userMessage = mycroftApi.actions.sendChatMessage(value);
     const assistantMessage = mycroftApi.actions.assistantReply(value);
+    
     setMessages((current) => [...current, userMessage, assistantMessage]);
     setComposerValue("");
+    
+    // Save to Supabase in the background
+    await supabaseApi.chat.saveMessage(userMessage);
+    await supabaseApi.chat.saveMessage(assistantMessage);
+
     setActionResult({
       action: "send-chat-message",
-      title: "Message sent",
-      description: "A local mock response was generated.",
+      title: "Message saved",
+      description: "Chat history synchronized with Supabase.",
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     });
+  }
+
+  if (!data) {
+    return (
+      <div className="flex min-h-[calc(100vh-64px)] items-center justify-center">
+        <p className="text-slate-500">Loading chat history...</p>
+      </div>
+    );
   }
 
   return (
