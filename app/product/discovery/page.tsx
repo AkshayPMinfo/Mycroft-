@@ -30,6 +30,7 @@ interface NewsArticle {
   category: "FinTech" | "HealthTech" | "AI" | "SaaS" | "Ecommerce" | "EdTech" | "Gaming";
   summary: string;
   date: string;
+  link?: string;
 }
 
 interface AppReviewSummary {
@@ -212,18 +213,24 @@ export default function DiscoveryPage() {
               </div>
             ) : newsArticles.length > 0 ? (
               newsArticles.map((art) => (
-                <div key={art.id} className="group border-b border-slate-50 pb-4 last:border-b-0">
+                <a
+                  key={art.id}
+                  href={art.link || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block group border-b border-slate-50 pb-4 last:border-b-0 hover:bg-slate-50/40 p-2 rounded-xl transition-all cursor-pointer"
+                >
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded-md">
                       {art.category}
                     </span>
                     <span className="text-[10px] text-slate-400 font-semibold">{art.date}</span>
                   </div>
-                  <h3 className="text-xs font-bold text-slate-900 leading-snug group-hover:text-primary transition-colors cursor-pointer">
+                  <h3 className="text-xs font-bold text-slate-900 leading-snug group-hover:text-primary transition-colors">
                     {art.title}
                   </h3>
                   <p className="text-[11px] text-slate-500 leading-relaxed mt-1">{art.summary}</p>
-                </div>
+                </a>
               ))
             ) : (
               <div className="text-center py-12 text-xs text-slate-400 italic">

@@ -35,14 +35,15 @@ export async function POST(req: NextRequest) {
   const { category, region } = body;
 
   // Specific query mapping for NewsData.io to get relevant PM/business news
+  // We use parenthetical queries and negative exclusions to prevent gambling promo spam
   const queryMap: Record<string, string> = {
-    All: "technology OR startup OR fintech OR software OR SaaS",
-    FinTech: "fintech OR banking OR payments OR neobank OR \"digital finance\"",
-    HealthTech: "healthtech OR \"digital health\" OR telemedicine OR medtech OR bioinformatics",
-    AI: "\"artificial intelligence\" OR LLM OR \"generative AI\" OR \"machine learning\"",
-    SaaS: "SaaS OR \"software as a service\" OR \"enterprise software\" OR \"B2B startup\"",
-    Ecommerce: "ecommerce OR retailtech OR \"online retail\" OR D2C OR shopify",
-    EdTech: "edtech OR \"education technology\" OR e-learning OR \"online learning\"",
+    All: "(technology OR startup OR fintech OR software OR SaaS) NOT (fanduel OR betting OR gambling OR casino OR sportsbook)",
+    FinTech: "(fintech OR banking OR payments OR neobank OR \"digital finance\") NOT (fanduel OR betting OR gambling OR casino OR sportsbook)",
+    HealthTech: "(healthtech OR \"digital health\" OR telemedicine OR medtech OR bioinformatics) NOT (fanduel OR betting OR gambling OR casino OR sportsbook)",
+    AI: "(\"artificial intelligence\" OR LLM OR \"generative AI\" OR \"machine learning\") NOT (fanduel OR betting OR gambling OR casino OR sportsbook)",
+    SaaS: "(SaaS OR \"software as a service\" OR \"enterprise software\" OR \"B2B startup\") NOT (fanduel OR betting OR gambling OR casino OR sportsbook)",
+    Ecommerce: "(ecommerce OR retailtech OR \"online retail\" OR D2C OR shopify) NOT (fanduel OR betting OR gambling OR casino OR sportsbook)",
+    EdTech: "(edtech OR \"education technology\" OR e-learning OR \"online learning\") NOT (fanduel OR betting OR gambling OR casino OR sportsbook OR \"promo code\")",
     Gaming: "gaming OR \"video games\" OR gametech OR esport OR console"
   };
 
@@ -119,6 +120,7 @@ export async function POST(req: NextRequest) {
       return {
         id: item.article_id || `news-${index}-${Date.now()}`,
         title: item.title || "No Title",
+        link: item.link || "",
         source: item.source_id || "News",
         region: region === "All" ? "Global" : region,
         category: category === "All" ? "Tech" : category,
@@ -127,7 +129,21 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    return NextResponse.json({ articles: mappedArticles });
+    // Post-filter to double-ensure gambling, betting, casinos, and promo spams do not leak through for non-Gaming category requests
+    const filteredArticles = mappedArticles.filter((art: any) => {
+      if (category === "Gaming") return true;
+      const titleLower = (art.title || "").toLowerCase();
+      const descLower = (art.summary || "").toLowerCase();
+      const spamKeywords = [
+        "fanduel", "draftkings", "betting", "gambling", "casino", "lottery",
+        "jackpot", "bonus code", "promo code", "wager", "free spin",
+        "bet365", "betmgm", "slot machine", "sportsbook", "caesars sportsbook",
+        "sweepstakes", "bet-at-home", "pokerstars", "promocode"
+      ];
+      return !spamKeywords.some(kw => titleLower.includes(kw) || descLower.includes(kw));
+    });
+
+    return NextResponse.json({ articles: filteredArticles });
   } catch (err) {
     console.error("Failed to fetch NewsData.io:", err);
     return NextResponse.json({ error: "Failed to fetch industry news." }, { status: 500 });
