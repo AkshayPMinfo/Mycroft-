@@ -158,42 +158,7 @@ export function Sidebar() {
             </Link>
           </div>
 
-          {/* Engineering (collapsible, hidden when sidebar collapsed) */}
-          {!isSidebarCollapsed && (
-            <div className="pt-1 mt-1 border-t border-slate-100">
-              <button
-                onClick={toggleEngineering}
-                className="flex w-full items-center justify-between px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                <span>Engineering</span>
-                {engineeringExpanded
-                  ? <ChevronDown className="size-3" />
-                  : <ChevronRight className="size-3" />
-                }
-              </button>
-              {engineeringExpanded && (
-                <div className="space-y-0.5 mt-0.5">
-                  {engineeringItems.map((item) => {
-                    const active = pathname === item.href || (pathname === "/" && item.href === "/command-center");
-                    const Icon = item.icon;
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={cn(
-                          "flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium transition-all",
-                          active ? "bg-blue-50 text-blue-600" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                        )}
-                      >
-                        <Icon className="size-4 shrink-0" />
-                        <span className="truncate">{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+          {/* Collapsible Engineering list hidden for now */}
         </nav>
 
         {/* ── Profile + Collapse toggle ── */}
