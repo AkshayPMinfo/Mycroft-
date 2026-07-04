@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
+import fs from "fs";
+import path from "path";
 
 const GNEWS_API_URL = "https://gnews.io/api/v4/search";
+
+function writeLog(message: string) {
+  try {
+    const logPath = path.join(process.cwd(), "gnews-debug.log");
+    fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${message}\n`);
+  } catch (err) {
+    console.error("Failed to write debug log:", err);
+  }
+}
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.GNEWS_API_KEY;
 
   if (!apiKey) {
+    writeLog("Error: GNEWS_API_KEY is not defined in process.env.");
     return NextResponse.json(
-      { error: "GNEWS_API_KEY is not configured." },
+      { error: "GNEWS_API_KEY is not configured in process.env." },
       { status: 500 }
     );
   }
@@ -16,6 +28,7 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
+    writeLog("Error: Invalid request body JSON.");
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
@@ -43,16 +56,21 @@ export async function POST(req: NextRequest) {
       url.searchParams.set("country", countryParam);
     }
 
-    const gnewsRes = await fetch(url.toString(), {
+    const fetchUrl = url.toString();
+    const maskedUrl = fetchUrl.replace(apiKey, "HIDDEN_KEY");
+    writeLog(`Initiating fetch to GNews: ${maskedUrl}`);
+
+    const gnewsRes = await fetch(fetchUrl, {
       method: "GET",
       next: { revalidate: 300 } // cache for 5 minutes
     });
 
     if (!gnewsRes.ok) {
       const errText = await gnewsRes.text();
+      writeLog(`GNews API error: Status = ${gnewsRes.status}, Response = ${errText}`);
       console.error("GNews API error:", gnewsRes.status, errText);
       return NextResponse.json(
-        { error: `GNews API returned status ${gnewsRes.status}` },
+        { error: `GNews API returned status ${gnewsRes.status}: ${errText}` },
         { status: gnewsRes.status }
       );
     }

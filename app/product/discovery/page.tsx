@@ -72,7 +72,8 @@ export default function DiscoveryPage() {
           const data = await res.json();
           setNewsArticles(data.articles || []);
         } else {
-          setNewsError("Failed to fetch news from GNews.");
+          const errData = await res.json().catch(() => ({}));
+          setNewsError(errData.error || "Failed to fetch news from GNews.");
         }
       } catch (err) {
         console.error("Error fetching news:", err);
