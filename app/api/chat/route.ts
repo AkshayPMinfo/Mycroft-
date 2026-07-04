@@ -34,6 +34,30 @@ const SYSTEM_PROMPT = `You are Mycroft, an AI Product Manager embedded inside a 
 - When explaining frameworks, include the formula or structure, then your analytical commentary on it.
 - Keep responses focused and structured. Do not pad. Do not over-explain.`;
 
+interface ApiAttachment {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  dataUrl?: string;
+  textContent?: string;
+}
+
+interface ApiMessage {
+  role: string;
+  content: string;
+  attachments?: ApiAttachment[];
+}
+
+const VISION_SYSTEM_INSTRUCTIONS = `\n\n## Visual Artefact Analysis Instructions (Senior PM Persona)
+You have been provided with one or more visual product artefacts (UI screens, wireframes, customer journeys, Figma exports, dashboard screens, or logs).
+1. Analyze them like a Senior Product Manager, not a simple image descriptor:
+   - Identify UX friction, layout issues, conversion blockers, and flow inefficiencies.
+   - Critique accessibility, form field layout, and visual hierarchies.
+   - Translate wireframes into functional PRD specs or user stories when requested.
+2. Link the visuals directly to product metrics (AOV, drop-offs, registration speed, compliance errors).
+3. Focus your recommendations on concrete, high-leverage design changes and feature logic rather than aesthetic remarks.`;
+
 export async function POST(req: NextRequest) {
   const apiKey = process.env.GROQ_API_KEY;
 
@@ -44,7 +68,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { messages: { role: string; content: string }[]; context?: string };
+  let body: { messages: ApiMessage[]; context?: string };
   try {
     body = await req.json();
   } catch {
@@ -56,10 +80,71 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "messages array is required." }, { status: 400 });
   }
 
-  // Build the system message — optionally prepend page-level context (e.g. PRD content)
-  const systemContent = context
+  // Determine if vision model is required (any message has an image attachment)
+  let hasImage = false;
+  messages.forEach(m => {
+    if (m.attachments && m.attachments.some(a => a.type.startsWith("image/"))) {
+      hasImage = true;
+    }
+  });
+
+  const activeModel = hasImage ? "llama-3.2-11b-vision-preview" : GROQ_MODEL;
+
+  // Build the system message
+  let systemContent = context
     ? `${SYSTEM_PROMPT}\n\n## Current Workspace Context\n${context}`
     : SYSTEM_PROMPT;
+
+  if (hasImage) {
+    systemContent += VISION_SYSTEM_INSTRUCTIONS;
+  }
+
+  // Format messages for Groq API
+  const formattedMessages = messages.map(m => {
+    const hasMsgImages = m.attachments && m.attachments.some(a => a.type.startsWith("image/"));
+
+    if (hasMsgImages) {
+      const contentArray: any[] = [
+        {
+          type: "text",
+          text: m.content
+        }
+      ];
+
+      m.attachments?.forEach(a => {
+        if (a.type.startsWith("image/") && a.dataUrl) {
+          contentArray.push({
+            type: "image_url",
+            image_url: {
+              url: a.dataUrl
+            }
+          });
+        } else if (a.textContent) {
+          contentArray[0].text += `\n\n[Attached File: ${a.name}]\n\`\`\`\n${a.textContent}\n\`\`\``;
+        }
+      });
+
+      return {
+        role: m.role,
+        content: contentArray
+      };
+    } else {
+      let textContent = m.content;
+      if (m.attachments) {
+        m.attachments.forEach(a => {
+          if (a.textContent) {
+            textContent += `\n\n[Attached File: ${a.name}]\n\`\`\`\n${a.textContent}\n\`\`\``;
+          } else if (a.type.includes("pdf") || a.type.includes("document")) {
+            textContent += `\n\n[Attached Document: ${a.name} (${(a.size/1024).toFixed(1)} KB)]`;
+          }
+        });
+      }
+      return {
+        role: m.role,
+        content: textContent
+      };
+    }
+  });
 
   try {
     const groqRes = await fetch(GROQ_API_URL, {
@@ -69,10 +154,10 @@ export async function POST(req: NextRequest) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: GROQ_MODEL,
+        model: activeModel,
         messages: [
           { role: "system", content: systemContent },
-          ...messages,
+          ...formattedMessages,
         ],
         temperature: 0.7,
         max_tokens: 1024,

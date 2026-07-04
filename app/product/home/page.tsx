@@ -31,6 +31,7 @@ import {
   Users,
   Target,
   FileText,
+  Mic,
   ChevronLeft
 } from "lucide-react";
 
@@ -212,10 +213,20 @@ function generateCleanTitle(input: string): string {
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+interface Attachment {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  dataUrl?: string; // base64 resized data for images
+  textContent?: string; // parsed text for documents
+}
+
 interface Message {
   sender: "ai" | "user";
   text: string;
   timestamp: string;
+  attachments?: Attachment[];
   workspaceCard?: {
     type: "Discovery" | "PRD" | "Dashboard";
     title: string;
@@ -512,7 +523,7 @@ export default function AIHomePage() {
   // Sidebar collapse states
   const [convSidebarCollapsed, setConvSidebarCollapsed] = useState(true);
   const [disclaimerVisible, setDisclaimerVisible] = useState(true);
-  const [attachedFile, setAttachedFile] = useState<string | null>(null);
+  const [attachedFiles, setAttachedFiles] = useState<Attachment[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
@@ -695,7 +706,7 @@ export default function AIHomePage() {
     setActiveConvId("");
     setShowChatView(false);
     setChatInput("");
-    setAttachedFile(null);
+    setAttachedFiles([]);
   }, []);
 
   const handleDeleteChat = useCallback((id: string, e: React.MouseEvent) => {
@@ -728,7 +739,7 @@ export default function AIHomePage() {
 
   const handleSendMessage = useCallback(async (textToSend?: string) => {
     const input = textToSend || chatInput;
-    if (!input.trim()) return;
+    if (!input.trim() && attachedFiles.length === 0) return;
 
     // Transition to chat view
     setShowChatView(true);
@@ -736,7 +747,8 @@ export default function AIHomePage() {
     const userMsg: Message = {
       sender: "user",
       text: input,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      attachments: attachedFiles.length > 0 ? attachedFiles : undefined
     };
 
     let currentConvId = activeConvId;
@@ -745,7 +757,7 @@ export default function AIHomePage() {
     if (!targetConv) {
       // Create fresh conversation object lazily on first user prompt
       const generatedId = `conv_${Date.now()}`;
-      const newTitle = generateCleanTitle(input);
+      const newTitle = generateCleanTitle(input || (attachedFiles.length > 0 ? attachedFiles[0].name : "Attached File"));
       targetConv = {
         ...makeDefaultConv(),
         id: generatedId,
@@ -756,7 +768,7 @@ export default function AIHomePage() {
       currentConvId = generatedId;
     }
 
-    const updatedTitle = targetConv.title === "New Chat" || targetConv.title === "" ? generateCleanTitle(input) : targetConv.title;
+    const updatedTitle = targetConv.title === "New Chat" || targetConv.title === "" ? generateCleanTitle(input || (attachedFiles.length > 0 ? attachedFiles[0].name : "Attached File")) : targetConv.title;
     const retrieved = retrieveRelevantKnowledge(input);
     const previousMessages = targetConv.messages;
 
@@ -786,16 +798,23 @@ export default function AIHomePage() {
 
     setActiveConvId(currentConvId);
 
+    const currentMsgAttachments = [...attachedFiles];
+
     if (!textToSend) setChatInput("");
-    setAttachedFile(null);
+    setAttachedFiles([]);
     setIsGenerating(true);
 
     // Build conversation history for Groq (last 10 messages for context window)
     const historyForApi = previousMessages.slice(-10).map(m => ({
       role: m.sender === "user" ? "user" : "assistant",
-      content: m.text
+      content: m.text,
+      attachments: m.attachments
     }));
-    historyForApi.push({ role: "user", content: input });
+    historyForApi.push({
+      role: "user",
+      content: input,
+      attachments: currentMsgAttachments.length > 0 ? currentMsgAttachments : undefined
+    });
 
     let aiText = "";
     let targetStage = targetConv.activeStep;
@@ -858,10 +877,178 @@ export default function AIHomePage() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setAttachedFile(e.target.files[0].name);
+  // State for drag and drop visual overlay
+  const [isDragging, setIsDragging] = useState(false);
+
+  const processFile = (file: File): Promise<Attachment> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      if (file.type.startsWith("image/")) {
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const maxDim = 1024;
+            let width = img.width;
+            let height = img.height;
+            if (width > height) {
+              if (width > maxDim) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              }
+            } else {
+              if (height > maxDim) {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, width, height);
+              const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+              resolve({
+                id: fileId,
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                dataUrl,
+              });
+            } else {
+              resolve({
+                id: fileId,
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                dataUrl: event.target?.result as string,
+              });
+            }
+          };
+          img.src = event.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+      } else if (
+        file.type.startsWith("text/") ||
+        file.name.endsWith(".json") ||
+        file.name.endsWith(".js") ||
+        file.name.endsWith(".ts") ||
+        file.name.endsWith(".csv") ||
+        file.name.endsWith(".md")
+      ) {
+        reader.onload = (event) => {
+          resolve({
+            id: fileId,
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            textContent: event.target?.result as string,
+          });
+        };
+        reader.readAsText(file);
+      } else {
+        reader.onload = (event) => {
+          resolve({
+            id: fileId,
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            dataUrl: event.target?.result as string,
+          });
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      const processed = await Promise.all(filesArray.map(processFile));
+      setAttachedFiles((prev) => [...prev, ...processed]);
     }
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = Array.from(e.clipboardData.items);
+    const files = items
+      .filter((item) => item.kind === "file")
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => file !== null);
+
+    if (files.length > 0) {
+      e.preventDefault();
+      const processed = await Promise.all(files.map(processFile));
+      setAttachedFiles((prev) => [...prev, ...processed]);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const filesArray = Array.from(e.dataTransfer.files);
+      const processed = await Promise.all(filesArray.map(processFile));
+      setAttachedFiles((prev) => [...prev, ...processed]);
+    }
+  };
+
+  const renderAttachmentPreviews = () => {
+    if (attachedFiles.length === 0) return null;
+    return (
+      <div className="flex flex-wrap gap-2 mb-2 pointer-events-auto">
+        {attachedFiles.map((file) => {
+          const isImg = file.type.startsWith("image/");
+          return (
+            <div 
+              key={file.id} 
+              className={cn(
+                "relative border rounded-xl overflow-hidden shadow-2xs group flex items-center bg-slate-50 border-slate-200 transition-all hover:border-slate-350 shrink-0",
+                isImg ? "w-24 h-16" : "px-3 py-1.5 w-[200px]"
+              )}
+            >
+              {isImg ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img 
+                  src={file.dataUrl} 
+                  alt={file.name} 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="flex items-center gap-2 text-slate-700 w-full min-w-0">
+                  <div className="size-6 rounded-lg bg-red-50 text-red-500 flex items-center justify-center shrink-0">
+                    <FileText className="size-3.5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">{file.name}</p>
+                    <p className="text-[8px] text-slate-400 font-semibold leading-tight mt-0.5">{(file.size / 1024).toFixed(1)} KB</p>
+                  </div>
+                </div>
+              )}
+              <button
+                onClick={() => setAttachedFiles(prev => prev.filter(f => f.id !== file.id))}
+                className="absolute top-0.5 right-0.5 size-4 rounded-full bg-slate-900/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-slate-900 shadow-sm"
+                title="Remove file"
+              >
+                <X className="size-2.5" />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   // Group conversations for sidebar history
@@ -908,6 +1095,7 @@ export default function AIHomePage() {
         ref={fileInputRef}
         onChange={handleFileChange}
         className="hidden"
+        multiple
       />
 
       {/* Backdrop overlay (clicking outside closes history drawer) */}
@@ -1113,40 +1301,65 @@ export default function AIHomePage() {
               </div>
 
               {/* Large Prompt Input Box */}
-              <div className="border border-slate-200/90 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all focus-within:border-violet-400 focus-within:ring-2 focus-within:ring-violet-100/50 bg-white w-full">
-                <textarea
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Describe your product idea or improvement goal..."
-                  rows={4}
-                  className="w-full text-[14px] text-slate-800 placeholder:text-slate-400 resize-none bg-transparent focus:outline-none leading-relaxed"
-                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
-                />
-                
-                {/* Attached File indicator */}
-                {attachedFile && (
-                  <div className="flex items-center gap-1.5 self-start px-2.5 py-1 bg-violet-50 text-violet-700 text-[11px] rounded-lg border border-violet-100 font-semibold mb-2 mt-1 shrink-0 max-w-fit">
-                    <Paperclip className="size-3" />
-                    <span className="truncate max-w-[150px]">{attachedFile}</span>
-                    <button onClick={() => setAttachedFile(null)} className="hover:text-red-500 font-bold ml-1">×</button>
+              <div 
+                className="border border-slate-200/90 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all focus-within:border-violet-400 focus-within:ring-2 focus-within:ring-violet-100/50 bg-white w-full relative"
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                {/* Drag and drop overlay */}
+                {isDragging && (
+                  <div className="absolute inset-0 bg-violet-600/10 backdrop-blur-xs border-2 border-dashed border-violet-500 rounded-2xl flex flex-col items-center justify-center z-50 pointer-events-none transition-all">
+                    <Paperclip className="size-8 text-violet-600 animate-bounce mb-2" />
+                    <p className="text-xs font-bold text-violet-700">Drop files here to attach</p>
                   </div>
                 )}
 
-                <div className="flex items-center justify-between pt-2 border-t border-slate-100 mt-2">
-                  <button
-                    onClick={handleAttachmentClick}
-                    className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-800 hover:scale-105 active:scale-95 transition-all duration-150"
-                    title="Attach file"
-                  >
-                    <Paperclip className="size-4.5" />
-                  </button>
-                  <button
-                    onClick={() => handleSendMessage()}
-                    disabled={!chatInput.trim()}
-                    className="size-9 rounded-full bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center transition-all disabled:opacity-40 shadow-sm hover:scale-105 active:scale-95 duration-200"
-                  >
-                    <Send className="size-3.5" />
-                  </button>
+                <div className="flex flex-col gap-2">
+                  {/* Attached Files previews */}
+                  {renderAttachmentPreviews()}
+
+                  {/* Textarea */}
+                  <textarea
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onPaste={handlePaste}
+                    placeholder="Describe your product idea or improvement goal..."
+                    rows={5}
+                    className="w-full text-[14px] text-slate-800 placeholder:text-slate-400 resize-none bg-transparent focus:outline-none leading-relaxed"
+                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
+                  />
+                  
+                  {/* Toolbar */}
+                  <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 mt-1">
+                    <div className="flex items-center gap-1.5">
+                      {/* Attach button */}
+                      <button
+                        onClick={handleAttachmentClick}
+                        className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-800 hover:scale-105 active:scale-95 transition-all duration-150"
+                        title="Attach files (Drag & Drop or Paste)"
+                      >
+                        <Paperclip className="size-4.5" />
+                      </button>
+                      {/* Voice button */}
+                      <button
+                        onClick={() => alert("Voice transcription feature is coming soon!")}
+                        className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-800 hover:scale-105 active:scale-95 transition-all duration-150"
+                        title="Voice Command"
+                      >
+                        <Mic className="size-4.5" />
+                      </button>
+                    </div>
+
+                    <Button
+                      onClick={() => handleSendMessage()}
+                      disabled={!chatInput.trim() && attachedFiles.length === 0}
+                      className="h-9 px-4 rounded-xl bg-slate-950 text-white hover:bg-slate-800 text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0 disabled:opacity-40"
+                    >
+                      <Send className="size-3.5" />
+                      <span>Send</span>
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -1193,6 +1406,40 @@ export default function AIHomePage() {
                                   : "bg-violet-600 text-white rounded-tr-[4px]"
                               )}
                             >
+                              {/* Message attachments rendering */}
+                              {msg.attachments && msg.attachments.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mb-2 pointer-events-auto">
+                                  {msg.attachments.map((file) => {
+                                    const isImg = file.type.startsWith("image/");
+                                    return (
+                                      <div 
+                                        key={file.id} 
+                                        className={cn(
+                                          "relative border rounded-xl overflow-hidden shadow-2xs max-w-[200px] flex items-center bg-slate-50 shrink-0",
+                                          isImg ? "p-0 border-slate-100" : "p-2 border-slate-200"
+                                        )}
+                                      >
+                                        {isImg ? (
+                                          // eslint-disable-next-line @next/next/no-img-element
+                                          <img 
+                                            src={file.dataUrl} 
+                                            alt={file.name} 
+                                            className="h-28 w-auto object-cover max-w-full"
+                                          />
+                                        ) : (
+                                          <div className="flex items-center gap-2 text-slate-700 w-full min-w-0">
+                                            <FileText className="size-5 text-slate-500 shrink-0" />
+                                            <div className="min-w-0 flex-1">
+                                              <p className="text-[11px] font-semibold truncate leading-tight text-slate-800">{file.name}</p>
+                                              <p className="text-[9px] text-slate-400 font-medium leading-tight mt-0.5">{(file.size / 1024).toFixed(1)} KB</p>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                               {renderMarkdown(msg.text)}
                             </div>
 
@@ -1277,14 +1524,33 @@ export default function AIHomePage() {
 
         {/* ── Active Chat Composer (displayed only when chatting) ── */}
         {showChatView && (
-          <div className={cn("absolute left-0 right-0 flex justify-center px-6 pointer-events-none z-10", disclaimerVisible ? "bottom-16" : "bottom-8")}>
-            <div className="w-full max-w-4xl bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg p-3.5 pointer-events-auto transition-all">
-              <div className="flex gap-2.5 items-center">
+          <div 
+            className={cn("absolute left-0 right-0 flex justify-center px-6 pointer-events-none z-10", disclaimerVisible ? "bottom-16" : "bottom-8")}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <div className="w-full max-w-4xl bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg p-3.5 pointer-events-auto transition-all relative">
+              
+              {/* Drag and drop overlay */}
+              {isDragging && (
+                <div className="absolute inset-0 bg-violet-600/10 backdrop-blur-xs border-2 border-dashed border-violet-500 rounded-2xl flex flex-col items-center justify-center z-50 pointer-events-none transition-all">
+                  <Paperclip className="size-8 text-violet-600 animate-bounce mb-2" />
+                  <p className="text-xs font-bold text-violet-700">Drop files here to attach</p>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2">
+                {/* Uploaded Files previews */}
+                {renderAttachmentPreviews()}
+
+                {/* Textarea */}
                 <textarea
                   ref={activeTextareaRef}
-                  rows={1}
+                  rows={2}
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
+                  onPaste={handlePaste}
                   placeholder={
                     activeConv?.reasoningPhase === "Understand" ? "Understand Phase: Describe your objective & target users..." :
                     activeConv?.reasoningPhase === "Research" ? "Research Phase: Analyze user feedback and competitor gaps..." :
@@ -1293,7 +1559,7 @@ export default function AIHomePage() {
                     activeConv?.reasoningPhase === "Recommend" ? "Recommend Phase: Define North Star metrics & MVP scope..." :
                     "Document Phase: Review compiled PRD and next steps..."
                   }
-                  className="flex-1 px-4 py-2.5 text-[13px] border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900/10 bg-slate-50/60 placeholder:text-slate-400 leading-relaxed transition-shadow resize-none max-h-[160px] overflow-y-auto"
+                  className="w-full px-4 py-2.5 text-[13px] border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900/10 bg-slate-50/60 placeholder:text-slate-400 leading-relaxed transition-shadow resize-none max-h-[160px] overflow-y-auto"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
@@ -1303,30 +1569,36 @@ export default function AIHomePage() {
                   disabled={isGenerating || !activeConv}
                 />
                 
-                {/* Inline attached file display in chat composer */}
-                {attachedFile && (
-                  <div className="flex items-center gap-1 bg-violet-50 text-violet-700 text-[10px] font-semibold px-2 py-1 rounded border border-violet-100 truncate shrink-0 max-w-[120px]">
-                    <Paperclip className="size-3" />
-                    <span>{attachedFile}</span>
+                {/* Toolbar */}
+                <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 mt-1">
+                  <div className="flex items-center gap-1.5">
+                    {/* Attach button */}
+                    <button
+                      onClick={handleAttachmentClick}
+                      className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-800 hover:scale-105 active:scale-95 transition-all duration-150 shrink-0"
+                      title="Attach files (Drag & Drop or Paste)"
+                    >
+                      <Paperclip className="size-4.5" />
+                    </button>
+                    {/* Voice button */}
+                    <button
+                      onClick={() => alert("Voice transcription feature is coming soon!")}
+                      className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-800 hover:scale-105 active:scale-95 transition-all duration-150 shrink-0"
+                      title="Voice Command"
+                    >
+                      <Mic className="size-4.5" />
+                    </button>
                   </div>
-                )}
 
-                <button
-                  onClick={handleAttachmentClick}
-                  className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-800 hover:scale-105 active:scale-95 transition-all duration-150 shrink-0"
-                  title="Attach file"
-                >
-                  <Paperclip className="size-4" />
-                </button>
-
-                <Button
-                  onClick={() => handleSendMessage()}
-                  disabled={isGenerating || !chatInput.trim() || !activeConv}
-                  className="h-[42px] px-4 rounded-xl bg-slate-950 text-white hover:bg-slate-800 text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0 disabled:opacity-40"
-                >
-                  <Send className="size-3.5" />
-                  <span className="hidden sm:inline">Send</span>
-                </Button>
+                  <Button
+                    onClick={() => handleSendMessage()}
+                    disabled={isGenerating || (!chatInput.trim() && attachedFiles.length === 0) || !activeConv}
+                    className="h-9 px-4 rounded-xl bg-slate-950 text-white hover:bg-slate-800 text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0 disabled:opacity-40"
+                  >
+                    <Send className="size-3.5" />
+                    <span>Send</span>
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
