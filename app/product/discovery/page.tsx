@@ -73,7 +73,7 @@ export default function DiscoveryPage() {
           setNewsArticles(data.articles || []);
         } else {
           const errData = await res.json().catch(() => ({}));
-          setNewsError(errData.error || "Failed to fetch news from GNews.");
+          setNewsError(errData.error || "Failed to fetch news from NewsData.io.");
         }
       } catch (err) {
         console.error("Error fetching news:", err);
@@ -188,7 +188,7 @@ export default function DiscoveryPage() {
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="h-7 min-w-[110px] text-[11px] font-semibold border border-slate-200 rounded-lg bg-white px-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="h-7 min-w-[130px] text-[11px] font-semibold border border-slate-200 rounded-lg bg-white px-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
               >
                 {categories.map((c) => (
                   <option key={c} value={c}>{c}</option>
