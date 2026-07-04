@@ -177,17 +177,6 @@ export default function PRDsPage() {
       // All questions answered — generate PRD + AI summary via Groq
       setIsGenerating(true);
 
-      const score = Math.min(calculateDetailScore(prompt) + 35, 100);
-      const newPrd: PRD = {
-        id: `prd-${Date.now()}`,
-        title: prompt.split(" ").slice(0, 4).join(" ") + " Spec",
-        prompt: prompt,
-        score: score,
-        currentVersion: 1,
-        status: "Draft",
-        sections: generateSectionsFromPrompt(prompt, score, newAnswers)
-      };
-
       // Build message history for Groq
       const apiMessages = [
         { role: "user" as const, content: prompt },
@@ -197,24 +186,41 @@ export default function PRDsPage() {
           ...(i < clarifyingQuestions.length - 1
             ? [{ role: "assistant" as const, content: clarifyingQuestions[i + 1] }]
             : [])
-        ]),
-        { role: "user" as const, content: "Based on all my answers above, give me a concise PM analysis: identify key assumptions, product risks, and your initial recommendation. Then confirm the PRD has been drafted." }
+        ])
       ];
 
       let pmSummaryText = "I have drafted the 8-section PRD in the canvas. What would you like to refine next?";
+      let prdSections = generateSectionsFromPrompt(prompt, 50, newAnswers); // default fallback
+
       try {
-        const res = await fetch("/api/chat", {
+        const res = await fetch("/api/prd-generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: apiMessages })
+          body: JSON.stringify({ prompt, messages: apiMessages })
         });
         if (res.ok) {
           const data = await res.json();
-          pmSummaryText = (data.reply || pmSummaryText) + "\n\nThe 8-section compliance-ready PRD has been generated in the editor canvas on the right. Would you like to refine the success metrics or business value next?";
+          if (data.pmSummary) {
+            pmSummaryText = data.pmSummary + "\n\nThe 8-section compliance-ready PRD has been generated in the editor canvas on the right. Would you like to refine the success metrics or business value next?";
+          }
+          if (data.sections) {
+            prdSections = data.sections;
+          }
         }
       } catch (err) {
-        console.error("Failed to call /api/chat for PRD summary:", err);
+        console.error("Failed to generate PRD dynamic content:", err);
       }
+
+      const score = Math.min(calculateDetailScore(prompt) + 35, 100);
+      const newPrd: PRD = {
+        id: `prd-${Date.now()}`,
+        title: prompt.split(" ").slice(0, 4).join(" ") + " Spec",
+        prompt: prompt,
+        score: score,
+        currentVersion: 1,
+        status: "Draft",
+        sections: prdSections
+      };
 
       setMessages(prev => [...prev, { sender: "ai", text: pmSummaryText }]);
       const updatedHistory = [newPrd, ...prdHistory];

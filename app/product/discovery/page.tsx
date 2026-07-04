@@ -32,64 +32,6 @@ interface NewsArticle {
   date: string;
 }
 
-const mockNews: NewsArticle[] = [
-  {
-    id: "n1",
-    title: "RBI mandates strict DPDP Act compliance metrics for domestic payment gateways",
-    source: "Inc42",
-    region: "India",
-    category: "FinTech",
-    summary: "New directives require instant authorization loops to secure transaction credentials locally under DPDP protocols.",
-    date: "1 hour ago"
-  },
-  {
-    id: "n2",
-    title: "Stripe launches unified regional invoicing engine for multi-entity SaaS models",
-    source: "TechCrunch",
-    region: "Global",
-    category: "SaaS",
-    summary: "Automates multi-currency collection compliance, integrating direct tax mappings globally.",
-    date: "3 hours ago"
-  },
-  {
-    id: "n3",
-    title: "HealthTech AI platforms secure MAS sandboxing exemptions in Singapore regulations",
-    source: "e27",
-    region: "Global",
-    category: "HealthTech",
-    summary: "MAS sandbox permits testing under reduced operational limits for AI diagnostic integrations.",
-    date: "Yesterday"
-  },
-  {
-    id: "n4",
-    title: "Ecommerce logistics giant leverages LLMs for route optimization in metro cities",
-    source: "YourStory",
-    region: "India",
-    category: "Ecommerce",
-    summary: "Reduced final-mile delivery delays by 14% using real-time dispatch route adjustments.",
-    date: "2 days ago"
-  },
-  {
-    id: "n5",
-    title: "EdTech platforms pivot to local tutoring micro-spaces under DPDP Act limits",
-    source: "Financial Express",
-    region: "India",
-    category: "EdTech",
-    summary: "Limits student data retention periods, forcing platforms to build on-device memory paradigms.",
-    date: "3 days ago"
-  },
-  {
-    id: "n6",
-    title: "Global SaaS memory platforms experience massive outage due to cloud node latency",
-    source: "VentureBeat",
-    region: "Global",
-    category: "SaaS",
-    summary: "Database synchronization latency triggered chain failures across multiple integration points.",
-    date: "4 days ago"
-  }
-];
-
-// Mock Play Store/App Store review intelligence data
 interface AppReviewSummary {
   appName: string;
   sentiment: string;
@@ -100,139 +42,6 @@ interface AppReviewSummary {
   recommendations: string[];
 }
 
-const mockReviewData: Record<string, AppReviewSummary> = {
-  swiggy: {
-    appName: "Swiggy",
-    sentiment: "78% Positive • 22% Negative",
-    positiveThemes: [
-      "Instamart delivers consistently under 15 minutes.",
-      "Vast restaurant selection across urban regions.",
-      "Clear live tracking display during heavy downpours."
-    ],
-    complaints: [
-      "Surge pricing is perceived as arbitrary and excessively high.",
-      "Customer support uses rigid bot scripts rather than solving issues.",
-      "Refund status generation lags up to 7 working days on failed payments."
-    ],
-    requestedFeatures: [
-      "Ability to create shared carts for group order split bills.",
-      "Option to exclude plastic cutlery and add custom instructions for riders.",
-      "Loyalty rewards tier directly convertible to Instamart wallet cash."
-    ],
-    opportunityAreas: [
-      "Unified cart checkouts combining food items and Instamart groceries.",
-      "Instant refunds for certified payment failures to reduce support overhead by 30%."
-    ],
-    recommendations: [
-      "Implement a 'Co-Cart' split-order functionality for group checkouts, targeting a +12% increase in Average Order Value (AOV)."
-    ]
-  },
-  zepto: {
-    appName: "Zepto",
-    sentiment: "82% Positive • 18% Negative",
-    positiveThemes: [
-      "Genuinely delivers in 10 minutes for major items.",
-      "Fresh produce quality matches catalog snapshots.",
-      "Extremely clean payment checkout flow."
-    ],
-    complaints: [
-      "Items frequently display 'out of stock' midway through cart creation.",
-      "Recent increases in packaging and delivery convenience fees.",
-      "Riders speed dangerously to maintain delivery timelines."
-    ],
-    requestedFeatures: [
-      "Monthly subscription passes to waive handling fees on small orders.",
-      "60-second grace window to add forgotten items post-payment.",
-      "Eco-friendly bag return-and-refund points."
-    ],
-    opportunityAreas: [
-      "Predictive local warehouse stocking during high-demand peak hours.",
-      "Adding a quick post-purchase item annexing window."
-    ],
-    recommendations: [
-      "Launch a '60-Second Add-On' buffer mechanism that lets users append forgotten items to an active packing order to reduce duplicate deliveries."
-    ]
-  },
-  phonepe: {
-    appName: "PhonePe",
-    sentiment: "85% Positive • 15% Negative",
-    positiveThemes: [
-      "High transaction success rate even during peak bank latency hours.",
-      "Automatic bill payment reminders prevent missing dues.",
-      "Minimalist transaction screen loads fast."
-    ],
-    complaints: [
-      "Scratch cards reward users with irrelevant brand coupons rather than cash.",
-      "Frequent promotional notifications and banner advertisements in the main viewport.",
-      "Interface feels cluttered due to the inclusion of gold investments and insurance."
-    ],
-    requestedFeatures: [
-      "Shared family wallet balances with customizable monthly limits.",
-      "Advanced categorization of monthly expenses (Food, Bills, Rent) with charts.",
-      "Direct dark mode setting toggle."
-    ],
-    opportunityAreas: [
-      "A streamlined 'UPI Lite' separate focus tab to hide financial product ads.",
-      "Auto-tagging transaction description fields using local LLMs."
-    ],
-    recommendations: [
-      "Introduce an automated 'Spend Insights Engine' that groups merchant transactions into tags, reducing manual logging for active budgeters."
-    ]
-  },
-  "google pay": {
-    appName: "Google Pay",
-    sentiment: "80% Positive • 20% Negative",
-    positiveThemes: [
-      "Seamless integration with Android security biometric keys.",
-      "Group chat split bills functionality is highly functional.",
-      "Fast contact selection matching bank registry."
-    ],
-    complaints: [
-      "Failed payments block bank balances for up to 3 working days.",
-      "Reward mechanism requires tedious manual clicking of scratch cards.",
-      "Customer support lacks a quick escalation channel for failed high-value transfers."
-    ],
-    requestedFeatures: [
-      "International QR code scanner supporting cross-border payments.",
-      "Custom notification settings for specific contact transactions.",
-      "Exportable transaction logs in standard PDF and CSV spreadsheets."
-    ],
-    opportunityAreas: [
-      "Failed transaction insurance pooling to instantly refund users up to 2000 rupees.",
-      "Unified global payments map for travelers."
-    ],
-    recommendations: [
-      "Build a 'Failed Transaction Buffer' vault that guarantees instant credits on server errors, retaining user confidence during bank outages."
-    ]
-  },
-  slack: {
-    appName: "Slack",
-    sentiment: "75% Positive • 25% Negative",
-    positiveThemes: [
-      "Integration ecosystem (GitHub, Jira, Zoom) is world class.",
-      "Huddles feature has excellent audio clarity and fast connection.",
-      "Powerful search filters locate files and comments quickly."
-    ],
-    complaints: [
-      "Desktop desktop client consumes excessive RAM, causing system slowdowns.",
-      "Mobile push notifications frequently delay and fail to sync with active desktop sessions.",
-      "Channel sidebar gets cluttered in large workspaces."
-    ],
-    requestedFeatures: [
-      "Native AI thread summarization directly in channel viewport.",
-      "Custom sidebar tabs and workspaces grouping capabilities.",
-      "Scheduled channel muting rules."
-    ],
-    opportunityAreas: [
-      "Integrating local machine translation engines.",
-      "Consolidating stale channels automatically."
-    ],
-    recommendations: [
-      "Introduce a 'Thread Synthesis' utility that uses locally-run models to generate a 3-sentence summary of long unread threads, decreasing cognitive overhead."
-    ]
-  }
-};
-
 export default function DiscoveryPage() {
   // Industry News states
   const [regionFilter, setRegionFilter] = useState<"All" | "India" | "Global">("All");
@@ -242,6 +51,38 @@ export default function DiscoveryPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeAnalysis, setActiveAnalysis] = useState<AppReviewSummary | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Industry News states
+  const [newsArticles, setNewsArticles] = useState<NewsArticle[]>([]);
+  const [isNewsLoading, setIsNewsLoading] = useState(false);
+  const [newsError, setNewsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchNews = async () => {
+      setIsNewsLoading(true);
+      setNewsError(null);
+      try {
+        const res = await fetch("/api/news", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ category: categoryFilter, region: regionFilter })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setNewsArticles(data.articles || []);
+        } else {
+          setNewsError("Failed to fetch news from GNews.");
+        }
+      } catch (err) {
+        console.error("Error fetching news:", err);
+        setNewsError("Network error — could not fetch news.");
+      } finally {
+        setIsNewsLoading(false);
+      }
+    };
+    fetchNews();
+  }, [categoryFilter, regionFilter]);
 
   useEffect(() => {
     const saved = localStorage.getItem("mycroft_active_discovery");
@@ -258,55 +99,46 @@ export default function DiscoveryPage() {
 
   const categories = ["All", "FinTech", "HealthTech", "AI", "SaaS", "Ecommerce", "EdTech", "Gaming"];
 
+  const analyzeCompany = async (name: string) => {
+    setIsSearching(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/discovery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyName: name })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.error === "NO_COMPANY_FOUND" || data.error) {
+          setError("No company found");
+          setActiveAnalysis(null);
+        } else {
+          setActiveAnalysis(data);
+          localStorage.setItem("mycroft_active_discovery", JSON.stringify(data));
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        console.error("Discovery API error status:", res.status, errData);
+        setError(errData.error || "Failed to analyze the company. Please try again.");
+        setActiveAnalysis(null);
+      }
+    } catch (err) {
+      console.error("Failed to fetch discovery analysis:", err);
+      setError("Network error — could not reach the discovery engine.");
+      setActiveAnalysis(null);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-
-    setIsSearching(true);
-    setTimeout(() => {
-      const q = searchQuery.toLowerCase().trim();
-      const matchKey = Object.keys(mockReviewData).find(key => q.includes(key) || key.includes(q));
-      
-      let result: AppReviewSummary;
-      if (matchKey) {
-        result = mockReviewData[matchKey];
-      } else {
-        // Fallback mock app review summary
-        result = {
-          appName: searchQuery,
-          sentiment: "72% Positive • 28% Negative",
-          positiveThemes: [
-            "User interface design feels intuitive and smooth.",
-            "Fast load times on urban cellular connections."
-          ],
-          complaints: [
-            "Customer support replies lack contextual intelligence.",
-            "Frequent minor update downloads required."
-          ],
-          requestedFeatures: [
-            "Enhanced search filtering inside search query tabs.",
-            "Direct integration with cloud storage adapters."
-          ],
-          opportunityAreas: [
-            "Simplifying the user registration checklist.",
-            "Dynamic localized language localization profiles."
-          ],
-          recommendations: [
-            `For ${searchQuery}, optimize the core data synchronization pipelines to lower latency and increase retention rates among new signups.`
-          ]
-        };
-      }
-      setActiveAnalysis(result);
-      localStorage.setItem("mycroft_active_discovery", JSON.stringify(result));
-      setIsSearching(false);
-    }, 600);
+    analyzeCompany(searchQuery);
   };
-
-  const filteredNews = mockNews.filter(art => {
-    const matchesRegion = regionFilter === "All" || art.region === regionFilter;
-    const matchesCat = categoryFilter === "All" || art.category === categoryFilter;
-    return matchesRegion && matchesCat;
-  });
 
   return (
     <div className="flex flex-col min-h-screen bg-[#fafafa] font-sans antialiased text-slate-800 p-6 lg:p-8">
@@ -355,7 +187,7 @@ export default function DiscoveryPage() {
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="h-7 text-[11px] font-semibold border border-slate-200 rounded-lg bg-white px-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="h-7 min-w-[110px] text-[11px] font-semibold border border-slate-200 rounded-lg bg-white px-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
               >
                 {categories.map((c) => (
                   <option key={c} value={c}>{c}</option>
@@ -366,8 +198,17 @@ export default function DiscoveryPage() {
 
           {/* News Stream */}
           <div className="space-y-5 flex-1 overflow-y-auto max-h-[550px] pr-1">
-            {filteredNews.length > 0 ? (
-              filteredNews.map((art) => (
+            {isNewsLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mb-3" />
+                <p className="text-xs text-slate-500 font-medium">Fetching GNews developments...</p>
+              </div>
+            ) : newsError ? (
+              <div className="text-center py-12 text-xs text-red-500 font-semibold">
+                {newsError}
+              </div>
+            ) : newsArticles.length > 0 ? (
+              newsArticles.map((art) => (
                 <div key={art.id} className="group border-b border-slate-50 pb-4 last:border-b-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded-md">
@@ -422,14 +263,12 @@ export default function DiscoveryPage() {
             
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-[10px] font-bold text-slate-400 mr-1.5">Examples:</span>
-              {["Swiggy", "Zepto", "PhonePe", "Google Pay", "Slack"].map((app) => (
+              {["Swiggy", "Zepto", "PhonePe", "Google Pay", "Paytm"].map((app) => (
                 <button
                   key={app}
                   onClick={() => {
-                    const data = mockReviewData[app.toLowerCase()];
                     setSearchQuery(app);
-                    setActiveAnalysis(data);
-                    localStorage.setItem("mycroft_active_discovery", JSON.stringify(data));
+                    analyzeCompany(app);
                   }}
                   className="h-6 px-2.5 text-[10px] font-semibold rounded-md border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-950 transition-colors"
                 >
@@ -445,6 +284,11 @@ export default function DiscoveryPage() {
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mb-3" />
                 <p className="text-xs text-slate-500 font-medium">Ingesting Play Store & App Store reviews...</p>
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center text-red-500 font-semibold text-xs">
+                <AlertTriangle className="size-8 mb-2.5 text-red-500 animate-pulse" />
+                <p>{error}</p>
               </div>
             ) : activeAnalysis ? (
               <div className="space-y-6 overflow-y-auto max-h-[500px] pr-1">

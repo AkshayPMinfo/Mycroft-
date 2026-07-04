@@ -266,7 +266,7 @@ const makeDefaultConv = (): Conversation => ({
   id: `conv_${Date.now()}`,
   title: "New Chat",
   activeStep: "Discovery",
-  messages: [defaultWelcomeMessage()],
+  messages: [],
   createdAt: new Date().toISOString(),
   appName: "Zepto",
   sentiment: "82% Positive • 18% Negative",
@@ -544,13 +544,7 @@ export default function AIHomePage() {
 
     // Always start with a brand-new clean conversation on reload/fresh session
     const newConv = makeDefaultConv();
-    newConv.messages = [
-      {
-        sender: "ai",
-        text: "Hi Akshay! I'm Mycroft, your AI Product Manager. I'm here to help you research, analyze, challenge ideas, and build exceptional products together.\n\nFirst decision:\n**Is this an existing product (e.g. adding features to Zepto, Uber, WhatsApp) or a completely new concept?**",
-        timestamp: "Just now"
-      }
-    ];
+    newConv.messages = [];
 
     setConversations([newConv, ...loadedConvs]);
     setActiveConvId(newConv.id);
@@ -644,14 +638,7 @@ export default function AIHomePage() {
   // Start new clean conversation
   const handleNewChat = useCallback(() => {
     const newConv = makeDefaultConv();
-    // Update welcome message to prompt the first decision
-    newConv.messages = [
-      {
-        sender: "ai",
-        text: "Hi Akshay! I'm Mycroft, your AI Product Manager. I'm here to help you research, analyze, challenge ideas, and build exceptional products together.\n\nFirst decision:\n**Is this an existing product (e.g. adding features to Zepto, Uber, WhatsApp) or a completely new concept?**",
-        timestamp: "Just now"
-      }
-    ];
+    newConv.messages = [];
     setConversations(prev => [newConv, ...prev]);
     setActiveConvId(newConv.id);
     setShowChatView(false);
