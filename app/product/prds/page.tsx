@@ -158,7 +158,7 @@ export default function PRDsPage() {
     setIsGenerating(false);
   };
 
-  const handleSendAnswer = () => {
+  const handleSendAnswer = async () => {
     if (!currentAnswer.trim()) return;
 
     const userAns = currentAnswer;
@@ -172,13 +172,11 @@ export default function PRDsPage() {
     if (currentQuestionIdx < clarifyingQuestions.length - 1) {
       const nextQIdx = currentQuestionIdx + 1;
       setCurrentQuestionIdx(nextQIdx);
-      
-      // Append next AI question
       setMessages(prev => [...prev, { sender: "ai", text: clarifyingQuestions[nextQIdx] }]);
     } else {
-      // All questions answered: compile final PRD
+      // All questions answered — generate PRD + AI summary via Groq
       setIsGenerating(true);
-      
+
       const score = Math.min(calculateDetailScore(prompt) + 35, 100);
       const newPrd: PRD = {
         id: `prd-${Date.now()}`,
@@ -190,35 +188,45 @@ export default function PRDsPage() {
         sections: generateSectionsFromPrompt(prompt, score, newAnswers)
       };
 
-      // Append rich PM response
-      const pmSummaryText = `I have analyzed our requirements and perform some quick competitor audits. I noticed some interesting patterns.
+      // Build message history for Groq
+      const apiMessages = [
+        { role: "user" as const, content: prompt },
+        { role: "assistant" as const, content: clarifyingQuestions[0] },
+        ...newAnswers.flatMap((ans, i) => [
+          { role: "user" as const, content: ans },
+          ...(i < clarifyingQuestions.length - 1
+            ? [{ role: "assistant" as const, content: clarifyingQuestions[i + 1] }]
+            : [])
+        ]),
+        { role: "user" as const, content: "Based on all my answers above, give me a concise PM analysis: identify key assumptions, product risks, and your initial recommendation. Then confirm the PRD has been drafted." }
+      ];
 
-### Core Assumptions
-* **Infrastructure**: We assume college campus POS networks can sync offline tokens in under 1 second.
-* **Adoption**: We assume users will switch from standard UPI to tokenized payments for transaction speed.
+      let pmSummaryText = "I have drafted the 8-section PRD in the canvas. What would you like to refine next?";
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: apiMessages })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          pmSummaryText = (data.reply || pmSummaryText) + "\n\nThe 8-section compliance-ready PRD has been generated in the editor canvas on the right. Would you like to refine the success metrics or business value next?";
+        }
+      } catch (err) {
+        console.error("Failed to call /api/chat for PRD summary:", err);
+      }
 
-### Initial Recommendation
-I recommend implementing a **'Phased Sandbox Launch'** targeting 50 power users first. 
-
-I recommend this approach because it mitigates payment settlement risks in dense network areas while validating our IMDA / RBI compliance pipelines with minimal legal friction.
-
-I don't think we should jump to a full release yet. I'd like to validate the database tokenization latencies first.
-
-I have generated the complete 8-section compliance-ready PRD inside the editor canvas on the right. Would you like to refine the success metrics or business value next?`;
-
-      setTimeout(() => {
-        setMessages(prev => [...prev, { sender: "ai", text: pmSummaryText }]);
-        const updatedHistory = [newPrd, ...prdHistory];
-        saveHistory(updatedHistory);
-        setActivePrd(newPrd);
-        setPrompt("");
-        setCurrentQuestionIdx(-1);
-        setIsGenerating(false);
-      }, 800);
+      setMessages(prev => [...prev, { sender: "ai", text: pmSummaryText }]);
+      const updatedHistory = [newPrd, ...prdHistory];
+      saveHistory(updatedHistory);
+      setActivePrd(newPrd);
+      setPrompt("");
+      setCurrentQuestionIdx(-1);
+      setIsGenerating(false);
     }
   };
 
-  const handleSendFollowUp = () => {
+  const handleSendFollowUp = async () => {
     if (!currentAnswer.trim() || !activePrd) return;
 
     const userText = currentAnswer;
@@ -227,25 +235,36 @@ I have generated the complete 8-section compliance-ready PRD inside the editor c
     setMessages(prev => [...prev, { sender: "user", text: userText }]);
     setIsGenerating(true);
 
-    setTimeout(() => {
-      let aiResponse = "";
-      const textLower = userText.toLowerCase();
+    // Build history from current messages + new user message
+    const historyForApi = messages.slice(-12).map(m => ({
+      role: m.sender === "user" ? "user" as const : "assistant" as const,
+      content: m.text
+    }));
+    historyForApi.push({ role: "user", content: userText });
 
-      if (textLower.includes("refine") || textLower.includes("edit") || textLower.includes("update")) {
-        aiResponse = "I noticed something interesting. If we update the specifications now, we should ensure the regulatory compliance framework is updated accordingly. I recommend updating the compliance section because RBI/MAS protocols require strict alignment with our features. I've updated the PRD section version to reflect this refinement.";
-      } else if (textLower.includes("metric") || textLower.includes("success") || textLower.includes("kpi")) {
-        aiResponse = "One concern I have is that relying solely on transaction counts can mask onboarding churn. I recommend adding 'User Drop-off rate at token generation' as a secondary success metric because it helps us identify checkout drop-offs instantly. I have added this to our metrics list.";
-      } else if (textLower.includes("competitor") || textLower.includes("blinkit") || textLower.includes("instamart")) {
-        aiResponse = "Our competitor gap analysis indicates that while Blinkit has faster delivery slot booking, they lag in offline transaction recovery. I recommend focusing on our micro-wallet USP because it gives us a direct entry point to low-connectivity areas.";
+    // Send the active PRD as context so Groq can reference it
+    const prdContext = `The user is working on a PRD titled "${activePrd.title}". Current sections:\n` +
+      Object.values(activePrd.sections).map(s => `- **${s.title}**: ${s.content}`).join("\n");
+
+    let aiResponse = "I've noted your feedback. What other aspects of the PRD should we refine?";
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: historyForApi, context: prdContext })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        aiResponse = data.reply || aiResponse;
       } else {
-        aiResponse = `Got it. I've analyzed your suggestion: "${userText}". 
-
-I recommend we incorporate this because it enhances our overall product value proposition. I have updated the spec draft. What other assumptions or user stories should we challenge next?`;
+        console.error("Chat API error in PRD follow-up:", res.status);
       }
+    } catch (err) {
+      console.error("Failed to call /api/chat for PRD follow-up:", err);
+    }
 
-      setMessages(prev => [...prev, { sender: "ai", text: aiResponse }]);
-      setIsGenerating(false);
-    }, 600);
+    setMessages(prev => [...prev, { sender: "ai", text: aiResponse }]);
+    setIsGenerating(false);
   };
 
   const generateSectionsFromPrompt = (rawPrompt: string, score: number, qaAnswers: string[]): Record<string, PRDSection> => {
