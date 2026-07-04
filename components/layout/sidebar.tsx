@@ -6,60 +6,33 @@ import { usePathname } from "next/navigation";
 import {
   Home,
   Search,
-  FileText,
-  GitBranch,
-  Users,
-  Swords,
-  BarChart2,
-  Settings,
-  Bot,
-  FolderKanban,
   MessageSquare,
-  Bug,
-  BrainCircuit,
-  TerminalSquare,
-  ChevronDown,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const productItems = [
-  { label: "AI Home", href: "/product/home", icon: Home },
-  { label: "Discovery", href: "/product/discovery", icon: Search },
-  { label: "PRDs", href: "/product/prds", icon: FileText },
-  { label: "Roadmap", href: "#", icon: GitBranch, comingSoon: true },
-  { label: "User Research", href: "#", icon: Users, comingSoon: true },
-  { label: "Competitors", href: "#", icon: Swords, comingSoon: true },
-  { label: "Metrics", href: "#", icon: BarChart2, comingSoon: true },
-];
-
-const engineeringItems = [
-  { label: "Command Center", href: "/command-center", icon: Bot },
-  { label: "Projects", href: "/projects", icon: FolderKanban },
-  { label: "AI Chat", href: "/chat", icon: MessageSquare },
-  { label: "Debug", href: "/debug", icon: Bug },
-  { label: "GitHub", href: "/github", icon: TerminalSquare },
-  { label: "Memory", href: "/memory", icon: BrainCircuit },
+// Placeholder conversations — replace with real data later
+const placeholderConversations = [
+  { id: "1", title: "Onboarding flow redesign", time: "2h ago" },
+  { id: "2", title: "Q3 roadmap priorities", time: "Yesterday" },
+  { id: "3", title: "Competitor analysis — Notion", time: "2d ago" },
+  { id: "4", title: "FinTech feature gaps", time: "3d ago" },
+  { id: "5", title: "User interview synthesis", time: "4d ago" },
+  { id: "6", title: "Growth metrics review", time: "5d ago" },
+  { id: "7", title: "PRD for payments module", time: "1w ago" },
+  { id: "8", title: "Discovery sprint plan", time: "1w ago" },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [engineeringExpanded, setEngineeringExpanded] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     const collapsedState = localStorage.getItem("sidebar_collapsed_pref");
-    const engState = localStorage.getItem("sidebar_engineering_expanded");
     if (collapsedState !== null) setIsSidebarCollapsed(collapsedState === "true");
-    if (engState !== null) setEngineeringExpanded(engState === "true");
   }, []);
-
-  const toggleEngineering = () => {
-    const val = !engineeringExpanded;
-    setEngineeringExpanded(val);
-    localStorage.setItem("sidebar_engineering_expanded", String(val));
-  };
 
   const toggleSidebarCollapse = () => {
     const val = !isSidebarCollapsed;
@@ -71,7 +44,7 @@ export function Sidebar() {
   return (
     <>
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-slate-100 bg-white py-5 lg:flex overflow-y-auto transition-all duration-300 ease-in-out",
+        "fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-slate-100 bg-white py-5 lg:flex transition-all duration-300 ease-in-out",
         isSidebarCollapsed ? "w-[64px] px-2" : "w-[220px] px-4"
       )}>
 
@@ -79,7 +52,7 @@ export function Sidebar() {
         <Link
           href="/product/home"
           className={cn(
-            "mb-7 flex items-center gap-2.5 px-1 rounded-lg",
+            "mb-5 flex items-center gap-2.5 px-1 rounded-lg",
             isSidebarCollapsed && "justify-center px-0"
           )}
         >
@@ -94,75 +67,73 @@ export function Sidebar() {
           )}
         </Link>
 
-        {/* ── Product Nav ── */}
-        <nav className="flex-1 space-y-0.5">
-          {productItems.map((item) => {
-            const active = pathname === item.href;
-            const Icon = item.icon;
-            
-            if (item.comingSoon) {
-              return (
-                <div
-                  key={item.label}
-                  title={isSidebarCollapsed ? `${item.label} (Coming Soon)` : undefined}
-                  className={cn(
-                    "flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium text-slate-400 cursor-not-allowed select-none bg-transparent opacity-65",
-                    isSidebarCollapsed && "justify-center px-0"
-                  )}
+        {/* ── AI Home ── */}
+        <Link
+          href="/product/home"
+          title={isSidebarCollapsed ? "AI Home" : undefined}
+          className={cn(
+            "flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium transition-all shrink-0",
+            pathname === "/product/home"
+              ? "bg-blue-50 text-blue-600"
+              : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
+            isSidebarCollapsed && "justify-center px-0"
+          )}
+        >
+          <Home className="size-4 shrink-0" />
+          {!isSidebarCollapsed && <span>AI Home</span>}
+        </Link>
+
+        {/* ── Conversations (scrollable, between AI Home and Discovery) ── */}
+        {!isSidebarCollapsed && (
+          <div className="flex flex-col min-h-0 flex-1 mt-3">
+            <p className="px-2.5 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Conversations
+            </p>
+            <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5">
+              {placeholderConversations.map((conv) => (
+                <button
+                  key={conv.id}
+                  className="w-full flex items-start gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-slate-50 transition-colors group"
                 >
-                  <Icon className="size-4 shrink-0 text-slate-350" />
-                  {!isSidebarCollapsed && (
-                    <div className="flex items-center justify-between w-full min-w-0 gap-1">
-                      <span className="truncate">{item.label}</span>
-                      <span className="text-[8px] font-bold uppercase tracking-wider bg-slate-100 text-slate-450 px-1.5 py-0.5 rounded shrink-0">Soon</span>
-                    </div>
-                  )}
-                </div>
-              );
-            }
-
-            return (
-              <Link
-                key={item.label}
-                href={item.href}
-                title={isSidebarCollapsed ? item.label : undefined}
-                className={cn(
-                  "flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium transition-all",
-                  active
-                    ? "bg-blue-50 text-blue-600"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
-                  isSidebarCollapsed && "justify-center px-0"
-                )}
-              >
-                <Icon className="size-4 shrink-0" />
-                {!isSidebarCollapsed && <span className="truncate">{item.label}</span>}
-              </Link>
-            );
-          })}
-
-          {/* Settings */}
-          <div className="pt-1 mt-2 border-t border-slate-100">
-            <Link
-              href="/settings"
-              title={isSidebarCollapsed ? "Settings" : undefined}
-              className={cn(
-                "flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium transition-all",
-                pathname === "/settings"
-                  ? "bg-blue-50 text-blue-600"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
-                isSidebarCollapsed && "justify-center px-0"
-              )}
-            >
-              <Settings className="size-4 shrink-0" />
-              {!isSidebarCollapsed && <span>Settings</span>}
-            </Link>
+                  <MessageSquare className="size-3.5 shrink-0 mt-0.5 text-slate-300 group-hover:text-slate-400" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[12px] font-medium text-slate-600 truncate leading-tight group-hover:text-slate-900">
+                      {conv.title}
+                    </p>
+                    <p className="flex items-center gap-1 text-[10px] text-slate-400 mt-0.5">
+                      <Clock className="size-2.5" />
+                      {conv.time}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
+        )}
 
-          {/* Collapsible Engineering list hidden for now */}
-        </nav>
+        {/* Spacer when collapsed */}
+        {isSidebarCollapsed && <div className="flex-1" />}
+
+        {/* ── Discovery (Latest News) — pinned at bottom of main area ── */}
+        <div className={cn("shrink-0", !isSidebarCollapsed && "mt-3 pt-3 border-t border-slate-100")}>
+          <Link
+            href="/product/discovery"
+            title={isSidebarCollapsed ? "Discovery (Latest News)" : undefined}
+            className={cn(
+              "flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium transition-all",
+              pathname === "/product/discovery"
+                ? "bg-blue-50 text-blue-600"
+                : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
+              isSidebarCollapsed && "justify-center px-0"
+            )}
+          >
+            <Search className="size-4 shrink-0" />
+            {!isSidebarCollapsed && <span className="truncate">Discovery (Latest News)</span>}
+          </Link>
+        </div>
 
         {/* ── Profile + Collapse toggle ── */}
-        <div className="mt-auto pt-4 border-t border-slate-100 space-y-1">
+        <div className="mt-4 pt-4 border-t border-slate-100 space-y-1 shrink-0">
           {!isSidebarCollapsed ? (
             <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors">
               <div className="flex size-8 items-center justify-center rounded-full bg-slate-900 text-white text-[11px] font-bold shrink-0">AK</div>
@@ -187,47 +158,27 @@ export function Sidebar() {
         </div>
       </aside>
 
-      {/* ── Mobile nav (bottom bar) ── */}
+      {/* ── Mobile nav (bottom bar — AI Home + Discovery only) ── */}
       <nav className="fixed inset-x-3 bottom-3 z-40 flex rounded-2xl border bg-white/90 p-2 shadow-lg backdrop-blur-xl lg:hidden gap-1">
-        {productItems.slice(0, 5).map((item) => {
-          const active = pathname === item.href;
-          const Icon = item.icon;
-          
-          if (item.comingSoon) {
-            return (
-              <div
-                key={item.label}
-                className="flex flex-1 h-10 items-center justify-center rounded-xl text-slate-300 cursor-not-allowed select-none opacity-50"
-                title={`${item.label} (Coming Soon)`}
-              >
-                <Icon className="size-4" />
-              </div>
-            );
-          }
-
-          return (
-            <Link
-              key={item.label}
-              href={item.href}
-              className={cn(
-                "flex flex-1 h-10 items-center justify-center rounded-xl text-slate-500",
-                active && "bg-blue-50 text-blue-600"
-              )}
-              aria-label={item.label}
-            >
-              <Icon className="size-4" />
-            </Link>
-          );
-        })}
         <Link
-          href="/settings"
+          href="/product/home"
           className={cn(
             "flex flex-1 h-10 items-center justify-center rounded-xl text-slate-500",
-            pathname === "/settings" && "bg-blue-50 text-blue-600"
+            pathname === "/product/home" && "bg-blue-50 text-blue-600"
           )}
-          aria-label="Settings"
+          aria-label="AI Home"
         >
-          <Settings className="size-4" />
+          <Home className="size-4" />
+        </Link>
+        <Link
+          href="/product/discovery"
+          className={cn(
+            "flex flex-1 h-10 items-center justify-center rounded-xl text-slate-500",
+            pathname === "/product/discovery" && "bg-blue-50 text-blue-600"
+          )}
+          aria-label="Discovery (Latest News)"
+        >
+          <Search className="size-4" />
         </Link>
       </nav>
     </>
