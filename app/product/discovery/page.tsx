@@ -183,17 +183,19 @@ export default function DiscoveryPage() {
               </div>
             </div>
             
-            <div className="flex items-center gap-2 text-xs">
-              <span className="font-semibold text-slate-500 min-w-[70px]">Category:</span>
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="h-7 w-56 flex-shrink-0 pr-8 pl-2.5 text-[11px] font-semibold border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-slate-900"
-              >
+            <div className="flex items-start gap-2 text-xs">
+              <span className="font-semibold text-slate-500 min-w-[70px] mt-1.5">Category:</span>
+              <div className="flex flex-wrap gap-1.5">
                 {categories.map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                  <button
+                    key={c}
+                    onClick={() => setCategoryFilter(c)}
+                    className={`h-7 px-3 text-[11px] font-semibold rounded-lg border transition-all ${categoryFilter === c ? 'bg-slate-950 text-white border-slate-950' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    {c}
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
           </div>
 
