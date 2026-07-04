@@ -234,7 +234,24 @@ interface Message {
     targetUrl: string;
   };
   action?: { label: string; stage: string };
+  isError?: boolean;
 }
+
+const isErrorMessage = (msg: Message): boolean => {
+  if (msg.isError) return true;
+  if (msg.sender !== "ai") return false;
+  const text = msg.text.toLowerCase();
+  return (
+    text.includes("network error") ||
+    text.includes("trouble connecting") ||
+    text.includes("encountered an issue generating") ||
+    text.includes("groq api error") ||
+    text.includes("groq api returned") ||
+    text.includes("decommissioned") ||
+    text.includes("reasoning engine")
+  );
+};
+
 
 interface PRDSection {
   title: string;
@@ -804,8 +821,22 @@ export default function AIHomePage() {
     setAttachedFiles([]);
     setIsGenerating(true);
 
+    // Filter out failed message exchanges (user query + its failed AI response)
+    const validMessages: Message[] = [];
+    for (let i = 0; i < previousMessages.length; i++) {
+      const msg = previousMessages[i];
+      if (isErrorMessage(msg)) {
+        // Discard the failed AI response, and also discard the preceding user prompt if there is one
+        if (validMessages.length > 0 && validMessages[validMessages.length - 1].sender === "user") {
+          validMessages.pop();
+        }
+      } else {
+        validMessages.push(msg);
+      }
+    }
+
     // Build conversation history for Groq (last 10 messages for context window)
-    const historyForApi = previousMessages.slice(-10).map(m => ({
+    const historyForApi = validMessages.slice(-10).map(m => ({
       role: m.sender === "user" ? "user" : "assistant",
       content: m.text,
       attachments: m.attachments
@@ -820,6 +851,7 @@ export default function AIHomePage() {
     let targetStage = targetConv.activeStep;
     let nextAction: Message["action"] = undefined;
     let card: Message["workspaceCard"] = undefined;
+    let hasError = false;
 
     try {
       const res = await fetch("/api/chat", {
@@ -835,10 +867,12 @@ export default function AIHomePage() {
         const errData = await res.json().catch(() => ({}));
         console.error("Chat API error:", res.status, errData);
         aiText = errData.error || "I'm having trouble connecting to my reasoning engine right now. Please try again in a moment.";
+        hasError = true;
       }
     } catch (err) {
       console.error("Failed to call /api/chat:", err);
       aiText = "Network error — I could not reach my reasoning engine. Please check your connection and try again.";
+      hasError = true;
     }
 
     const aiMsg: Message = {
@@ -846,7 +880,8 @@ export default function AIHomePage() {
       text: aiText,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       workspaceCard: card,
-      action: nextAction
+      action: nextAction,
+      isError: hasError
     };
 
     setConversations(prev => prev.map(c => {
@@ -1382,63 +1417,56 @@ export default function AIHomePage() {
                             </div>
                           )}
                           <div className="space-y-2 max-w-[82%]">
-                            {/* Retrieved Models */}
-                            {isAi && idx === activeConv.messages.length - 1 && activeConv.retrievedModels && activeConv.retrievedModels.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mb-1.5 items-center">
-                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mr-1">Retrieved Models:</span>
-                                {activeConv.retrievedModels.map((m) => {
-                                  const name = PM_KNOWLEDGE_BASE[m]?.name || m;
+                            {/* Message attachments rendering */}
+                            {msg.attachments && msg.attachments.length > 0 && (
+                              <div className={cn("flex flex-wrap gap-2 pointer-events-auto", !isAi && "justify-end")}>
+                                {msg.attachments.map((file) => {
+                                  const isImg = file.type.startsWith("image/");
                                   return (
-                                    <span key={m} className="px-2 py-0.5 rounded-full bg-violet-50 text-violet-600 text-[9px] font-bold border border-violet-100/50 shadow-3xs flex items-center gap-1">
-                                      <Sparkles className="size-2.5 text-violet-500 animate-pulse" />
-                                      {name}
-                                    </span>
+                                    <div 
+                                      key={file.id} 
+                                      className={cn(
+                                        "relative border rounded-xl overflow-hidden shadow-2xs flex items-center bg-slate-50 shrink-0",
+                                        isImg ? "p-0 border-slate-100" : "p-2 border-slate-200 bg-white"
+                                      )}
+                                    >
+                                      {isImg ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img 
+                                          src={file.dataUrl} 
+                                          alt={file.name} 
+                                          className="h-28 w-auto object-cover max-w-full"
+                                        />
+                                      ) : (
+                                        <div className="flex items-center gap-2 text-slate-700 w-full min-w-0">
+                                          <FileText className="size-5 text-slate-500 shrink-0" />
+                                          <div className="min-w-0 flex-1">
+                                            <p className="text-[11px] font-semibold truncate leading-tight text-slate-800">{file.name}</p>
+                                            <p className="text-[9px] text-slate-400 font-medium leading-tight mt-0.5">{(file.size / 1024).toFixed(1)} KB</p>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
                                   );
                                 })}
                               </div>
                             )}
+
                             {/* Message bubble */}
                             <div
                               className={cn(
                                 "px-4 py-3 rounded-2xl text-[13px] leading-relaxed",
                                 isAi
-                                  ? "bg-slate-50 text-slate-800 rounded-tl-[4px] border border-slate-100"
+                                  ? isErrorMessage(msg)
+                                    ? "bg-red-50 text-red-700 border border-red-200 rounded-tl-[4px]"
+                                    : "bg-slate-50 text-slate-800 rounded-tl-[4px] border border-slate-100"
                                   : "bg-violet-600 text-white rounded-tr-[4px]"
                               )}
                             >
-                              {/* Message attachments rendering */}
-                              {msg.attachments && msg.attachments.length > 0 && (
-                                <div className="flex flex-wrap gap-2 mb-2 pointer-events-auto">
-                                  {msg.attachments.map((file) => {
-                                    const isImg = file.type.startsWith("image/");
-                                    return (
-                                      <div 
-                                        key={file.id} 
-                                        className={cn(
-                                          "relative border rounded-xl overflow-hidden shadow-2xs max-w-[200px] flex items-center bg-slate-50 shrink-0",
-                                          isImg ? "p-0 border-slate-100" : "p-2 border-slate-200"
-                                        )}
-                                      >
-                                        {isImg ? (
-                                          // eslint-disable-next-line @next/next/no-img-element
-                                          <img 
-                                            src={file.dataUrl} 
-                                            alt={file.name} 
-                                            className="h-28 w-auto object-cover max-w-full"
-                                          />
-                                        ) : (
-                                          <div className="flex items-center gap-2 text-slate-700 w-full min-w-0">
-                                            <FileText className="size-5 text-slate-500 shrink-0" />
-                                            <div className="min-w-0 flex-1">
-                                              <p className="text-[11px] font-semibold truncate leading-tight text-slate-800">{file.name}</p>
-                                              <p className="text-[9px] text-slate-400 font-medium leading-tight mt-0.5">{(file.size / 1024).toFixed(1)} KB</p>
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
+                              {isAi && isErrorMessage(msg) && (
+                                <span className="inline-flex items-center gap-1.5 font-semibold text-red-800 mr-1.5">
+                                  ⚠️ Error:
+                                </span>
                               )}
                               {renderMarkdown(msg.text)}
                             </div>

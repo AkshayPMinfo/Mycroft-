@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
     }
   });
 
-  const activeModel = hasImage ? "llama-3.2-90b-vision-preview" : GROQ_MODEL;
+  const activeModel = hasImage ? "meta-llama/llama-4-scout-17b-16e-instruct" : GROQ_MODEL;
 
   // Build the system message
   let systemContent = context
