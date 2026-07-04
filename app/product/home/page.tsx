@@ -85,26 +85,47 @@ function renderMarkdown(text: string): React.ReactNode {
       {lines.map((line, idx) => {
         let cleanLine = line.trim();
 
-        // 1. Headings (### or ## or #)
+        // 1. Headings (###### down to #)
+        if (cleanLine.startsWith("###### ")) {
+          return (
+            <h6 key={idx} className="text-[11.5px] font-semibold text-slate-700 mt-2 mb-0.5 tracking-tight">
+              {renderInlineMarkdown(cleanLine.substring(7))}
+            </h6>
+          );
+        }
+        if (cleanLine.startsWith("##### ")) {
+          return (
+            <h5 key={idx} className="text-[12.5px] font-bold text-slate-800 mt-2.5 mb-1 tracking-tight">
+              {renderInlineMarkdown(cleanLine.substring(6))}
+            </h5>
+          );
+        }
+        if (cleanLine.startsWith("#### ")) {
+          return (
+            <h4 key={idx} className="text-[13.5px] font-bold text-slate-900 mt-3 mb-1 tracking-tight">
+              {renderInlineMarkdown(cleanLine.substring(5))}
+            </h4>
+          );
+        }
         if (cleanLine.startsWith("### ")) {
           return (
-            <h4 key={idx} className="text-[13.5px] font-bold text-slate-900 mt-2.5 mb-1 tracking-tight">
+            <h3 key={idx} className="text-[14.5px] font-bold text-slate-900 mt-3.5 mb-1.5 tracking-tight">
               {renderInlineMarkdown(cleanLine.substring(4))}
-            </h4>
+            </h3>
           );
         }
         if (cleanLine.startsWith("## ")) {
           return (
-            <h3 key={idx} className="text-[14.5px] font-bold text-slate-900 mt-3 mb-1.5 tracking-tight">
+            <h2 key={idx} className="text-[15.5px] font-bold text-slate-950 mt-4 mb-1.8 tracking-tight">
               {renderInlineMarkdown(cleanLine.substring(3))}
-            </h3>
+            </h2>
           );
         }
         if (cleanLine.startsWith("# ")) {
           return (
-            <h2 key={idx} className="text-base font-bold text-slate-950 mt-4 mb-2 tracking-tight">
+            <h1 key={idx} className="text-[17px] font-extrabold text-slate-950 mt-4.5 mb-2.5 tracking-tight">
               {renderInlineMarkdown(cleanLine.substring(2))}
-            </h2>
+            </h1>
           );
         }
 
