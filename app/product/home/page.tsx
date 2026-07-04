@@ -925,7 +925,7 @@ export default function AIHomePage() {
       )}>
         {/* Sidebar Header */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-slate-100 bg-white">
-          <span className="text-sm font-semibold text-slate-800 tracking-tight">Conversations</span>
+          <span className="text-sm font-semibold text-slate-800 tracking-tight">Recents</span>
           <button
             onClick={toggleConvSidebar}
             className="p-1 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
@@ -984,23 +984,8 @@ export default function AIHomePage() {
         {/* ── Top Navigation Bar ── */}
         <header className="shrink-0 flex items-center justify-between px-6 py-3.5 border-b border-slate-100 bg-white z-20">
           
-          {/* Left Controls: Conversations expand button with history icon and chevron down indicator */}
+          {/* Left Controls: Minimal layout displaying only back button when active */}
           <div className="flex items-center gap-3">
-            <button
-              onClick={toggleConvSidebar}
-              className="group flex items-center gap-1.5 text-slate-650 hover:bg-slate-50 hover:text-slate-900 transition-all p-2 rounded-xl border border-slate-200/60 hover:shadow-2xs active:scale-95 duration-150 relative"
-              title="View Previous Conversations"
-            >
-              <HistoryIcon className="size-4 text-slate-500 group-hover:rotate-[-10deg] transition-transform duration-200" />
-              <span className="text-xs font-bold pr-0.5 text-slate-700">Conversations</span>
-              <ChevronRight className={cn("size-3.5 text-slate-400 transition-transform duration-200", !convSidebarCollapsed && "rotate-90")} />
-              {/* Pulsing indicator badge */}
-              <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500"></span>
-              </span>
-            </button>
-            
             {showChatView && (
               <button
                 onClick={() => setShowChatView(false)}
@@ -1292,7 +1277,7 @@ export default function AIHomePage() {
 
         {/* ── Active Chat Composer (displayed only when chatting) ── */}
         {showChatView && (
-          <div className="absolute bottom-6 left-0 right-0 flex justify-center px-6 pointer-events-none z-10">
+          <div className={cn("absolute left-0 right-0 flex justify-center px-6 pointer-events-none z-10", disclaimerVisible ? "bottom-16" : "bottom-8")}>
             <div className="w-full max-w-4xl bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg p-3.5 pointer-events-auto transition-all">
               <div className="flex gap-2.5 items-center">
                 <textarea
