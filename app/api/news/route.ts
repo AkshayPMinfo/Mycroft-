@@ -34,8 +34,19 @@ export async function POST(req: NextRequest) {
 
   const { category, region } = body;
 
-  // Build the query 'q' parameter
-  const qQuery = category && category !== "All" ? category : "technology";
+  // Specific query mapping for NewsData.io to get relevant PM/business news
+  const queryMap: Record<string, string> = {
+    All: "technology OR startup OR fintech OR software OR SaaS",
+    FinTech: "fintech OR banking OR payments OR neobank OR \"digital finance\"",
+    HealthTech: "healthtech OR \"digital health\" OR telemedicine OR medtech OR bioinformatics",
+    AI: "\"artificial intelligence\" OR LLM OR \"generative AI\" OR \"machine learning\"",
+    SaaS: "SaaS OR \"software as a service\" OR \"enterprise software\" OR \"B2B startup\"",
+    Ecommerce: "ecommerce OR retailtech OR \"online retail\" OR D2C OR shopify",
+    EdTech: "edtech OR \"education technology\" OR e-learning OR \"online learning\"",
+    Gaming: "gaming OR \"video games\" OR gametech OR esport OR console"
+  };
+
+  const qQuery = queryMap[category] || queryMap["All"];
 
   // Build country parameter
   let countryParam = "";
