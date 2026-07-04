@@ -188,7 +188,7 @@ export default function DiscoveryPage() {
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="h-7 min-w-[130px] text-[11px] font-semibold border border-slate-200 rounded-lg bg-white px-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="h-7 w-44 pr-8 pl-2.5 text-[11px] font-semibold border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-slate-900"
               >
                 {categories.map((c) => (
                   <option key={c} value={c}>{c}</option>
