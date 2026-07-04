@@ -937,93 +937,130 @@ export default function AIHomePage() {
   const [isDragging, setIsDragging] = useState(false);
 
   const processFile = (file: File): Promise<Attachment> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return new Promise((resolve, reject) => {
+      try {
+        const reader = new FileReader();
+        const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-      if (file.type.startsWith("image/")) {
-        reader.onload = (event) => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement("canvas");
-            const maxDim = 1024;
-            let width = img.width;
-            let height = img.height;
-            if (width > height) {
-              if (width > maxDim) {
-                height = Math.round((height * maxDim) / width);
-                width = maxDim;
-              }
-            } else {
-              if (height > maxDim) {
-                width = Math.round((width * maxDim) / height);
-                height = maxDim;
-              }
-            }
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext("2d");
-            if (ctx) {
-              ctx.drawImage(img, 0, 0, width, height);
-              const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
-              resolve({
-                id: fileId,
-                name: file.name,
-                type: file.type,
-                size: file.size,
-                dataUrl,
-              });
-            } else {
-              resolve({
-                id: fileId,
-                name: file.name,
-                type: file.type,
-                size: file.size,
-                dataUrl: event.target?.result as string,
-              });
+        reader.onerror = (err) => {
+          console.error("FileReader error for file:", file.name, err);
+          reject(new Error(`Failed to read file "${file.name}": ${reader.error?.message || "unknown error"}`));
+        };
+
+        if (file.type.startsWith("image/")) {
+          reader.onload = (event) => {
+            try {
+              const img = new window.Image();
+              img.onload = () => {
+                try {
+                  const canvas = document.createElement("canvas");
+                  const maxDim = 1024;
+                  let width = img.width;
+                  let height = img.height;
+                  if (width > height) {
+                    if (width > maxDim) {
+                      height = Math.round((height * maxDim) / width);
+                      width = maxDim;
+                    }
+                  } else {
+                    if (height > maxDim) {
+                      width = Math.round((width * maxDim) / height);
+                      height = maxDim;
+                    }
+                  }
+                  canvas.width = width;
+                  canvas.height = height;
+                  const ctx = canvas.getContext("2d");
+                  if (ctx) {
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+                    resolve({
+                      id: fileId,
+                      name: file.name,
+                      type: file.type,
+                      size: file.size,
+                      dataUrl,
+                    });
+                  } else {
+                    resolve({
+                      id: fileId,
+                      name: file.name,
+                      type: file.type,
+                      size: file.size,
+                      dataUrl: event.target?.result as string,
+                    });
+                  }
+                } catch (canvasErr) {
+                  console.warn("Canvas resizing failed, using raw data url:", canvasErr);
+                  resolve({
+                    id: fileId,
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    dataUrl: event.target?.result as string,
+                  });
+                }
+              };
+              img.onerror = (imgErr) => {
+                console.error("Image load error for file:", file.name, imgErr);
+                reject(new Error(`Failed to parse image "${file.name}". The file might be corrupted or in an unsupported format.`));
+              };
+              img.src = event.target?.result as string;
+            } catch (imgSetupErr) {
+              console.error("Image element setup failed:", imgSetupErr);
+              reject(new Error(`Failed to process image "${file.name}": ${imgSetupErr instanceof Error ? imgSetupErr.message : "unknown error"}`));
             }
           };
-          img.src = event.target?.result as string;
-        };
-        reader.readAsDataURL(file);
-      } else if (
-        file.type.startsWith("text/") ||
-        file.name.endsWith(".json") ||
-        file.name.endsWith(".js") ||
-        file.name.endsWith(".ts") ||
-        file.name.endsWith(".csv") ||
-        file.name.endsWith(".md")
-      ) {
-        reader.onload = (event) => {
-          resolve({
-            id: fileId,
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            textContent: event.target?.result as string,
-          });
-        };
-        reader.readAsText(file);
-      } else {
-        reader.onload = (event) => {
-          resolve({
-            id: fileId,
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            dataUrl: event.target?.result as string,
-          });
-        };
-        reader.readAsDataURL(file);
+          reader.readAsDataURL(file);
+        } else if (
+          file.type.startsWith("text/") ||
+          file.name.endsWith(".json") ||
+          file.name.endsWith(".js") ||
+          file.name.endsWith(".ts") ||
+          file.name.endsWith(".csv") ||
+          file.name.endsWith(".md")
+        ) {
+          reader.onload = (event) => {
+            resolve({
+              id: fileId,
+              name: file.name,
+              type: file.type,
+              size: file.size,
+              textContent: event.target?.result as string,
+            });
+          };
+          reader.readAsText(file);
+        } else {
+          reader.onload = (event) => {
+            resolve({
+              id: fileId,
+              name: file.name,
+              type: file.type,
+              size: file.size,
+              dataUrl: event.target?.result as string,
+            });
+          };
+          reader.readAsDataURL(file);
+        }
+      } catch (err) {
+        console.error("File processing error:", err);
+        reject(new Error(`File processing error for "${file.name}": ${err instanceof Error ? err.message : "unknown error"}`));
       }
     });
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const filesArray = Array.from(e.target.files);
-      const processed = await Promise.all(filesArray.map(processFile));
-      setAttachedFiles((prev) => [...prev, ...processed]);
+      try {
+        const filesArray = Array.from(e.target.files);
+        const processed = await Promise.all(filesArray.map(processFile));
+        setAttachedFiles((prev) => [...prev, ...processed]);
+      } catch (err) {
+        console.error("Error attaching files:", err);
+        alert(err instanceof Error ? err.message : "Failed to read one or more files.");
+      } finally {
+        e.target.value = ""; // Reset the input value so the same file can be re-selected
+      }
     }
   };
 
@@ -1036,8 +1073,13 @@ export default function AIHomePage() {
 
     if (files.length > 0) {
       e.preventDefault();
-      const processed = await Promise.all(files.map(processFile));
-      setAttachedFiles((prev) => [...prev, ...processed]);
+      try {
+        const processed = await Promise.all(files.map(processFile));
+        setAttachedFiles((prev) => [...prev, ...processed]);
+      } catch (err) {
+        console.error("Error pasting files:", err);
+        alert(err instanceof Error ? err.message : "Failed to read one or more pasted files.");
+      }
     }
   };
 
@@ -1055,9 +1097,14 @@ export default function AIHomePage() {
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const filesArray = Array.from(e.dataTransfer.files);
-      const processed = await Promise.all(filesArray.map(processFile));
-      setAttachedFiles((prev) => [...prev, ...processed]);
+      try {
+        const filesArray = Array.from(e.dataTransfer.files);
+        const processed = await Promise.all(filesArray.map(processFile));
+        setAttachedFiles((prev) => [...prev, ...processed]);
+      } catch (err) {
+        console.error("Error dropping files:", err);
+        alert(err instanceof Error ? err.message : "Failed to read one or more dropped files.");
+      }
     }
   };
 
