@@ -162,26 +162,28 @@ function getCleanActivity(step: string): string {
 }
 
 function generateCleanTitle(input: string): string {
-  const clean = input.toLowerCase().trim();
+  const clean = input.trim();
+  if (!clean) return "Untitled Chat";
 
   // Handle identity, greeting and help queries
+  const cleanLower = clean.toLowerCase();
   if (
-    clean.includes("who are you") ||
-    clean.includes("who is mycroft") ||
-    clean.includes("your name") ||
-    clean.includes("what is your name") ||
-    clean === "hi" ||
-    clean === "hello" ||
-    clean === "hey" ||
-    clean.includes("help")
+    cleanLower.includes("who are you") ||
+    cleanLower.includes("who is mycroft") ||
+    cleanLower.includes("your name") ||
+    cleanLower.includes("what is your name") ||
+    cleanLower === "hi" ||
+    cleanLower === "hello" ||
+    cleanLower === "hey" ||
+    cleanLower.includes("help")
   ) {
     return "About Mycroft";
   }
 
   // Clean trailing punctuation and spaces
-  let title = input.replace(/[?\s!.,]+$/g, "").trim();
-  if (!title) return "New Chat";
+  let title = clean.replace(/[?\s!.,]+$/g, "");
 
+  // Capitalize nicely
   const ABBREVIATIONS = ["ai", "upi", "prd", "rice", "ice", "moscow", "jtbd", "okr", "okrs", "mvp"];
   const words = title.split(/\s+/);
   title = words.map(word => {
@@ -190,14 +192,20 @@ function generateCleanTitle(input: string): string {
       return word.toUpperCase();
     }
     if (word.length > 0) {
-      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      return word.charAt(0).toUpperCase() + word.slice(1);
     }
     return word;
   }).join(" ");
 
-  // Cap length
-  if (title.length > 30) {
-    title = title.substring(0, 30) + "...";
+  // Intelligently truncate to ~40 chars preserving whole words
+  if (title.length > 40) {
+    const subset = title.substring(0, 40);
+    const lastSpace = subset.lastIndexOf(" ");
+    if (lastSpace > 20) {
+      title = subset.substring(0, lastSpace) + "...";
+    } else {
+      title = subset + "...";
+    }
   }
 
   return title;
@@ -522,6 +530,10 @@ export default function AIHomePage() {
   // Greeting based on time
   const [greeting, setGreeting] = useState("Good morning");
 
+  // Search Query for Conversation history (Claude-like search)
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [historySearchQuery, setHistorySearchQuery] = useState("");
+
   // Bootstrap state
   useEffect(() => {
     const savedConvs = localStorage.getItem("mycroft_home_conversations");
@@ -531,7 +543,7 @@ export default function AIHomePage() {
       try {
         const parsed = JSON.parse(savedConvs);
         if (Array.isArray(parsed)) {
-          loadedConvs = parsed.filter((c: Conversation) => c.messages.length > 1 || c.title !== "New Chat");
+          loadedConvs = parsed.filter((c: Conversation) => c.messages && c.messages.length > 0);
         }
       } catch (e) {
         console.error(e);
@@ -540,15 +552,19 @@ export default function AIHomePage() {
 
     if (loadedConvs.length === 0) {
       loadedConvs = makeSeededConversations();
+      localStorage.setItem("mycroft_home_conversations", JSON.stringify(loadedConvs));
     }
 
-    // Always start with a brand-new clean conversation on reload/fresh session
-    const newConv = makeDefaultConv();
-    newConv.messages = [];
+    setConversations(loadedConvs);
 
-    setConversations([newConv, ...loadedConvs]);
-    setActiveConvId(newConv.id);
-    setShowChatView(false);
+    const savedActiveId = localStorage.getItem("mycroft_home_active_conv_id");
+    if (savedActiveId && loadedConvs.some(c => c.id === savedActiveId)) {
+      setActiveConvId(savedActiveId);
+      setShowChatView(true);
+    } else {
+      setActiveConvId("");
+      setShowChatView(false);
+    }
 
     const hours = new Date().getHours();
     if (hours >= 17) {
@@ -562,11 +578,50 @@ export default function AIHomePage() {
     setIsLoaded(true);
   }, []);
 
+  // Listen to external/sidebar mycroft_sync event
+  useEffect(() => {
+    const handleSync = () => {
+      const savedConvs = localStorage.getItem("mycroft_home_conversations");
+      const savedActiveId = localStorage.getItem("mycroft_home_active_conv_id");
+      if (savedConvs) {
+        try {
+          const parsed = JSON.parse(savedConvs);
+          if (Array.isArray(parsed)) {
+            setConversations(prev => {
+              if (JSON.stringify(prev) === savedConvs) return prev;
+              return parsed;
+            });
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      if (savedActiveId !== undefined) {
+        setActiveConvId(prev => {
+          const next = savedActiveId || "";
+          if (prev === next) return prev;
+          return next;
+        });
+        if (savedActiveId) {
+          setShowChatView(true);
+        } else {
+          setShowChatView(false);
+        }
+      }
+    };
+    window.addEventListener("mycroft_sync", handleSync);
+    return () => window.removeEventListener("mycroft_sync", handleSync);
+  }, []);
+
   // Sync state to localStorage
   useEffect(() => {
     if (!isLoaded) return;
-    localStorage.setItem("mycroft_home_conversations", JSON.stringify(conversations));
+    const cleanConvs = conversations.filter(c => c.messages && c.messages.length > 0);
+    localStorage.setItem("mycroft_home_conversations", JSON.stringify(cleanConvs));
     localStorage.setItem("mycroft_home_active_conv_id", activeConvId);
+    
+    // Notify sidebar and rest of app
+    window.dispatchEvent(new Event("mycroft_sync"));
 
     const active = conversations.find(c => c.id === activeConvId);
     if (active) {
@@ -604,7 +659,7 @@ export default function AIHomePage() {
           objective: active.prdSections.objective.content,
           businessValue: active.prdSections.businessValue?.content || "",
           userValue: active.prdSections.userValue?.content || "",
-          targetUsers: active.prdSections.targetUsers.content,
+          targetUsers: active.activeStep === "Discovery" ? "Students in Bangalore campuses" : active.prdSections.targetUsers.content,
           userProblems: active.prdSections.userProblems?.content || "",
           proposedSolution: active.prdSections.proposedSolution?.content || "",
           successMetrics: active.prdSections.successMetrics.content,
@@ -635,12 +690,9 @@ export default function AIHomePage() {
     setConvSidebarCollapsed(!convSidebarCollapsed);
   };
 
-  // Start new clean conversation
+  // Start new clean conversation (landing view, does not create an object in list)
   const handleNewChat = useCallback(() => {
-    const newConv = makeDefaultConv();
-    newConv.messages = [];
-    setConversations(prev => [newConv, ...prev]);
-    setActiveConvId(newConv.id);
+    setActiveConvId("");
     setShowChatView(false);
     setChatInput("");
     setAttachedFile(null);
@@ -649,9 +701,9 @@ export default function AIHomePage() {
   const handleDeleteChat = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const updated = conversations.filter(c => c.id !== id);
-    setConversations(updated.length > 0 ? updated : [makeDefaultConv()]);
+    setConversations(updated);
     if (activeConvId === id) {
-      setActiveConvId(updated.length > 0 ? updated[0].id : "");
+      setActiveConvId("");
       setShowChatView(false);
     }
   }, [conversations, activeConvId]);
@@ -676,7 +728,7 @@ export default function AIHomePage() {
 
   const handleSendMessage = useCallback(async (textToSend?: string) => {
     const input = textToSend || chatInput;
-    if (!input.trim() || !activeConv) return;
+    if (!input.trim()) return;
 
     // Transition to chat view
     setShowChatView(true);
@@ -687,25 +739,53 @@ export default function AIHomePage() {
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     };
 
-    // Determine updated title from first prompt
-    let updatedTitle = activeConv.title;
-    if (activeConv.title === "New Chat" || (activeConv.title === "UPI Expense Manager" && activeConv.messages.length <= 1)) {
-      updatedTitle = generateCleanTitle(input);
+    let currentConvId = activeConvId;
+    let targetConv = activeConv;
+
+    if (!targetConv) {
+      // Create fresh conversation object lazily on first user prompt
+      const generatedId = `conv_${Date.now()}`;
+      const newTitle = generateCleanTitle(input);
+      targetConv = {
+        ...makeDefaultConv(),
+        id: generatedId,
+        title: newTitle,
+        messages: [],
+        createdAt: new Date().toISOString(),
+      };
+      currentConvId = generatedId;
     }
 
+    const updatedTitle = targetConv.title === "New Chat" || targetConv.title === "" ? generateCleanTitle(input) : targetConv.title;
     const retrieved = retrieveRelevantKnowledge(input);
+    const previousMessages = targetConv.messages;
 
-    // Capture snapshot of messages before state update for API call
-    const previousMessages = activeConv.messages;
+    setConversations(prev => {
+      const exists = prev.some(c => c.id === currentConvId);
+      if (exists) {
+        return prev.map(c =>
+          c.id === currentConvId ? {
+            ...c,
+            title: updatedTitle,
+            messages: [...c.messages, userMsg],
+            retrievedModels: retrieved
+          } : c
+        );
+      } else {
+        return [
+          {
+            ...targetConv!,
+            title: updatedTitle,
+            messages: [userMsg],
+            retrievedModels: retrieved
+          },
+          ...prev
+        ];
+      }
+    });
 
-    setConversations(prev => prev.map(c =>
-      c.id === activeConvId ? {
-        ...c,
-        title: updatedTitle,
-        messages: [...c.messages, userMsg],
-        retrievedModels: retrieved
-      } : c
-    ));
+    setActiveConvId(currentConvId);
+
     if (!textToSend) setChatInput("");
     setAttachedFile(null);
     setIsGenerating(true);
@@ -718,7 +798,7 @@ export default function AIHomePage() {
     historyForApi.push({ role: "user", content: input });
 
     let aiText = "";
-    let targetStage = activeConv.activeStep;
+    let targetStage = targetConv.activeStep;
     let nextAction: Message["action"] = undefined;
     let card: Message["workspaceCard"] = undefined;
 
@@ -733,7 +813,6 @@ export default function AIHomePage() {
         const data = await res.json();
         aiText = data.reply || "I encountered an issue generating a response. Please try again.";
       } else {
-        // Fallback: surface error from API
         const errData = await res.json().catch(() => ({}));
         console.error("Chat API error:", res.status, errData);
         aiText = errData.error || "I'm having trouble connecting to my reasoning engine right now. Please try again in a moment.";
@@ -752,7 +831,7 @@ export default function AIHomePage() {
     };
 
     setConversations(prev => prev.map(c => {
-      if (c.id !== activeConvId) return c;
+      if (c.id !== currentConvId) return c;
       return {
         ...c,
         activeStep: targetStage,
@@ -847,168 +926,55 @@ export default function AIHomePage() {
         {/* Sidebar Header */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-slate-100 bg-white">
           <span className="text-sm font-semibold text-slate-800 tracking-tight">Conversations</span>
-          <div className="flex items-center gap-1">
-            <button className="p-1 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors">
-              <Search className="size-3.5" />
-            </button>
-            <button
-              onClick={toggleConvSidebar}
-              className="p-1 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-              title="Collapse Panel"
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Sidebar Groups */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-4">
-          
-          {/* Today Group */}
-          {grouped.today.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2.5 mb-1.5">Today</p>
-              {grouped.today.map(c => {
-                const isActive = c.id === activeConvId;
-                return (
-                  <div
-                    key={c.id}
-                    onClick={() => {
-                      setActiveConvId(c.id);
-                      setShowChatView(true);
-                      setConvSidebarCollapsed(true);
-                    }}
-                    className={cn(
-                      "group flex flex-col px-3 py-2 rounded-xl cursor-pointer transition-all relative border border-transparent",
-                      isActive
-                        ? "bg-violet-50/70 border-violet-100 text-slate-900"
-                        : "hover:bg-slate-50 text-slate-600 hover:text-slate-950"
-                    )}
-                  >
-                    <div className="flex flex-col gap-1 w-full py-0.5">
-                      <span className="text-[13px] font-bold text-slate-800 tracking-tight truncate leading-snug group-hover:text-violet-700 transition-colors">
-                        {c.title}
-                      </span>
-                      <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium">
-                        <p className="flex items-center gap-1">
-                          <span className="text-slate-400">Last Active •</span>
-                          <span className="text-slate-700 font-semibold">{getCleanActivity(c.activeStep)}</span>
-                        </p>
-                        <p className="text-[9px] text-slate-400 font-normal">
-                          Updated {c.displayTime || "Just now"}
-                        </p>
-                      </div>
-                    </div>
-                    {isActive && (
-                      <span className="absolute right-3.5 bottom-3.5 size-1.5 rounded-full bg-violet-600 animate-pulse" />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Yesterday Group */}
-          {grouped.yesterday.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2.5 mb-1.5">Yesterday</p>
-              {grouped.yesterday.map(c => {
-                const isActive = c.id === activeConvId;
-                return (
-                  <div
-                    key={c.id}
-                    onClick={() => {
-                      setActiveConvId(c.id);
-                      setShowChatView(true);
-                      setConvSidebarCollapsed(true);
-                    }}
-                    className={cn(
-                      "group flex flex-col px-3 py-2 rounded-xl cursor-pointer transition-all relative border border-transparent",
-                      isActive
-                        ? "bg-violet-50/70 border-violet-100 text-slate-900"
-                        : "hover:bg-slate-50 text-slate-600 hover:text-slate-950"
-                    )}
-                  >
-                    <div className="flex flex-col gap-1 w-full py-0.5">
-                      <span className="text-[13px] font-bold text-slate-800 tracking-tight truncate leading-snug group-hover:text-violet-700 transition-colors">
-                        {c.title}
-                      </span>
-                      <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium">
-                        <p className="flex items-center gap-1">
-                          <span className="text-slate-400">Last Active •</span>
-                          <span className="text-slate-700 font-semibold">{getCleanActivity(c.activeStep)}</span>
-                        </p>
-                        <p className="text-[9px] text-slate-400 font-normal">
-                          Updated {c.displayTime || "Yesterday"}
-                        </p>
-                      </div>
-                    </div>
-                    {isActive && (
-                      <span className="absolute right-3.5 bottom-3.5 size-1.5 rounded-full bg-violet-600 animate-pulse" />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Earlier Group */}
-          {grouped.earlier.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2.5 mb-1.5">Earlier</p>
-              {grouped.earlier.map(c => {
-                const isActive = c.id === activeConvId;
-                return (
-                  <div
-                    key={c.id}
-                    onClick={() => {
-                      setActiveConvId(c.id);
-                      setShowChatView(true);
-                      setConvSidebarCollapsed(true);
-                    }}
-                    className={cn(
-                      "group flex flex-col px-3 py-2 rounded-xl cursor-pointer transition-all relative border border-transparent",
-                      isActive
-                        ? "bg-violet-50/70 border-violet-100 text-slate-900"
-                        : "hover:bg-slate-50 text-slate-600 hover:text-slate-950"
-                    )}
-                  >
-                    <div className="flex flex-col gap-1 w-full py-0.5">
-                      <span className="text-[13px] font-bold text-slate-800 tracking-tight truncate leading-snug group-hover:text-violet-700 transition-colors">
-                        {c.title}
-                      </span>
-                      <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium">
-                        <p className="flex items-center gap-1">
-                          <span className="text-slate-400">Last Active •</span>
-                          <span className="text-slate-700 font-semibold">{getCleanActivity(c.activeStep)}</span>
-                        </p>
-                        <p className="text-[9px] text-slate-400 font-normal">
-                          Updated {c.displayTime || "Earlier"}
-                        </p>
-                      </div>
-                    </div>
-                    {isActive && (
-                      <span className="absolute right-3.5 bottom-3.5 size-1.5 rounded-full bg-violet-600 animate-pulse" />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-        </div>
-
-        {/* Sidebar Footer */}
-        <div className="p-3 bg-slate-50/50 border-t border-slate-100/80 flex flex-col gap-2">
-          <button className="w-full py-2 px-3.5 rounded-xl text-[11px] font-semibold text-slate-650 hover:text-slate-900 hover:bg-slate-100/60 flex items-center justify-between transition-all duration-200 border border-slate-200/40 bg-white shadow-2xs group">
-            <span className="flex items-center gap-1.5">
-              <span>View all conversations</span>
-              <span className="text-[9px] font-bold bg-slate-100 text-slate-500 py-0.5 px-1.5 rounded-full group-hover:bg-violet-50 group-hover:text-violet-600 transition-colors">
-                {conversations.length}
-              </span>
-            </span>
-            <ArrowRight className="size-3.5 text-slate-400 group-hover:text-slate-700 group-hover:translate-x-0.5 transition-all" />
+          <button
+            onClick={toggleConvSidebar}
+            className="p-1 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+            title="Collapse Panel"
+          >
+            <ChevronLeft className="size-4" />
           </button>
+        </div>
+
+        {/* Sidebar List */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-1">
+          {conversations
+            .filter(c => c.messages && c.messages.length > 0)
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .map(c => {
+              const isActive = c.id === activeConvId;
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => {
+                    setActiveConvId(c.id);
+                    setShowChatView(true);
+                    setConvSidebarCollapsed(true);
+                  }}
+                  className={cn(
+                    "group flex items-center justify-between px-3 py-2 rounded-xl cursor-pointer transition-all relative border border-transparent",
+                    isActive
+                      ? "bg-violet-50/70 border-violet-100 text-slate-900 font-semibold"
+                      : "hover:bg-slate-50 text-slate-650 hover:text-slate-950"
+                  )}
+                >
+                  <span className="text-[13px] truncate flex-1 leading-snug">
+                    {c.title}
+                  </span>
+                  <button
+                    onClick={(e) => handleDeleteChat(c.id, e)}
+                    className="opacity-0 group-hover:opacity-100 text-slate-450 hover:text-red-500 transition-opacity p-1 ml-2 rounded-md hover:bg-slate-100/80 shrink-0"
+                    title="Delete conversation"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+          {conversations.filter(c => c.messages && c.messages.length > 0).length === 0 && (
+            <div className="text-center py-8 text-[12px] text-slate-400 italic">
+              No conversations yet.
+            </div>
+          )}
         </div>
       </div>
 
@@ -1057,34 +1023,92 @@ export default function AIHomePage() {
           )}
 
           {/* Right Controls */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {/* New Chat Button */}
             <Button
               onClick={handleNewChat}
               variant="secondary"
-              className="h-8 px-3.5 rounded-lg border-violet-200 text-violet-600 hover:bg-violet-50/50 text-[12px] font-semibold flex items-center gap-1.5 transition-all shadow-2xs"
+              className="h-8 px-3 rounded-lg border-violet-200 text-violet-600 hover:bg-violet-50/50 text-[12px] font-semibold flex items-center transition-all shadow-2xs shrink-0"
             >
-              <Plus className="size-3.5" />
               New Chat
             </Button>
 
-            {/* Search Icon */}
-            <button className="text-slate-500 hover:text-slate-800 transition-colors">
-              <Search className="size-4.5" />
-            </button>
+            {/* Search Interface */}
+            <div className="relative">
+              {searchOpen ? (
+                <div className="flex items-center gap-1.5 border border-slate-200 rounded-lg px-2 py-1 bg-slate-50 w-[220px]">
+                  <Search className="size-4 text-slate-400 shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Search chats..."
+                    value={historySearchQuery}
+                    onChange={(e) => setHistorySearchQuery(e.target.value)}
+                    className="w-full bg-transparent border-0 p-0 text-xs focus:ring-0 focus:outline-none"
+                    autoFocus
+                    onBlur={() => {
+                      setTimeout(() => setSearchOpen(false), 250);
+                    }}
+                  />
+                </div>
+              ) : (
+                <button
+                  onClick={() => setSearchOpen(true)}
+                  className="text-slate-500 hover:text-slate-800 transition-colors p-1.5 rounded-lg hover:bg-slate-50 flex items-center justify-center"
+                  aria-label="Search conversations"
+                >
+                  <Search className="size-4.5" />
+                </button>
+              )}
 
-            {/* Notification Bell */}
-            <div className="relative cursor-pointer">
-              <Bell className="size-4.5 text-slate-500 hover:text-slate-800 transition-colors" />
-              <span className="absolute -top-0.5 -right-0.5 size-1.5 bg-violet-600 rounded-full" />
-            </div>
+              {/* Search Results Dropdown */}
+              {searchOpen && historySearchQuery.trim() !== "" && (
+                <div className="absolute right-0 mt-1.5 w-[280px] max-h-[260px] overflow-y-auto bg-white border border-slate-150 rounded-xl shadow-lg z-50 p-1.5 space-y-1">
+                  {(() => {
+                    const query = historySearchQuery.toLowerCase();
+                    const results = conversations.filter(c => {
+                      const matchesTitle = c.title.toLowerCase().includes(query);
+                      const matchesContent = c.messages.some(m => m.text.toLowerCase().includes(query));
+                      return matchesTitle || matchesContent;
+                    });
 
-            {/* User Profile Avatar dropdown indicator */}
-            <div className="flex items-center gap-1 cursor-pointer">
-              <div className="size-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 text-[11px] font-bold border border-slate-200">
-                AA
-              </div>
-              <ChevronDown className="size-3 text-slate-400" />
+                    if (results.length > 0) {
+                      return results.map(c => {
+                        const matchingMsg = c.messages.find(m => 
+                          m.text.toLowerCase().includes(query)
+                        );
+                        const snippet = matchingMsg ? matchingMsg.text : "";
+                        return (
+                          <button
+                            key={c.id}
+                            onMouseDown={() => {
+                              setActiveConvId(c.id);
+                              setShowChatView(true);
+                              setHistorySearchQuery("");
+                              setSearchOpen(false);
+                            }}
+                            className="w-full text-left p-2 rounded-lg hover:bg-slate-50 transition-colors flex flex-col gap-0.5"
+                          >
+                            <span className="text-[12px] font-semibold text-slate-800 truncate">
+                              {c.title}
+                            </span>
+                            {snippet && (
+                              <span className="text-[10px] text-slate-400 truncate leading-tight text-left">
+                                {snippet.replace(/[#*`]/g, "")}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      });
+                    } else {
+                      return (
+                        <div className="text-center py-4 text-[11px] text-slate-400">
+                          No matching conversations
+                        </div>
+                      );
+                    }
+                  })()}
+                </div>
+              )}
             </div>
           </div>
         </header>

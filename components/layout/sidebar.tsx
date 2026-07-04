@@ -2,36 +2,69 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Home,
   Search,
   MessageSquare,
   ChevronRight,
   ChevronLeft,
-  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Placeholder conversations — replace with real data later
-const placeholderConversations = [
-  { id: "1", title: "Onboarding flow redesign", time: "2h ago" },
-  { id: "2", title: "Q3 roadmap priorities", time: "Yesterday" },
-  { id: "3", title: "Competitor analysis — Notion", time: "2d ago" },
-  { id: "4", title: "FinTech feature gaps", time: "3d ago" },
-  { id: "5", title: "User interview synthesis", time: "4d ago" },
-  { id: "6", title: "Growth metrics review", time: "5d ago" },
-  { id: "7", title: "PRD for payments module", time: "1w ago" },
-  { id: "8", title: "Discovery sprint plan", time: "1w ago" },
-];
+interface Conversation {
+  id: string;
+  title: string;
+  messages: any[];
+  createdAt: string;
+}
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConvId, setActiveConvId] = useState<string>("");
+
+  const sync = () => {
+    // 1. Sync sidebar collapse preference
+    const collapsedState = localStorage.getItem("sidebar_collapsed_pref");
+    if (collapsedState !== null) {
+      setIsSidebarCollapsed(collapsedState === "true");
+    }
+
+    // 2. Sync conversations list
+    const savedConvs = localStorage.getItem("mycroft_home_conversations");
+    if (savedConvs) {
+      try {
+        const parsed = JSON.parse(savedConvs);
+        if (Array.isArray(parsed)) {
+          // Filter out conversations with no messages, sort newest first
+          const valid = parsed
+            .filter((c: Conversation) => c.messages && c.messages.length > 0)
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          setConversations(valid);
+        }
+      } catch (e) {
+        console.error("Error parsing sidebar conversations:", e);
+      }
+    } else {
+      setConversations([]);
+    }
+
+    // 3. Sync active conversation
+    const savedActiveId = localStorage.getItem("mycroft_home_active_conv_id");
+    setActiveConvId(savedActiveId || "");
+  };
 
   useEffect(() => {
-    const collapsedState = localStorage.getItem("sidebar_collapsed_pref");
-    if (collapsedState !== null) setIsSidebarCollapsed(collapsedState === "true");
+    sync();
+    window.addEventListener("sidebar_toggle", sync);
+    window.addEventListener("mycroft_sync", sync);
+    return () => {
+      window.removeEventListener("sidebar_toggle", sync);
+      window.removeEventListener("mycroft_sync", sync);
+    };
   }, []);
 
   const toggleSidebarCollapse = () => {
@@ -39,6 +72,14 @@ export function Sidebar() {
     setIsSidebarCollapsed(val);
     localStorage.setItem("sidebar_collapsed_pref", String(val));
     window.dispatchEvent(new Event("sidebar_toggle"));
+  };
+
+  const handleSelectConv = (id: string) => {
+    localStorage.setItem("mycroft_home_active_conv_id", id);
+    window.dispatchEvent(new Event("mycroft_sync"));
+    if (pathname !== "/product/home") {
+      router.push("/product/home");
+    }
   };
 
   return (
@@ -70,10 +111,14 @@ export function Sidebar() {
         {/* ── AI Home ── */}
         <Link
           href="/product/home"
+          onClick={() => {
+            localStorage.setItem("mycroft_home_active_conv_id", "");
+            window.dispatchEvent(new Event("mycroft_sync"));
+          }}
           title={isSidebarCollapsed ? "AI Home" : undefined}
           className={cn(
             "flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium transition-all shrink-0",
-            pathname === "/product/home"
+            pathname === "/product/home" && activeConvId === ""
               ? "bg-blue-50 text-blue-600"
               : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
             isSidebarCollapsed && "justify-center px-0"
@@ -90,23 +135,31 @@ export function Sidebar() {
               Conversations
             </p>
             <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5">
-              {placeholderConversations.map((conv) => (
-                <button
-                  key={conv.id}
-                  className="w-full flex items-start gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-slate-50 transition-colors group"
-                >
-                  <MessageSquare className="size-3.5 shrink-0 mt-0.5 text-slate-300 group-hover:text-slate-400" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[12px] font-medium text-slate-600 truncate leading-tight group-hover:text-slate-900">
+              {conversations.map((conv) => {
+                const isActive = activeConvId === conv.id;
+                return (
+                  <button
+                    key={conv.id}
+                    onClick={() => handleSelectConv(conv.id)}
+                    className={cn(
+                      "w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-slate-50 transition-colors group",
+                      isActive
+                        ? "bg-blue-50/50 text-blue-600 font-semibold"
+                        : "text-slate-500 hover:text-slate-900"
+                    )}
+                  >
+                    <MessageSquare className={cn("size-3.5 shrink-0", isActive ? "text-blue-500" : "text-slate-400")} />
+                    <span className="text-[12px] truncate flex-1 leading-tight">
                       {conv.title}
-                    </p>
-                    <p className="flex items-center gap-1 text-[10px] text-slate-400 mt-0.5">
-                      <Clock className="size-2.5" />
-                      {conv.time}
-                    </p>
-                  </div>
-                </button>
-              ))}
+                    </span>
+                  </button>
+                );
+              })}
+              {conversations.length === 0 && (
+                <div className="px-2.5 py-3 text-[11px] text-slate-400 italic">
+                  No conversations yet.
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -162,9 +215,13 @@ export function Sidebar() {
       <nav className="fixed inset-x-3 bottom-3 z-40 flex rounded-2xl border bg-white/90 p-2 shadow-lg backdrop-blur-xl lg:hidden gap-1">
         <Link
           href="/product/home"
+          onClick={() => {
+            localStorage.setItem("mycroft_home_active_conv_id", "");
+            window.dispatchEvent(new Event("mycroft_sync"));
+          }}
           className={cn(
             "flex flex-1 h-10 items-center justify-center rounded-xl text-slate-500",
-            pathname === "/product/home" && "bg-blue-50 text-blue-600"
+            pathname === "/product/home" && activeConvId === "" && "bg-blue-50 text-blue-600"
           )}
           aria-label="AI Home"
         >
