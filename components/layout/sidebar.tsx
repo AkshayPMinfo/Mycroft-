@@ -268,7 +268,7 @@ export function Sidebar() {
                       <div className="relative shrink-0 flex items-center" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => setActiveMenuConvId(isMenuOpen ? "" : conv.id)}
-                          className="text-slate-450 hover:text-slate-700 transition-all p-0.5 rounded hover:bg-slate-200/60 shrink-0"
+                          className="text-slate-400 hover:text-slate-700 transition-all p-0.5 rounded hover:bg-slate-200/60 shrink-0"
                           title="Conversation actions"
                         >
                           <MoreVertical className="size-3.5" />
