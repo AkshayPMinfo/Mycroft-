@@ -34,6 +34,7 @@ import {
   Mic,
   ChevronLeft,
   MoreHorizontal,
+  MoreVertical,
   Pin
 } from "lucide-react";
 
@@ -1340,10 +1341,13 @@ export default function AIHomePage() {
                   <div className="relative shrink-0 flex items-center" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => setActiveMenuConvId(isMenuOpen ? "" : c.id)}
-                      className="opacity-0 group-hover:opacity-100 text-slate-450 hover:text-slate-800 transition-opacity p-1 ml-1 rounded-md hover:bg-slate-100/80"
+                      className={cn(
+                        "text-slate-450 hover:text-slate-850 transition-all p-1 ml-1 rounded-md hover:bg-slate-100/80 shrink-0",
+                        isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                      )}
                       title="Conversation actions"
                     >
-                      <MoreHorizontal className="size-3.5" />
+                      <MoreVertical className="size-3.5" />
                     </button>
 
                     {isMenuOpen && (
@@ -1431,6 +1435,14 @@ export default function AIHomePage() {
           
           {/* Left Controls: Minimal layout displaying only back button when active */}
           <div className="flex items-center gap-3">
+            <button
+              onClick={toggleConvSidebar}
+              className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors flex items-center justify-center border border-slate-200/40"
+              title="Toggle Chat History"
+              aria-label="Toggle chat history"
+            >
+              <HistoryIcon className="size-4.5" />
+            </button>
             {showChatView && (
               <button
                 onClick={() => setShowChatView(false)}
