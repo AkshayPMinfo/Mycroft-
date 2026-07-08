@@ -1341,10 +1341,7 @@ export default function AIHomePage() {
                   <div className="relative shrink-0 flex items-center" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => setActiveMenuConvId(isMenuOpen ? "" : c.id)}
-                      className={cn(
-                        "text-slate-450 hover:text-slate-850 transition-all p-1 ml-1 rounded-md hover:bg-slate-100/80 shrink-0",
-                        isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                      )}
+                      className="text-slate-400 hover:text-slate-700 transition-all p-1 ml-1 rounded-md hover:bg-slate-100/80 shrink-0"
                       title="Conversation actions"
                     >
                       <MoreVertical className="size-3.5" />
