@@ -32,7 +32,9 @@ import {
   Target,
   FileText,
   Mic,
-  ChevronLeft
+  ChevronLeft,
+  MoreHorizontal,
+  Pin
 } from "lucide-react";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -299,6 +301,7 @@ interface Conversation {
   pmStep?: number;
   reasoningPhase?: "Understand" | "Research" | "Reason" | "Prioritize" | "Recommend" | "Document";
   retrievedModels?: string[];
+  isPinned?: boolean;
 }
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
@@ -563,6 +566,11 @@ export default function AIHomePage() {
   const [disclaimerVisible, setDisclaimerVisible] = useState(true);
   const [attachedFiles, setAttachedFiles] = useState<Attachment[]>([]);
 
+  // Conversation management states
+  const [editingConvId, setEditingConvId] = useState<string>("");
+  const [editingTitle, setEditingTitle] = useState<string>("");
+  const [activeMenuConvId, setActiveMenuConvId] = useState<string>("");
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const activeTextareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -606,14 +614,9 @@ export default function AIHomePage() {
 
     setConversations(loadedConvs);
 
-    const savedActiveId = localStorage.getItem("mycroft_home_active_conv_id");
-    if (savedActiveId && loadedConvs.some(c => c.id === savedActiveId)) {
-      setActiveConvId(savedActiveId);
-      setShowChatView(true);
-    } else {
-      setActiveConvId("");
-      setShowChatView(false);
-    }
+    // Always start on clean landing page (New Chat) on load/refresh
+    setActiveConvId("");
+    setShowChatView(false);
 
     const hours = new Date().getHours();
     if (hours >= 17) {
@@ -749,13 +752,48 @@ export default function AIHomePage() {
 
   const handleDeleteChat = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!confirm("Are you sure you want to permanently delete this conversation?")) return;
     const updated = conversations.filter(c => c.id !== id);
     setConversations(updated);
     if (activeConvId === id) {
       setActiveConvId("");
       setShowChatView(false);
     }
+    setActiveMenuConvId("");
   }, [conversations, activeConvId]);
+
+  // Start renaming a conversation
+  const startRename = (id: string, currentTitle: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingConvId(id);
+    setEditingTitle(currentTitle);
+    setActiveMenuConvId("");
+  };
+
+  // Save renamed conversation
+  const handleSaveRename = (id: string) => {
+    if (!editingTitle.trim()) return;
+    setConversations(prev => prev.map(c => 
+      c.id === id ? { ...c, title: editingTitle.trim() } : c
+    ));
+    setEditingConvId("");
+    setEditingTitle("");
+  };
+
+  // Cancel renaming
+  const handleCancelRename = () => {
+    setEditingConvId("");
+    setEditingTitle("");
+  };
+
+  // Pin / Unpin conversation
+  const handleTogglePin = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConversations(prev => prev.map(c => 
+      c.id === id ? { ...c, isPinned: !c.isPinned } : c
+    ));
+    setActiveMenuConvId("");
+  };
 
   const handleAction = useCallback((action: { label: string; stage: string }) => {
     if (!activeConv) return;
@@ -1227,12 +1265,58 @@ export default function AIHomePage() {
         </div>
 
         {/* Sidebar List */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-1">
-          {conversations
-            .filter(c => c.messages && c.messages.length > 0)
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-            .map(c => {
+        <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          {(() => {
+            const validConvs = conversations.filter(c => c.messages && c.messages.length > 0);
+            const pinnedConvs = validConvs
+              .filter(c => c.isPinned)
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            const regularConvs = validConvs
+              .filter(c => !c.isPinned)
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+            const renderChatItem = (c: Conversation) => {
               const isActive = c.id === activeConvId;
+              const isEditing = editingConvId === c.id;
+
+              if (isEditing) {
+                return (
+                  <div
+                    key={c.id}
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-violet-200 bg-violet-50/20"
+                  >
+                    <input
+                      type="text"
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveRename(c.id);
+                        if (e.key === "Escape") handleCancelRename();
+                      }}
+                      className="flex-1 bg-transparent text-[13px] text-slate-900 focus:outline-none py-0.5"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => handleSaveRename(c.id)}
+                      className="p-1 rounded-md text-emerald-600 hover:bg-emerald-50 transition-colors"
+                      title="Save rename"
+                    >
+                      <Check className="size-3.5" />
+                    </button>
+                    <button
+                      onClick={handleCancelRename}
+                      className="p-1 rounded-md text-rose-600 hover:bg-rose-50 transition-colors"
+                      title="Cancel rename"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
+                );
+              }
+
+              const isMenuOpen = activeMenuConvId === c.id;
+
               return (
                 <div
                   key={c.id}
@@ -1245,27 +1329,97 @@ export default function AIHomePage() {
                     "group flex items-center justify-between px-3 py-2 rounded-xl cursor-pointer transition-all relative border border-transparent",
                     isActive
                       ? "bg-violet-50/70 border-violet-100 text-slate-900 font-semibold"
-                      : "hover:bg-slate-50 text-slate-650 hover:text-slate-950"
+                      : "hover:bg-slate-50 text-slate-650 hover:text-slate-955"
                   )}
                 >
                   <span className="text-[13px] truncate flex-1 leading-snug">
                     {c.title}
                   </span>
-                  <button
-                    onClick={(e) => handleDeleteChat(c.id, e)}
-                    className="opacity-0 group-hover:opacity-100 text-slate-450 hover:text-red-500 transition-opacity p-1 ml-2 rounded-md hover:bg-slate-100/80 shrink-0"
-                    title="Delete conversation"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
+
+                  {/* Three dots menu container */}
+                  <div className="relative shrink-0 flex items-center" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => setActiveMenuConvId(isMenuOpen ? "" : c.id)}
+                      className="opacity-0 group-hover:opacity-100 text-slate-450 hover:text-slate-800 transition-opacity p-1 ml-1 rounded-md hover:bg-slate-100/80"
+                      title="Conversation actions"
+                    >
+                      <MoreHorizontal className="size-3.5" />
+                    </button>
+
+                    {isMenuOpen && (
+                      <>
+                        {/* Invisible overlay to close menu */}
+                        <div 
+                          className="fixed inset-0 z-40" 
+                          onClick={() => setActiveMenuConvId("")}
+                        />
+                        {/* Dropdown Card */}
+                        <div className="absolute right-0 top-6 z-50 w-36 bg-white border border-slate-100 rounded-xl shadow-lg py-1 text-left">
+                          <button
+                            onClick={(e) => startRename(c.id, c.title, e)}
+                            className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                          >
+                            <Edit className="size-3 text-slate-400" />
+                            Rename
+                          </button>
+                          <button
+                            onClick={(e) => handleTogglePin(c.id, e)}
+                            className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                          >
+                            <Pin className="size-3 text-slate-400" />
+                            {c.isPinned ? "Unpin" : "Pin"}
+                          </button>
+                          <hr className="border-slate-50 my-1" />
+                          <button
+                            onClick={(e) => handleDeleteChat(c.id, e)}
+                            className="w-full text-left px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50/50 flex items-center gap-2"
+                          >
+                            <Trash2 className="size-3 text-rose-500" />
+                            Delete
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               );
-            })}
-          {conversations.filter(c => c.messages && c.messages.length > 0).length === 0 && (
-            <div className="text-center py-8 text-[12px] text-slate-400 italic">
-              No conversations yet.
-            </div>
-          )}
+            };
+
+            return (
+              <>
+                {/* Pinned Section */}
+                {pinnedConvs.length > 0 && (
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 mb-1 flex items-center gap-1.5">
+                      <Pin className="size-3 text-slate-400 rotate-45" />
+                      <span>Pinned</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      {pinnedConvs.map(renderChatItem)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent Section */}
+                <div className="space-y-1">
+                  {pinnedConvs.length > 0 && regularConvs.length > 0 && (
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 mb-1.5">
+                      <span>Recent</span>
+                    </div>
+                  )}
+                  <div className="space-y-0.5">
+                    {regularConvs.map(renderChatItem)}
+                  </div>
+                </div>
+
+                {validConvs.length === 0 && (
+                  <div className="text-center py-8 text-[12px] text-slate-400 italic">
+                    No conversations yet.
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
 
