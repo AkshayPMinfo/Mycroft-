@@ -79,6 +79,346 @@ function renderInlineMarkdown(text: string): React.ReactNode[] {
   });
 }
 
+// ─── Inline Framework SVG Rendering Components ──────────────────────────────
+interface TextSegment {
+  type: "text" | "kano" | "matrix" | "tree";
+  content: string;
+}
+
+function parseAttributes(attrStr: string): Record<string, string> {
+  const attrs: Record<string, string> = {};
+  const attrRegex = /(\w+)=(['"])([\s\S]*?)\2/gi;
+  let match;
+  while ((match = attrRegex.exec(attrStr)) !== null) {
+    attrs[match[1]] = match[3];
+  }
+  return attrs;
+}
+
+function parseMessageSegments(text: string): TextSegment[] {
+  if (!text) return [];
+  const tagRegex = /(<(?:KanoModelChart|PrioritizationMatrix|OpportunityTree)\s+[\s\S]*?\s*\/>)/gi;
+  const parts = text.split(tagRegex);
+  return parts.map(part => {
+    if (part.startsWith("<KanoModelChart")) {
+      return { type: "kano" as const, content: part };
+    } else if (part.startsWith("<PrioritizationMatrix")) {
+      return { type: "matrix" as const, content: part };
+    } else if (part.startsWith("<OpportunityTree")) {
+      return { type: "tree" as const, content: part };
+    } else {
+      return { type: "text" as const, content: part };
+    }
+  }).filter(seg => seg.content !== "");
+}
+
+function KanoModelChart({
+  title,
+  basic,
+  performance,
+  excitement,
+}: {
+  title: string;
+  basic: string;
+  performance: string;
+  excitement: string;
+}) {
+  const basicList = basic ? basic.split(",").map(s => s.trim()) : [];
+  const performanceList = performance ? performance.split(",").map(s => s.trim()) : [];
+  const excitementList = excitement ? excitement.split(",").map(s => s.trim()) : [];
+
+  return (
+    <div className="my-4 p-5 bg-white border border-slate-100 rounded-2xl shadow-xs">
+      <h4 className="text-sm font-bold text-slate-800 mb-3">{title}</h4>
+      <div className="relative w-full max-w-lg mx-auto bg-slate-50/50 rounded-xl p-2 border border-slate-100">
+        <svg viewBox="0 0 500 350" className="w-full h-auto">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" />
+            </marker>
+          </defs>
+
+          <rect x="50" y="50" width="200" height="125" fill="#f8fafc" opacity="0.5" />
+          <rect x="250" y="50" width="200" height="125" fill="#f8fafc" opacity="0.3" />
+          <rect x="50" y="175" width="200" height="125" fill="#f8fafc" opacity="0.3" />
+          <rect x="250" y="175" width="200" height="125" fill="#f8fafc" opacity="0.5" />
+
+          <line x1="50" y1="175" x2="450" y2="175" stroke="#94a3b8" strokeWidth="1.5" />
+          <line x1="450" y1="175" x2="455" y2="175" stroke="#64748b" strokeWidth="1.5" markerEnd="url(#arrow)" />
+          
+          <line x1="250" y1="300" x2="250" y2="50" stroke="#94a3b8" strokeWidth="1.5" />
+          <line x1="250" y1="50" x2="250" y2="45" stroke="#64748b" strokeWidth="1.5" markerEnd="url(#arrow)" />
+
+          <text x="450" y="195" fontSize="10" fontWeight="600" fill="#475569" textAnchor="end">Fully Implemented</text>
+          <text x="50" y="195" fontSize="10" fontWeight="600" fill="#475569">Absent</text>
+          <text x="260" y="45" fontSize="10" fontWeight="600" fill="#475569">Delighted / Satisfied</text>
+          <text x="260" y="305" fontSize="10" fontWeight="600" fill="#475569">Frustrated / Dissatisfied</text>
+
+          <path d="M 90 170 C 230 165, 300 130, 410 70" fill="none" stroke="#8b5cf6" strokeWidth="2.5" strokeLinecap="round" />
+          <text x="415" y="65" fontSize="9" fontWeight="700" fill="#8b5cf6" textAnchor="start">Excitement (Attractive)</text>
+
+          <line x1="90" y1="270" x2="410" y2="70" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" />
+          <text x="415" y="77" fontSize="9" fontWeight="700" fill="#10b981" textAnchor="start">Performance</text>
+
+          <path d="M 90 280 C 200 220, 270 185, 410 180" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" />
+          <text x="415" y="185" fontSize="9" fontWeight="700" fill="#ef4444" textAnchor="start">Basic (Must-Be)</text>
+
+          <line x1="90" y1="175" x2="410" y2="175" stroke="#94a3b8" strokeWidth="1" strokeDasharray="3,3" />
+
+          {excitementList.map((feat, i) => {
+            const x = 320 + i * 35;
+            const y = 120 - i * 15;
+            return (
+              <g key={`ex-${i}`}>
+                <circle cx={x} cy={y} r="5" fill="#8b5cf6" stroke="#fff" strokeWidth="1.5" />
+                <rect x={x - 4} y={y - 18} width={feat.length * 6 + 8} height="13" rx="3" fill="#8b5cf6" opacity="0.9" />
+                <text x={x} y={y - 9} fontSize="7" fontWeight="bold" fill="#fff" dx="2">{feat}</text>
+              </g>
+            );
+          })}
+
+          {performanceList.map((feat, i) => {
+            const x = 200 + i * 40;
+            const y = 200 - i * 25;
+            return (
+              <g key={`perf-${i}`}>
+                <circle cx={x} cy={y} r="5" fill="#10b981" stroke="#fff" strokeWidth="1.5" />
+                <rect x={x - 4} y={y - 18} width={feat.length * 6 + 8} height="13" rx="3" fill="#10b981" opacity="0.9" />
+                <text x={x} y={y - 9} fontSize="7" fontWeight="bold" fill="#fff" dx="2">{feat}</text>
+              </g>
+            );
+          })}
+
+          {basicList.map((feat, i) => {
+            const x = 160 + i * 50;
+            const y = 230 - i * 12;
+            return (
+              <g key={`bas-${i}`}>
+                <circle cx={x} cy={y} r="5" fill="#ef4444" stroke="#fff" strokeWidth="1.5" />
+                <rect x={x - 4} y={y - 18} width={feat.length * 6 + 8} height="13" rx="3" fill="#ef4444" opacity="0.9" />
+                <text x={x} y={y - 9} fontSize="7" fontWeight="bold" fill="#fff" dx="2">{feat}</text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function PrioritizationMatrix({
+  title,
+  featuresStr,
+}: {
+  title: string;
+  featuresStr: string;
+}) {
+  let features: Array<{ name: string; value: number; effort: number }> = [];
+  try {
+    const normalized = featuresStr.replace(/'/g, '"');
+    features = JSON.parse(normalized);
+  } catch (e) {
+    console.error("Error parsing prioritization matrix features:", e);
+  }
+
+  return (
+    <div className="my-4 p-5 bg-white border border-slate-100 rounded-2xl shadow-xs">
+      <h4 className="text-sm font-bold text-slate-800 mb-3">{title}</h4>
+      <div className="relative w-full max-w-lg mx-auto bg-slate-50/50 rounded-xl p-2 border border-slate-100">
+        <svg viewBox="0 0 500 400" className="w-full h-auto">
+          <rect x="50" y="50" width="200" height="150" fill="#f0fdf4" stroke="#e2e8f0" strokeWidth="0.5" />
+          <text x="60" y="70" fontSize="11" fontWeight="700" fill="#15803d">Quick Wins (High Value, Low Effort)</text>
+
+          <rect x="250" y="50" width="200" height="150" fill="#eff6ff" stroke="#e2e8f0" strokeWidth="0.5" />
+          <text x="260" y="70" fontSize="11" fontWeight="700" fill="#1d4ed8">Major Projects (High Value, High Effort)</text>
+
+          <rect x="50" y="200" width="200" height="150" fill="#fefce8" stroke="#e2e8f0" strokeWidth="0.5" />
+          <text x="60" y="220" fontSize="11" fontWeight="700" fill="#a16207">Fill-Ins (Low Value, Low Effort)</text>
+
+          <rect x="250" y="200" width="200" height="150" fill="#fff5f5" stroke="#e2e8f0" strokeWidth="0.5" />
+          <text x="260" y="220" fontSize="11" fontWeight="700" fill="#b91c1c">Thankless Tasks (Low Value, High Effort)</text>
+
+          <line x1="250" y1="50" x2="250" y2="350" stroke="#cbd5e1" strokeWidth="2" />
+          <line x1="50" y1="200" x2="450" y2="200" stroke="#cbd5e1" strokeWidth="2" />
+
+          <text x="250" y="375" fontSize="11" fontWeight="700" fill="#475569" textAnchor="middle">EFFORT →</text>
+          <text x="25" y="200" fontSize="11" fontWeight="700" fill="#475569" textAnchor="middle" transform="rotate(-90, 25, 200)">VALUE / IMPACT →</text>
+
+          {features.map((feat, i) => {
+            const effortVal = Math.min(Math.max(feat.effort, 0), 10);
+            const x = 50 + effortVal * 40;
+            const valueVal = Math.min(Math.max(feat.value, 0), 10);
+            const y = 350 - valueVal * 30;
+
+            const isHighValue = valueVal > 5;
+            const isLowEffort = effortVal <= 5;
+            let dotColor = "#8b5cf6";
+            if (isHighValue && isLowEffort) dotColor = "#10b981";
+            else if (isHighValue && !isLowEffort) dotColor = "#3b82f6";
+            else if (!isHighValue && isLowEffort) dotColor = "#eab308";
+            else dotColor = "#ef4444";
+
+            return (
+              <g key={`feat-${i}`}>
+                <circle cx={x} cy={y} r="6.5" fill={dotColor} stroke="#fff" strokeWidth="2" />
+                <rect x={x + 8} y={y - 10} width={feat.name.length * 6 + 10} height="15" rx="3" fill="#1e293b" opacity="0.85" />
+                <text x={x + 13} y={y + 1} fontSize="8" fontWeight="bold" fill="#fff">{feat.name}</text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function OpportunityTree({
+  outcome,
+  opportunitiesStr,
+}: {
+  outcome: string;
+  opportunitiesStr: string;
+}) {
+  let opportunities: Array<{ title: string; solutions: string[] }> = [];
+  try {
+    const normalized = opportunitiesStr.replace(/'/g, '"');
+    opportunities = JSON.parse(normalized);
+  } catch (e) {
+    console.error("Error parsing opportunity tree:", e);
+  }
+
+  return (
+    <div className="my-4 p-5 bg-white border border-slate-100 rounded-2xl shadow-xs">
+      <h4 className="text-sm font-bold text-slate-800 mb-3">Opportunity Solution Tree</h4>
+      <div className="relative w-full max-w-xl mx-auto bg-slate-50/50 rounded-xl p-4 border border-slate-100">
+        <svg viewBox="0 0 600 350" className="w-full h-auto">
+          <rect x="200" y="10" width="200" height="40" rx="8" fill="#1e293b" stroke="#0f172a" strokeWidth="1" />
+          <text x="300" y="34" fontSize="10" fontWeight="bold" fill="#fff" textAnchor="middle">OUTCOME</text>
+          <text x="300" y="44" fontSize="8" fill="#e2e8f0" textAnchor="middle">{outcome}</text>
+
+          {opportunities.map((opp, idx) => {
+            const oppWidth = 140;
+            const oppGap = 30;
+            const startX = 300;
+            const startY = 50;
+            const endY = 100;
+            
+            const totalWidth = opportunities.length * oppWidth + (opportunities.length - 1) * oppGap;
+            const leftOffset = (600 - totalWidth) / 2;
+            const x = leftOffset + idx * (oppWidth + oppGap) + oppWidth / 2;
+
+            return (
+              <g key={`line-opp-${idx}`}>
+                <path d={`M ${startX} ${startY} C ${startX} ${startY + 25}, ${x} ${endY - 25}, ${x} ${endY}`} fill="none" stroke="#cbd5e1" strokeWidth="1.5" />
+              </g>
+            );
+          })}
+
+          {opportunities.map((opp, idx) => {
+            const oppWidth = 140;
+            const oppGap = 30;
+            const totalWidth = opportunities.length * oppWidth + (opportunities.length - 1) * oppGap;
+            const leftOffset = (600 - totalWidth) / 2;
+            const x = leftOffset + idx * (oppWidth + oppGap);
+            const y = 100;
+
+            return (
+              <g key={`opp-${idx}`}>
+                <rect x={x} y={y} width={oppWidth} height="40" rx="6" fill="#f3e8ff" stroke="#c084fc" strokeWidth="1" />
+                <text x={x + oppWidth / 2} y={y + 18} fontSize="9" fontWeight="bold" fill="#6b21a8" textAnchor="middle">OPPORTUNITY</text>
+                <text x={x + oppWidth / 2} y={y + 30} fontSize="8" fontWeight="medium" fill="#701a75" textAnchor="middle">{opp.title}</text>
+
+                {opp.solutions.map((sol, sIdx) => {
+                  const solWidth = 100;
+                  const solGap = 10;
+                  const solTotalWidth = opp.solutions.length * solWidth + (opp.solutions.length - 1) * solGap;
+                  const solLeftOffset = x + (oppWidth - solTotalWidth) / 2;
+                  const sX = solLeftOffset + sIdx * (solWidth + solGap) + solWidth / 2;
+                  const sY = 200;
+
+                  return (
+                    <path key={`line-sol-${sIdx}`} d={`M ${x + oppWidth / 2} ${y + 40} C ${x + oppWidth / 2} ${y + 60}, ${sX} ${sY - 20}, ${sX} ${sY}`} fill="none" stroke="#cbd5e1" strokeWidth="1.5" />
+                  );
+                })}
+
+                {opp.solutions.map((sol, sIdx) => {
+                  const solWidth = 100;
+                  const solGap = 10;
+                  const solTotalWidth = opp.solutions.length * solWidth + (opp.solutions.length - 1) * solGap;
+                  const solLeftOffset = x + (oppWidth - solTotalWidth) / 2;
+                  const sX = solLeftOffset + sIdx * (solWidth + solGap);
+                  const sY = 200;
+
+                  return (
+                    <g key={`sol-${sIdx}`}>
+                      <rect x={sX} y={sY} width={solWidth} height="45" rx="6" fill="#ecfdf5" stroke="#34d399" strokeWidth="1" />
+                      <text x={sX + solWidth / 2} y={sY + 16} fontSize="9" fontWeight="bold" fill="#065f46" textAnchor="middle">SOLUTION</text>
+                      <text x={sX + solWidth / 2} y={sY + 28} fontSize="7.5" fill="#047857" textAnchor="middle">{sol}</text>
+                    </g>
+                  );
+                })}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function renderMessageContent(text: string): React.ReactNode {
+  const segments = parseMessageSegments(text);
+  if (segments.length === 0) return null;
+  
+  return (
+    <div className="space-y-3">
+      {segments.map((seg, idx) => {
+        if (seg.type === "text") {
+          return <div key={idx}>{renderMarkdown(seg.content)}</div>;
+        }
+        
+        const attrRegex = /<(\w+)\s+([\s\S]*?)\s*\/>/gi;
+        const match = attrRegex.exec(seg.content);
+        attrRegex.lastIndex = 0;
+        
+        if (!match) return <div key={idx} className="text-red-500">Broken tag: {seg.content}</div>;
+        
+        const attrs = parseAttributes(match[2]);
+        
+        if (seg.type === "kano") {
+          return (
+            <KanoModelChart
+              key={idx}
+              title={attrs.title || "Kano Model"}
+              basic={attrs.basic || ""}
+              performance={attrs.performance || ""}
+              excitement={attrs.excitement || ""}
+            />
+          );
+        } else if (seg.type === "matrix") {
+          return (
+            <PrioritizationMatrix
+              key={idx}
+              title={attrs.title || "Prioritization Matrix"}
+              featuresStr={attrs.features || "[]"}
+            />
+          );
+        } else if (seg.type === "tree") {
+          return (
+            <OpportunityTree
+              key={idx}
+              outcome={attrs.outcome || ""}
+              opportunitiesStr={attrs.opportunities || "[]"}
+            />
+          );
+        }
+        
+        return null;
+      })}
+    </div>
+  );
+}
+
 function renderMarkdown(text: string): React.ReactNode {
   if (!text) return null;
   const lines = text.split("\n");
@@ -1634,7 +1974,7 @@ export default function AIHomePage() {
             </div>
           ) : (
             /* ==================== VIEW 2: ACTIVE CONVERSATION / CHAT INTERFACE ==================== */
-            <div className="flex-1 w-full max-w-4xl mx-auto px-6 pt-6 pb-36">
+            <div className="flex-1 w-full max-w-4xl mx-auto px-6 pt-6 pb-[280px]">
               {activeConv ? (
                 <div className="space-y-6">
                   {activeConv.messages.map((msg, idx) => {
@@ -1699,7 +2039,7 @@ export default function AIHomePage() {
                                   ⚠️ Error:
                                 </span>
                               )}
-                              {renderMarkdown(msg.text)}
+                              {renderMessageContent(msg.text)}
                             </div>
 
                             {/* Timestamp */}
