@@ -123,31 +123,29 @@ function KanoModelChart({
   performance: string;
   excitement: string;
 }) {
+  const [isMaximized, setIsMaximized] = useState(false);
   const basicList = basic ? basic.split(",").map(s => s.trim()) : [];
   const performanceList = performance ? performance.split(",").map(s => s.trim()) : [];
   const excitementList = excitement ? excitement.split(",").map(s => s.trim()) : [];
 
-  return (
-    <div className="my-4 p-5 bg-white border border-slate-100 rounded-2xl shadow-xs">
-      <h4 className="text-sm font-bold text-slate-800 mb-3">{title}</h4>
-      <div className="relative w-full max-w-lg mx-auto bg-slate-50/50 rounded-xl p-2 border border-slate-100">
-        <svg viewBox="0 0 500 350" className="w-full h-auto">
-          <defs>
-            <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" />
-            </marker>
-          </defs>
+  const renderSvg = (isModal: boolean) => (
+    <svg viewBox="0 0 500 350" className={isModal ? "w-full max-h-[70vh] h-auto" : "w-full h-auto"}>
+      <defs>
+        <marker id="arrow-kano" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" />
+        </marker>
+      </defs>
 
-          <rect x="50" y="50" width="200" height="125" fill="#f8fafc" opacity="0.5" />
-          <rect x="250" y="50" width="200" height="125" fill="#f8fafc" opacity="0.3" />
-          <rect x="50" y="175" width="200" height="125" fill="#f8fafc" opacity="0.3" />
-          <rect x="250" y="175" width="200" height="125" fill="#f8fafc" opacity="0.5" />
+      <rect x="50" y="50" width="200" height="125" fill="#f8fafc" opacity="0.5" />
+      <rect x="250" y="50" width="200" height="125" fill="#f8fafc" opacity="0.3" />
+      <rect x="50" y="175" width="200" height="125" fill="#f8fafc" opacity="0.3" />
+      <rect x="250" y="175" width="200" height="125" fill="#f8fafc" opacity="0.5" />
 
-          <line x1="50" y1="175" x2="450" y2="175" stroke="#94a3b8" strokeWidth="1.5" />
-          <line x1="450" y1="175" x2="455" y2="175" stroke="#64748b" strokeWidth="1.5" markerEnd="url(#arrow)" />
-          
-          <line x1="250" y1="300" x2="250" y2="50" stroke="#94a3b8" strokeWidth="1.5" />
-          <line x1="250" y1="50" x2="250" y2="45" stroke="#64748b" strokeWidth="1.5" markerEnd="url(#arrow)" />
+      <line x1="50" y1="175" x2="450" y2="175" stroke="#94a3b8" strokeWidth="1.5" />
+      <line x1="450" y1="175" x2="455" y2="175" stroke="#64748b" strokeWidth="1.5" markerEnd="url(#arrow-kano)" />
+      
+      <line x1="250" y1="300" x2="250" y2="50" stroke="#94a3b8" strokeWidth="1.5" />
+      <line x1="250" y1="50" x2="250" y2="45" stroke="#64748b" strokeWidth="1.5" markerEnd="url(#arrow-kano)" />
 
           <text x="450" y="195" fontSize="10" fontWeight="600" fill="#475569" textAnchor="end">Fully Implemented</text>
           <text x="50" y="195" fontSize="10" fontWeight="600" fill="#475569">Absent</text>
@@ -200,9 +198,49 @@ function KanoModelChart({
               </g>
             );
           })}
-        </svg>
+    </svg>
+  );
+
+  return (
+    <>
+      <div 
+        onClick={() => setIsMaximized(true)}
+        className="my-4 p-5 bg-white border border-slate-100 rounded-2xl shadow-xs cursor-pointer hover:border-slate-200 hover:shadow-sm transition-all relative group"
+        title="Click to view full screen"
+      >
+        <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center justify-between">
+          <span>{title}</span>
+          <span className="text-[10px] text-slate-400 font-normal opacity-0 group-hover:opacity-100 transition-opacity">Click to expand</span>
+        </h4>
+        <div className="relative w-full max-w-lg mx-auto bg-slate-50/50 rounded-xl p-2 border border-slate-100">
+          {renderSvg(false)}
+        </div>
       </div>
-    </div>
+
+      {isMaximized && (
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-6"
+          onClick={() => setIsMaximized(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl border border-slate-100 p-8 w-full max-w-4xl shadow-2xl relative max-h-[90vh] flex flex-col items-center animate-in fade-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => setIsMaximized(false)}
+              className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-800 transition-colors"
+              title="Close Fullscreen View"
+            >
+              <X className="size-6" />
+            </button>
+            <h3 className="text-base font-bold text-slate-900 mb-6">{title}</h3>
+            <div className="w-full flex-1 max-w-3xl flex items-center justify-center overflow-auto bg-slate-50/40 rounded-xl p-4 border border-slate-100">
+              {renderSvg(true)}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -213,6 +251,7 @@ function PrioritizationMatrix({
   title: string;
   featuresStr: string;
 }) {
+  const [isMaximized, setIsMaximized] = useState(false);
   let features: Array<{ name: string; value: number; effort: number }> = [];
   try {
     const normalized = featuresStr.replace(/'/g, '"');
@@ -221,54 +260,91 @@ function PrioritizationMatrix({
     console.error("Error parsing prioritization matrix features:", e);
   }
 
+  const renderSvg = (isModal: boolean) => (
+    <svg viewBox="0 0 500 400" className={isModal ? "w-full max-h-[70vh] h-auto" : "w-full h-auto"}>
+      <rect x="50" y="50" width="200" height="150" fill="#f0fdf4" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="60" y="70" fontSize="11" fontWeight="700" fill="#15803d">Quick Wins (High Value, Low Effort)</text>
+
+      <rect x="250" y="50" width="200" height="150" fill="#eff6ff" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="260" y="70" fontSize="11" fontWeight="700" fill="#1d4ed8">Major Projects (High Value, High Effort)</text>
+
+      <rect x="50" y="200" width="200" height="150" fill="#fefce8" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="60" y="220" fontSize="11" fontWeight="700" fill="#a16207">Fill-Ins (Low Value, Low Effort)</text>
+
+      <rect x="250" y="200" width="200" height="150" fill="#fff5f5" stroke="#e2e8f0" strokeWidth="0.5" />
+      <text x="260" y="220" fontSize="11" fontWeight="700" fill="#b91c1c">Thankless Tasks (Low Value, High Effort)</text>
+
+      <line x1="250" y1="50" x2="250" y2="350" stroke="#cbd5e1" strokeWidth="2" />
+      <line x1="50" y1="200" x2="450" y2="200" stroke="#cbd5e1" strokeWidth="2" />
+
+      <text x="250" y="375" fontSize="11" fontWeight="700" fill="#475569" textAnchor="middle">EFFORT →</text>
+      <text x="25" y="200" fontSize="11" fontWeight="700" fill="#475569" textAnchor="middle" transform="rotate(-90, 25, 200)">VALUE / IMPACT →</text>
+
+      {features.map((feat, i) => {
+        const effortVal = Math.min(Math.max(feat.effort, 0), 10);
+        const x = 50 + effortVal * 40;
+        const valueVal = Math.min(Math.max(feat.value, 0), 10);
+        const y = 350 - valueVal * 30;
+
+        const isHighValue = valueVal > 5;
+        const isLowEffort = effortVal <= 5;
+        let dotColor = "#8b5cf6";
+        if (isHighValue && isLowEffort) dotColor = "#10b981";
+        else if (isHighValue && !isLowEffort) dotColor = "#3b82f6";
+        else if (!isHighValue && isLowEffort) dotColor = "#eab308";
+        else dotColor = "#ef4444";
+
+        return (
+          <g key={`feat-${i}`}>
+            <circle cx={x} cy={y} r="6.5" fill={dotColor} stroke="#fff" strokeWidth="2" />
+            <rect x={x + 8} y={y - 10} width={feat.name.length * 6 + 10} height="15" rx="3" fill="#1e293b" opacity="0.85" />
+            <text x={x + 13} y={y + 1} fontSize="8" fontWeight="bold" fill="#fff">{feat.name}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+
   return (
-    <div className="my-4 p-5 bg-white border border-slate-100 rounded-2xl shadow-xs">
-      <h4 className="text-sm font-bold text-slate-800 mb-3">{title}</h4>
-      <div className="relative w-full max-w-lg mx-auto bg-slate-50/50 rounded-xl p-2 border border-slate-100">
-        <svg viewBox="0 0 500 400" className="w-full h-auto">
-          <rect x="50" y="50" width="200" height="150" fill="#f0fdf4" stroke="#e2e8f0" strokeWidth="0.5" />
-          <text x="60" y="70" fontSize="11" fontWeight="700" fill="#15803d">Quick Wins (High Value, Low Effort)</text>
-
-          <rect x="250" y="50" width="200" height="150" fill="#eff6ff" stroke="#e2e8f0" strokeWidth="0.5" />
-          <text x="260" y="70" fontSize="11" fontWeight="700" fill="#1d4ed8">Major Projects (High Value, High Effort)</text>
-
-          <rect x="50" y="200" width="200" height="150" fill="#fefce8" stroke="#e2e8f0" strokeWidth="0.5" />
-          <text x="60" y="220" fontSize="11" fontWeight="700" fill="#a16207">Fill-Ins (Low Value, Low Effort)</text>
-
-          <rect x="250" y="200" width="200" height="150" fill="#fff5f5" stroke="#e2e8f0" strokeWidth="0.5" />
-          <text x="260" y="220" fontSize="11" fontWeight="700" fill="#b91c1c">Thankless Tasks (Low Value, High Effort)</text>
-
-          <line x1="250" y1="50" x2="250" y2="350" stroke="#cbd5e1" strokeWidth="2" />
-          <line x1="50" y1="200" x2="450" y2="200" stroke="#cbd5e1" strokeWidth="2" />
-
-          <text x="250" y="375" fontSize="11" fontWeight="700" fill="#475569" textAnchor="middle">EFFORT →</text>
-          <text x="25" y="200" fontSize="11" fontWeight="700" fill="#475569" textAnchor="middle" transform="rotate(-90, 25, 200)">VALUE / IMPACT →</text>
-
-          {features.map((feat, i) => {
-            const effortVal = Math.min(Math.max(feat.effort, 0), 10);
-            const x = 50 + effortVal * 40;
-            const valueVal = Math.min(Math.max(feat.value, 0), 10);
-            const y = 350 - valueVal * 30;
-
-            const isHighValue = valueVal > 5;
-            const isLowEffort = effortVal <= 5;
-            let dotColor = "#8b5cf6";
-            if (isHighValue && isLowEffort) dotColor = "#10b981";
-            else if (isHighValue && !isLowEffort) dotColor = "#3b82f6";
-            else if (!isHighValue && isLowEffort) dotColor = "#eab308";
-            else dotColor = "#ef4444";
-
-            return (
-              <g key={`feat-${i}`}>
-                <circle cx={x} cy={y} r="6.5" fill={dotColor} stroke="#fff" strokeWidth="2" />
-                <rect x={x + 8} y={y - 10} width={feat.name.length * 6 + 10} height="15" rx="3" fill="#1e293b" opacity="0.85" />
-                <text x={x + 13} y={y + 1} fontSize="8" fontWeight="bold" fill="#fff">{feat.name}</text>
-              </g>
-            );
-          })}
-        </svg>
+    <>
+      <div 
+        onClick={() => setIsMaximized(true)}
+        className="my-4 p-5 bg-white border border-slate-100 rounded-2xl shadow-xs cursor-pointer hover:border-slate-200 hover:shadow-sm transition-all relative group"
+        title="Click to view full screen"
+      >
+        <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center justify-between">
+          <span>{title}</span>
+          <span className="text-[10px] text-slate-400 font-normal opacity-0 group-hover:opacity-100 transition-opacity">Click to expand</span>
+        </h4>
+        <div className="relative w-full max-w-lg mx-auto bg-slate-50/50 rounded-xl p-2 border border-slate-100">
+          {renderSvg(false)}
+        </div>
       </div>
-    </div>
+
+      {isMaximized && (
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-6"
+          onClick={() => setIsMaximized(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl border border-slate-100 p-8 w-full max-w-4xl shadow-2xl relative max-h-[90vh] flex flex-col items-center animate-in fade-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => setIsMaximized(false)}
+              className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-800 transition-colors"
+              title="Close Fullscreen View"
+            >
+              <X className="size-6" />
+            </button>
+            <h3 className="text-base font-bold text-slate-900 mb-6">{title}</h3>
+            <div className="w-full flex-1 max-w-3xl flex items-center justify-center overflow-auto bg-slate-50/40 rounded-xl p-4 border border-slate-100">
+              {renderSvg(true)}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -279,6 +355,7 @@ function OpportunityTree({
   outcome: string;
   opportunitiesStr: string;
 }) {
+  const [isMaximized, setIsMaximized] = useState(false);
   let opportunities: Array<{ title: string; solutions: string[] }> = [];
   try {
     const normalized = opportunitiesStr.replace(/'/g, '"');
@@ -287,82 +364,119 @@ function OpportunityTree({
     console.error("Error parsing opportunity tree:", e);
   }
 
+  const renderSvg = (isModal: boolean) => (
+    <svg viewBox="0 0 600 350" className={isModal ? "w-full max-h-[70vh] h-auto" : "w-full h-auto"}>
+      <rect x="200" y="10" width="200" height="40" rx="8" fill="#1e293b" stroke="#0f172a" strokeWidth="1" />
+      <text x="300" y="34" fontSize="10" fontWeight="bold" fill="#fff" textAnchor="middle">OUTCOME</text>
+      <text x="300" y="44" fontSize="8" fill="#e2e8f0" textAnchor="middle">{outcome}</text>
+
+      {opportunities.map((opp, idx) => {
+        const oppWidth = 140;
+        const oppGap = 30;
+        const startX = 300;
+        const startY = 50;
+        const endY = 100;
+        
+        const totalWidth = opportunities.length * oppWidth + (opportunities.length - 1) * oppGap;
+        const leftOffset = (600 - totalWidth) / 2;
+        const x = leftOffset + idx * (oppWidth + oppGap) + oppWidth / 2;
+
+        return (
+          <g key={`line-opp-${idx}`}>
+            <path d={`M ${startX} ${startY} C ${startX} ${startY + 25}, ${x} ${endY - 25}, ${x} ${endY}`} fill="none" stroke="#cbd5e1" strokeWidth="1.5" />
+          </g>
+        );
+      })}
+
+      {opportunities.map((opp, idx) => {
+        const oppWidth = 140;
+        const oppGap = 30;
+        const totalWidth = opportunities.length * oppWidth + (opportunities.length - 1) * oppGap;
+        const leftOffset = (600 - totalWidth) / 2;
+        const x = leftOffset + idx * (oppWidth + oppGap);
+        const y = 100;
+
+        return (
+          <g key={`opp-${idx}`}>
+            <rect x={x} y={y} width={oppWidth} height="40" rx="6" fill="#f3e8ff" stroke="#c084fc" strokeWidth="1" />
+            <text x={x + oppWidth / 2} y={y + 18} fontSize="9" fontWeight="bold" fill="#6b21a8" textAnchor="middle">OPPORTUNITY</text>
+            <text x={x + oppWidth / 2} y={y + 30} fontSize="8" fontWeight="medium" fill="#701a75" textAnchor="middle">{opp.title}</text>
+
+            {opp.solutions.map((sol, sIdx) => {
+              const solWidth = 100;
+              const solGap = 10;
+              const solTotalWidth = opp.solutions.length * solWidth + (opp.solutions.length - 1) * solGap;
+              const solLeftOffset = x + (oppWidth - solTotalWidth) / 2;
+              const sX = solLeftOffset + sIdx * (solWidth + solGap) + solWidth / 2;
+              const sY = 200;
+
+              return (
+                <path key={`line-sol-${sIdx}`} d={`M ${x + oppWidth / 2} ${y + 40} C ${x + oppWidth / 2} ${y + 60}, ${sX} ${sY - 20}, ${sX} ${sY}`} fill="none" stroke="#cbd5e1" strokeWidth="1.5" />
+              );
+            })}
+
+            {opp.solutions.map((sol, sIdx) => {
+              const solWidth = 100;
+              const solGap = 10;
+              const solTotalWidth = opp.solutions.length * solWidth + (opp.solutions.length - 1) * solGap;
+              const solLeftOffset = x + (oppWidth - solTotalWidth) / 2;
+              const sX = solLeftOffset + sIdx * (solWidth + solGap);
+              const sY = 200;
+
+              return (
+                <g key={`sol-${sIdx}`}>
+                  <rect x={sX} y={sY} width={solWidth} height="45" rx="6" fill="#ecfdf5" stroke="#34d399" strokeWidth="1" />
+                  <text x={sX + solWidth / 2} y={sY + 16} fontSize="9" fontWeight="bold" fill="#065f46" textAnchor="middle">SOLUTION</text>
+                  <text x={sX + solWidth / 2} y={sY + 28} fontSize="7.5" fill="#047857" textAnchor="middle">{sol}</text>
+                </g>
+              );
+            })}
+          </g>
+        );
+      })}
+    </svg>
+  );
+
   return (
-    <div className="my-4 p-5 bg-white border border-slate-100 rounded-2xl shadow-xs">
-      <h4 className="text-sm font-bold text-slate-800 mb-3">Opportunity Solution Tree</h4>
-      <div className="relative w-full max-w-xl mx-auto bg-slate-50/50 rounded-xl p-4 border border-slate-100">
-        <svg viewBox="0 0 600 350" className="w-full h-auto">
-          <rect x="200" y="10" width="200" height="40" rx="8" fill="#1e293b" stroke="#0f172a" strokeWidth="1" />
-          <text x="300" y="34" fontSize="10" fontWeight="bold" fill="#fff" textAnchor="middle">OUTCOME</text>
-          <text x="300" y="44" fontSize="8" fill="#e2e8f0" textAnchor="middle">{outcome}</text>
-
-          {opportunities.map((opp, idx) => {
-            const oppWidth = 140;
-            const oppGap = 30;
-            const startX = 300;
-            const startY = 50;
-            const endY = 100;
-            
-            const totalWidth = opportunities.length * oppWidth + (opportunities.length - 1) * oppGap;
-            const leftOffset = (600 - totalWidth) / 2;
-            const x = leftOffset + idx * (oppWidth + oppGap) + oppWidth / 2;
-
-            return (
-              <g key={`line-opp-${idx}`}>
-                <path d={`M ${startX} ${startY} C ${startX} ${startY + 25}, ${x} ${endY - 25}, ${x} ${endY}`} fill="none" stroke="#cbd5e1" strokeWidth="1.5" />
-              </g>
-            );
-          })}
-
-          {opportunities.map((opp, idx) => {
-            const oppWidth = 140;
-            const oppGap = 30;
-            const totalWidth = opportunities.length * oppWidth + (opportunities.length - 1) * oppGap;
-            const leftOffset = (600 - totalWidth) / 2;
-            const x = leftOffset + idx * (oppWidth + oppGap);
-            const y = 100;
-
-            return (
-              <g key={`opp-${idx}`}>
-                <rect x={x} y={y} width={oppWidth} height="40" rx="6" fill="#f3e8ff" stroke="#c084fc" strokeWidth="1" />
-                <text x={x + oppWidth / 2} y={y + 18} fontSize="9" fontWeight="bold" fill="#6b21a8" textAnchor="middle">OPPORTUNITY</text>
-                <text x={x + oppWidth / 2} y={y + 30} fontSize="8" fontWeight="medium" fill="#701a75" textAnchor="middle">{opp.title}</text>
-
-                {opp.solutions.map((sol, sIdx) => {
-                  const solWidth = 100;
-                  const solGap = 10;
-                  const solTotalWidth = opp.solutions.length * solWidth + (opp.solutions.length - 1) * solGap;
-                  const solLeftOffset = x + (oppWidth - solTotalWidth) / 2;
-                  const sX = solLeftOffset + sIdx * (solWidth + solGap) + solWidth / 2;
-                  const sY = 200;
-
-                  return (
-                    <path key={`line-sol-${sIdx}`} d={`M ${x + oppWidth / 2} ${y + 40} C ${x + oppWidth / 2} ${y + 60}, ${sX} ${sY - 20}, ${sX} ${sY}`} fill="none" stroke="#cbd5e1" strokeWidth="1.5" />
-                  );
-                })}
-
-                {opp.solutions.map((sol, sIdx) => {
-                  const solWidth = 100;
-                  const solGap = 10;
-                  const solTotalWidth = opp.solutions.length * solWidth + (opp.solutions.length - 1) * solGap;
-                  const solLeftOffset = x + (oppWidth - solTotalWidth) / 2;
-                  const sX = solLeftOffset + sIdx * (solWidth + solGap);
-                  const sY = 200;
-
-                  return (
-                    <g key={`sol-${sIdx}`}>
-                      <rect x={sX} y={sY} width={solWidth} height="45" rx="6" fill="#ecfdf5" stroke="#34d399" strokeWidth="1" />
-                      <text x={sX + solWidth / 2} y={sY + 16} fontSize="9" fontWeight="bold" fill="#065f46" textAnchor="middle">SOLUTION</text>
-                      <text x={sX + solWidth / 2} y={sY + 28} fontSize="7.5" fill="#047857" textAnchor="middle">{sol}</text>
-                    </g>
-                  );
-                })}
-              </g>
-            );
-          })}
-        </svg>
+    <>
+      <div 
+        onClick={() => setIsMaximized(true)}
+        className="my-4 p-5 bg-white border border-slate-100 rounded-2xl shadow-xs cursor-pointer hover:border-slate-200 hover:shadow-sm transition-all relative group"
+        title="Click to view full screen"
+      >
+        <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center justify-between">
+          <span>Opportunity Solution Tree</span>
+          <span className="text-[10px] text-slate-400 font-normal opacity-0 group-hover:opacity-100 transition-opacity">Click to expand</span>
+        </h4>
+        <div className="relative w-full max-w-xl mx-auto bg-slate-50/50 rounded-xl p-4 border border-slate-100">
+          {renderSvg(false)}
+        </div>
       </div>
-    </div>
+
+      {isMaximized && (
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-6"
+          onClick={() => setIsMaximized(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl border border-slate-100 p-8 w-full max-w-4xl shadow-2xl relative max-h-[90vh] flex flex-col items-center animate-in fade-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => setIsMaximized(false)}
+              className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-800 transition-colors"
+              title="Close Fullscreen View"
+            >
+              <X className="size-6" />
+            </button>
+            <h3 className="text-base font-bold text-slate-900 mb-6">Opportunity Solution Tree</h3>
+            <div className="w-full flex-1 max-w-3xl flex items-center justify-center overflow-auto bg-slate-50/40 rounded-xl p-4 border border-slate-100">
+              {renderSvg(true)}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
